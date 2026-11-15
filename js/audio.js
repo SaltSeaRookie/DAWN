@@ -126,7 +126,7 @@ function instrumentFor(prog) {
   // [波形, 起音, 衰減到的比例, 衰減時間, 釋音, 濾波, 音量, 選項]
   const f = prog >> 3;
   if (prog === 47) return { kind: 'timpani' };
-  if (prog >= 120) return { kind: 'noise', a: 0.15, r: 0.4, vol: 0.25, filt: 900 };
+  if (prog >= 120) return { kind: 'noise', a: 0.15, d: 0.3, sus: 0.8, r: 0.4, vol: 0.25, filt: 900 };
   if (prog >= 96 && prog <= 103) return { wave: 'sine', wave2: 'triangle', det: 12, a: 0.25, sus: 0.6, d: 1.5, r: 1.2, filt: 3000, vol: 0.5 };
   switch (f) {
     case 0: return { wave: 'triangle', wave2: 'sine', det: 1200, a: 0.005, sus: 0.0, d: 1.6, r: 0.25, filt: 4000, vol: 0.9 };
@@ -147,11 +147,23 @@ function instrumentFor(prog) {
 
 const Music = {
   song: null, playing: false, timer: null, cursor: 0, base: 0, chans: [], voices: [],
+  songs: {}, current: 'login',
   load() {
-    if (this.song || !window.THEME_MIDI_B64) return;
-    const bin = atob(window.THEME_MIDI_B64), u = new Uint8Array(bin.length);
-    for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i);
-    try { this.song = parseMidi(u); } catch (e) { console.warn('MIDI 解析失敗', e); }
+    if (!this.songs.field && window.THEME_MIDI_B64) {
+      const bin = atob(window.THEME_MIDI_B64), u = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i);
+      try { this.songs.field = parseMidi(u); } catch (e) { console.warn('MIDI 解析失敗', e); }
+    }
+    if (!this.songs.login) this.songs.login = composeLoginTheme();
+    this.song = this.songs[this.current] || this.songs.login;
+  },
+  // 切換曲目（login＝登入曲，field＝遊戲中）
+  play(name) {
+    if (this.current === name && this.playing) return;
+    this.current = name;
+    if (!Snd.ctx || !Snd.musicOn) return;
+    if (this.playing) this.stop();
+    setTimeout(() => { if (Snd.musicOn && this.current === name) this.start(); }, this.out ? 400 : 0);
   },
   setupChannels() {
     const c = Snd.ctx;
@@ -166,6 +178,7 @@ const Music = {
   start() {
     if (!Snd.ctx) return;
     this.load(); if (!this.song || this.playing) return;
+    this.song = this.songs[this.current] || this.song;
     this.out = Snd.ctx.createGain(); this.out.gain.value = 1; this.out.connect(Snd.musicBus);
     this.setupChannels();
     this.playing = true; this.cursor = 0; this.base = Snd.ctx.currentTime + 0.15;
@@ -343,6 +356,61 @@ SFX.lib = {
   fire(c, t, v) { const o = SFX.out(c, v); SFX.noise(c, o, t, 'lowpass', 400, 2500, 0.8, 0.6, 0.15, 0.7); },
   boom(c, t, v) { const o = SFX.out(c, v); SFX.tone(c, o, t, 'sine', 120, 35, 0.8, 0.005, 0.5); SFX.noise(c, o, t, 'lowpass', 1800, 150, 0.8, 0.7, 0.005, 0.6); },
   bark(c, t, v) { const o = SFX.out(c, v * 0.5); for (const d of [0, 0.22]) { SFX.tone(c, o, t + d, 'sawtooth', 520, 300, 0.3, 0.005, 0.09); SFX.noise(c, o, t + d, 'bandpass', 1200, 800, 3, 0.2, 0.005, 0.08); } },
+  cast(c, t, v) { const o = SFX.out(c, v * 0.5); SFX.tone(c, o, t, 'sine', 500, 1400, 0.2, 0.02, 0.25); SFX.noise(c, o, t, 'bandpass', 2000, 5000, 4, 0.1, 0.02, 0.25); },
+  thunder(c, t, v) { const o = SFX.out(c, v); SFX.noise(c, o, t, 'highpass', 3000, 800, 0.5, 0.7, 0.002, 0.15); SFX.noise(c, o, t + 0.05, 'lowpass', 1500, 80, 0.7, 0.8, 0.01, 1.2); SFX.tone(c, o, t, 'sawtooth', 90, 40, 0.3, 0.01, 0.8); },
   error(c, t, v) { const o = SFX.out(c, v * 0.4); SFX.tone(c, o, t, 'square', 180, 160, 0.15, 0.005, 0.15); },
 };
 Snd.init();
+
+// ---------- 原創登入曲（D 小調，慢板）----------
+function composeLoginTheme() {
+  const bpm = 70, beat = 60 / bpm, bar = beat * 4;
+  const ev = [];
+  const prog = (ch, a) => ev.push({ type: 'prog', ch, a, t: 0 });
+  const cc = (ch, a, b) => ev.push({ type: 'cc', ch, a, b, t: 0 });
+  prog(0, 24); prog(1, 48); prog(2, 73); prog(3, 32); prog(4, 91); prog(5, 47);
+  cc(0, 7, 92); cc(1, 7, 70); cc(2, 7, 100); cc(3, 7, 95); cc(4, 7, 60); cc(5, 7, 80);
+  cc(0, 10, 44); cc(1, 10, 84); cc(2, 10, 64); cc(4, 10, 40);
+  const note = (ch, n, start, dur, v) => ev.push({ type: 'note', ch, n, v, t: start, end: start + dur });
+  const CH = {
+    Dm: [50, 53, 57], Bb: [46, 50, 53], F: [53, 57, 60], C: [48, 52, 55], Gm: [55, 58, 62], A: [57, 61, 64],
+  };
+  const chords = ['Dm', 'Dm', 'Dm', 'Bb', 'F', 'C', 'Dm', 'Gm', 'A', 'A', 'Dm', 'Bb', 'F', 'C', 'Gm', 'A', 'Dm', 'Dm'];
+  const melody = [
+    null, null,
+    [[69, 0, 1.5], [67, 1.5, 0.5], [65, 2, 1], [64, 3, 1]],
+    [[62, 0, 2], [65, 2, 1], [70, 3, 1]],
+    [[69, 0, 1.5], [72, 1.5, 0.5], [69, 2, 1], [67, 3, 1]],
+    [[64, 0, 3], [67, 3, 1]],
+    [[65, 0, 1], [69, 1, 1], [74, 2, 1.5], [72, 3.5, 0.5]],
+    [[70, 0, 1.5], [69, 1.5, 0.5], [67, 2, 2]],
+    [[64, 0, 1], [69, 1, 1], [73, 2, 1], [76, 3, 1]],
+    [[74, 0, 1], [73, 1, 1], [69, 2, 2]],
+    [[74, 0, 1.5], [72, 1.5, 0.5], [69, 2, 1], [65, 3, 1]],
+    [[70, 0, 2], [69, 2, 1], [67, 3, 1]],
+    [[65, 0, 1.5], [67, 1.5, 0.5], [69, 2, 2]],
+    [[67, 0, 1], [64, 1, 1], [60, 2, 2]],
+    [[62, 0, 1], [65, 1, 1], [70, 2, 1.5], [69, 3.5, 0.5]],
+    [[67, 0, 1], [64, 1, 1], [61, 2, 1], [64, 3, 1]],
+    [[62, 0, 4]],
+    null,
+  ];
+  chords.forEach((name, b) => {
+    const t0 = b * bar, [c0, c1, c2] = CH[name];
+    // 撥弦琶音
+    const arp = [c0, c1, c2, c0 + 12, c2, c1, c2, c0 + 12];
+    arp.forEach((n, k) => note(0, n, t0 + k * beat / 2, beat * 0.9, k === 0 ? 78 : 58 + (k % 2) * 6));
+    // 弦樂鋪底
+    for (const n of [c0, c1, c2]) note(1, n + 12, t0, bar * 0.98, 56);
+    // 低音
+    note(3, c0 - 12, t0, beat * 2.8, 82); note(3, c0 - 12 + 7, t0 + beat * 3, beat * 0.9, 64);
+    // 合唱墊音（每兩小節）
+    if (b % 2 === 0) note(4, c0 + 24, t0, bar * 2, 40);
+    // 定音鼓在樂句開頭
+    if (b % 4 === 2) note(5, c0 - 12, t0, beat, 90);
+    const mel = melody[b];
+    if (mel) for (const [n, s, d] of mel) note(2, n, t0 + s * beat, d * beat * 0.95, 88);
+  });
+  ev.sort((a, b) => a.t - b.t || (a.type === 'note' ? 1 : -1));
+  return { events: ev, duration: chords.length * bar };
+}
