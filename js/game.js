@@ -735,6 +735,12 @@ function frame(ts) {
     updateSpawners(dt);
     updateFx(dt);
     if (G.autoHunt && !p.action && !p.dead) { G.autoT = (G.autoT || 0) - dt; if (G.autoT <= 0) { G.autoT = 0.5; autoNext(); } }
+    // 自動狩獵時體力過低自動喝水
+    if (G.autoHunt && !p.dead && p.hp < p.maxHp * 0.4 && (G.potT || 0) < G.t) {
+      G.potT = G.t + 1;
+      const pot = p.inv.find((i) => i.id === 'orange_potion' && p.maxHp - p.hp >= 60) || p.inv.find((i) => i.id === 'red_potion') || p.inv.find((i) => i.id === 'orange_potion');
+      if (pot) useItem(pot);
+    }
     const zn = G.world.zoneName(p.x, p.y);
     if (zn !== zoneShown) { zoneShown = zn; UI.zone(zn, inSafe(p)); }
     saveT += dt; if (saveT > 30) { saveT = 0; saveGame(true); }
