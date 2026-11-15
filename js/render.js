@@ -1,7 +1,7 @@
 'use strict';
 // ===== 繪製 =====
 let darkCanvas = null, darkCtx = null, vignette = null, lowCanvas = null, lowCtx = null, mainCtx = null;
-const Settings = { pixel: true, grade: true };
+const Settings = { pixel: true, grade: true, autoPickup: true };
 try { Object.assign(Settings, JSON.parse(localStorage.getItem('dawnlands_settings') || '{}')); } catch (e) { /* */ }
 function saveSettings() { try { localStorage.setItem('dawnlands_settings', JSON.stringify(Settings)); } catch (e) { /* */ } }
 
@@ -208,7 +208,7 @@ function render() {
   }
   ctx.globalAlpha = 1;
   if (vignette) ctx.drawImage(vignette, 0, 0, VW, viewH + 30);
-  if (G.targeting) { ctx.font = 'bold 14px sans-serif'; outlineText('選擇「' + SPELLS[G.targeting].name + '」的目標', VW / 2, 70, '#ffe08a'); }
+  if (G.targeting) { ctx.font = 'bold 14px sans-serif'; outlineText(G.targeting === 'tame' ? '選擇要馴服的野狼' : '選擇「' + SPELLS[G.targeting].name + '」的目標', VW / 2, 70, '#ffe08a'); }
 }
 
 function drawProjectile(pr, S) {
@@ -221,6 +221,7 @@ function drawProjectile(pr, S) {
     ctx.fillStyle = '#ccc'; ctx.beginPath(); ctx.moveTo(8, 0); ctx.lineTo(4, -2.5); ctx.lineTo(4, 2.5); ctx.fill();
     ctx.restore();
   } else {
+    if (pr.kind === 'feather') { ctx.save(); ctx.translate(sx, sy - pr.z); ctx.rotate(sa); ctx.fillStyle = '#d8c8e8'; ctx.beginPath(); ctx.ellipse(0, 0, 7, 2, 0, 0, 7); ctx.fill(); ctx.restore(); return; }
     const col = { fire: ['#fff6c0', '#ff9a20', 'rgba(255,60,0,0)', 16], fireball: ['#fff6c0', '#ff7a10', 'rgba(255,40,0,0)', 18], magic: ['#ffffff', '#fff2a0', 'rgba(255,230,120,0)', 10], ice: ['#ffffff', '#a8e8ff', 'rgba(120,200,255,0)', 11], dark: ['#e0c8ff', '#8a4aff', 'rgba(80,20,160,0)', 12] }[pr.kind];
     const gr = ctx.createRadialGradient(sx, sy - pr.z, 1, sx, sy - pr.z, col[3]);
     gr.addColorStop(0, col[0]); gr.addColorStop(0.4, col[1]); gr.addColorStop(1, col[2]);
@@ -316,13 +317,15 @@ function drawEntity(e, S, labels) {
     if (show && !e.open && !e.broken) labels.push(() => { ctx.font = 'bold 13px sans-serif'; outlineText(e.name, sx, top - 8, '#ffe0a0'); hpBar(sx, top - 4, 70, e.hp / e.maxHp, '#d06a20'); });
     return;
   }
-  if (e.kind === 'monster') {
+  if (e.companion && !e.def) return drawCompanionEntity(e, sx, sy, labels);
+  if (e.def) {
     const d = e.def;
     const fade = e.dead ? clamp(1 - (e.deadT - 1.5) / 1.5, 0, 1) : 1;
     ctx.globalAlpha = fade;
     const o = { dir: e.dir, moving: e.moving, walk: e.walk, t: G.t + e.id, atk: e.atkAnim, color: d.color, scale: e.scale };
     if (e.dead) { ctx.save(); ctx.translate(sx, sy); ctx.scale(1, 0.55); ctx.rotate(Math.PI / 2 * 0.9); ctx.translate(-sx, -sy); }
     if (e.hurtT > 0 && !e.dead) ctx.filter = 'brightness(1.8)';
+    else if (e.companion === 'charm') ctx.filter = 'saturate(1.3) drop-shadow(0 0 3px #ff70c8)';
     else if (e.slowT > 0) ctx.filter = 'hue-rotate(160deg) saturate(1.5)';
     const H = (opts, h, w = 14) => { drawShadow(ctx, sx, sy, 11, 4); drawHumanoid(ctx, sx, sy, Object.assign(o, opts)); top = sy - h; bb = [sx - w, sy - h + 2, sx + w, sy + 4]; };
     switch (d.sprite) {
@@ -352,12 +355,19 @@ function drawEntity(e, S, labels) {
       const targeted = p.action && p.action.target === e;
       const hovered = G.hover && G.hover.e === e;
       labels.push(() => {
-        if (targeted || hovered || e.boss) {
-          ctx.font = (e.boss ? 'bold 14px' : '12px') + ' "Microsoft JhengHei", "PingFang TC", sans-serif';
-          const col = e.level > p.level + 4 ? '#ff7060' : e.level < p.level - 4 ? '#a0a0a0' : '#ffffff';
-          outlineText(e.name + (hovered ? ' Lv.' + e.level : ''), sx, top - 8, col);
+        if (e.companion === 'charm') {
+          ctx.font = '12px "Microsoft JhengHei", "PingFang TC", sans-serif';
+          outlineText(e.name, sx, top - 8, '#ff9ad8');
+          ctx.font = 'bold 15px sans-serif'; outlineText('♥', sx, top - 22 + Math.sin(G.t * 4) * 2, '#ff6ac0');
+          hpBar(sx, top - 4, 34, e.hp / e.maxHp, '#40c060');
+        } else {
+          if (targeted || hovered || e.boss) {
+            ctx.font = (e.boss ? 'bold 14px' : '12px') + ' "Microsoft JhengHei", "PingFang TC", sans-serif';
+            const col = e.level > p.level + 4 ? '#ff7060' : e.level < p.level - 4 ? '#a0a0a0' : '#ffffff';
+            outlineText(e.name + (hovered ? ' Lv.' + e.level : ''), sx, top - 8, col);
+          }
+          if (e.hp < e.maxHp || targeted) hpBar(sx, top - 4, e.boss ? 70 : 34, e.hp / e.maxHp, '#d02a20');
         }
-        if (e.hp < e.maxHp || targeted) hpBar(sx, top - 4, e.boss ? 70 : 34, e.hp / e.maxHp, '#d02a20');
         if (e.say && e.sayT > 0) bubble(e.say, sx, top - 22);
       });
     }
@@ -503,7 +513,7 @@ function drawMinimap(mc) {
     if (a.dead || a.kind === 'villager' || a.kind === 'dog' || a.struct) continue;
     const [x, y] = P(a.x, a.y);
     if (x < 0 || y < 0 || x > w || y > h) continue;
-    g.fillStyle = a.boss ? '#ff40ff' : a.kind === 'monster' ? '#ff3a2a' : a.kind === 'pker' ? '#ff0000' : a.kind === 'ally' ? '#60ff80' : a.faction === 'castle' ? '#ff9a40' : '#80b0ff';
+    g.fillStyle = a.companion ? '#80ffb0' : a.boss ? '#ff40ff' : a.kind === 'monster' ? '#ff3a2a' : a.kind === 'pker' ? '#ff0000' : a.kind === 'ally' ? '#60ff80' : a.faction === 'castle' ? '#ff9a40' : '#80b0ff';
     g.fillRect(x - 1.5, y - 1.5, a.boss ? 5 : 3, a.boss ? 5 : 3);
   }
   for (const n of G.map.npcs) { const [x, y] = P(n.x, n.y); g.fillStyle = '#ffd040'; g.fillRect(x - 1.5, y - 1.5, 3, 3); }
@@ -580,4 +590,38 @@ function drawWorldMap(cv) {
   g.beginPath(); g.moveTo(0, -24); g.lineTo(5, 0); g.lineTo(0, 24); g.lineTo(-5, 0); g.closePath(); g.fill();
   g.font = 'bold 11px serif'; g.fillText('北', 0, -30);
   g.restore();
+}
+
+// 召喚獸與寵物
+function drawCompanionEntity(e, sx, sy, labels) {
+  const fade = e.dead ? clamp(1 - e.deadT / 0.8, 0, 1) : 1;
+  ctx.save(); ctx.globalAlpha = fade;
+  if (e.hurtT > 0) ctx.filter = 'brightness(1.7)';
+  const o = { dir: e.dir, moving: e.moving, walk: e.walk, t: G.t + e.id, atk: e.atkAnim, color: e.look ? e.look.color : null, scale: 1 };
+  let top = sy - 40, bb = [sx - 18, sy - 36, sx + 18, sy + 4];
+  switch (e.sprite) {
+    case 'spiritwolf':
+      ctx.globalAlpha = fade * 0.8; ctx.filter = 'drop-shadow(0 0 6px #7ac0ff)';
+      drawShadow(ctx, sx, sy, 16, 6, 0.2); drawWolf(ctx, sx, sy, Object.assign(o, { color: '#a8d0ff', eye: '#ffffff', scale: 1.05 })); top = sy - 36; bb = [sx - 24, sy - 34, sx + 24, sy + 4]; break;
+    case 'sgolem':
+      ctx.filter = 'drop-shadow(0 0 4px #7ad0ff)';
+      drawShadow(ctx, sx, sy, 22, 8); drawGolem(ctx, sx, sy, o); top = sy - 66; bb = [sx - 24, sy - 62, sx + 24, sy + 4]; break;
+    case 'fireelem': { drawShadow(ctx, sx, sy, 14, 5, 0.25); const h = drawFireElemental(ctx, sx, sy, o); top = sy - h - 52; bb = [sx - 16, sy - h - 50, sx + 16, sy + 4]; break; }
+    case 'pwolf': drawShadow(ctx, sx, sy, 15, 5); drawWolf(ctx, sx, sy, Object.assign(o, { color: '#8a8a90', eye: '#80d0ff', scale: 0.92 })); top = sy - 32;
+      ctx.fillStyle = '#c03030'; break;
+    case 'fox': drawShadow(ctx, sx, sy, 12, 4); drawFox(ctx, sx, sy, o); top = sy - 30; bb = [sx - 18, sy - 28, sx + 18, sy + 4]; break;
+    case 'bear': drawShadow(ctx, sx, sy, 20, 7); drawBear(ctx, sx, sy, o); top = sy - 42; bb = [sx - 24, sy - 40, sx + 24, sy + 4]; break;
+    case 'owl': { const h = drawOwl(ctx, sx, sy, o); top = sy - h - 24; bb = [sx - 14, sy - h - 22, sx + 14, sy + 4]; break; }
+    case 'boar': drawShadow(ctx, sx, sy, 15, 5); drawBoar(ctx, sx, sy, o); top = sy - 34; bb = [sx - 20, sy - 30, sx + 20, sy + 4]; break;
+  }
+  ctx.restore();
+  e._bb = e.dead ? null : { x0: bb[0], y0: bb[1], x1: bb[2], y1: bb[3] };
+  if (e.dead) return;
+  labels.push(() => {
+    ctx.font = '12px "Microsoft JhengHei", "PingFang TC", sans-serif';
+    const tag = e.companion === 'pet' ? e.name + ' Lv.' + e.level : e.name;
+    outlineText(tag, sx, top - 8, e.companion === 'pet' ? '#ffd890' : '#9fd8ff');
+    hpBar(sx, top - 4, 32, e.hp / e.maxHp, '#40c060');
+    if (e.say && e.sayT > 0) bubble(e.say, sx, top - 22);
+  });
 }

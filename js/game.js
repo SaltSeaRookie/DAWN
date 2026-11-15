@@ -172,19 +172,21 @@ function setMap(id) {
 function changeMap(id, x, y) {
   const p = G.player;
   SFX.play('teleport');
+  const from = G.map;
   setMap(id);
   const pos = G.world.nearestFree(x, y);
   p.x = pos.x; p.y = pos.y; p.path = []; p.action = null;
   G.cam.x = toScreen(p.x, p.y).x; G.cam.y = toScreen(p.x, p.y).y;
   UI.zone(G.world.zoneName(p.x, p.y), inSafe(p));
+  bringCompanions(from, G.map);
   log(id === 'crypt' ? '你走進了陰冷的地下墓穴…' : '你回到了地面。', 'sys');
 }
 
 const NPC_NAMES = {
   general: ['露西亞', '米拉', '朵拉', '蘿絲'], smith: ['巴頓', '葛倫', '老鐵'], magic: ['賽琳', '奧斯卡'], teleport: ['艾琳', '諾娃', '薇拉', '妮可'],
-  quest: ['雷恩'], clan: ['莫里斯'], warehouse: ['湯姆', '貝拉', '班恩', '漢克'], jewel: ['莉莉', '卡門'], guard: ['村莊守衛'],
+  quest: ['雷恩'], clan: ['莫里斯'], warehouse: ['湯姆', '貝拉', '班恩', '漢克'], jewel: ['莉莉', '卡門'], pet: ['芙蘿', '傑克'], guard: ['村莊守衛'],
 };
-const NPC_TITLES = { general: '雜貨商人', smith: '武器防具商', magic: '魔法商人', teleport: '傳送師', quest: '守備隊長', clan: '血盟管理員', warehouse: '倉庫管理員', jewel: '飾品商人', guard: '守衛', herald: '攻城傳令官' };
+const NPC_TITLES = { general: '雜貨商人', smith: '武器防具商', magic: '魔法商人', teleport: '傳送師', quest: '守備隊長', clan: '血盟管理員', warehouse: '倉庫管理員', jewel: '飾品商人', pet: '寵物商人', guard: '守衛', herald: '攻城傳令官' };
 const NPC_LOOKS = {
   general: { body: '#8a3a4a', robe: true, hair: '#6a3a1a', longHair: true, skin: '#f0cfa8' },
   smith: { body: '#5a4a3a', legs: '#3a2e24', hair: '#2a1a10', skin: '#d8a880', belt: '#2a1a10', weapon: 'axe' },
@@ -194,6 +196,7 @@ const NPC_LOOKS = {
   clan: { body: '#6a2a2a', robe: true, hair: '#c8c0b0', skin: '#e8c8a0', trim: '#d0b050' },
   warehouse: { body: '#6a5a3a', legs: '#4a3a2a', hair: '#8a6a3a', skin: '#e8c49a', belt: '#3a2614' },
   jewel: { body: '#2a6a5a', robe: true, hair: '#e8d070', longHair: true, skin: '#f0d0b0' },
+  pet: { body: '#4a6a3a', legs: '#3a3a2a', hair: '#c87a3a', longHair: true, skin: '#f0d0b0', belt: '#6a4a2a', cape: '#3a5a2a' },
   herald: { body: '#5a5a7a', legs: '#3a3a4a', helm: '#b8a040', skin: '#e0b890', cape: '#2a2a6a', trim: '#d0b050', weapon: 'spear' },
 };
 
@@ -340,16 +343,18 @@ function defaultHotbar(cls) {
   return bars[cls];
 }
 function serializePlayer(p) {
+  // 同步場上寵物的體力到項圈
+  if (G.player === p && G.map) for (const a of companions('pet')) { a.pet.hp = Math.ceil(a.hp); a.pet.out = true; }
   return {
     v: 2, name: p.name, cls: p.cls, level: p.level, exp: p.exp, base: p.base, statPoints: p.statPoints,
     baseMaxHp: p.baseMaxHp, baseMaxMp: p.baseMaxMp, hp: Math.ceil(p.hp), mp: Math.floor(p.mp), gold: p.gold, align: p.align,
-    inv: p.inv, wh: p.wh, equip: p.equip, spells: p.spells, hotbar: p.hotbar, quest: p.quest, kills: p.kills, pkCount: p.pkCount,
+    inv: p.inv, wh: p.wh, equip: p.equip, spells: p.spells, hotbar: p.hotbar, quest: p.quest, kills: p.kills, pkCount: p.pkCount, petMode: p.petMode,
     clan: p.clan, castle: p.castle, homeTown: p.homeTown, mapId: p.mapId, x: p.x, y: p.y, day: G.day, created: p.created, playTime: p.playTime || 0,
   };
 }
 function loadPlayer(d) {
   const p = new Player({ name: d.name, cls: d.cls, stats: d.base });
-  for (const k of ['level', 'exp', 'statPoints', 'baseMaxHp', 'baseMaxMp', 'hp', 'mp', 'gold', 'align', 'inv', 'wh', 'spells', 'hotbar', 'quest', 'kills', 'pkCount', 'clan', 'castle', 'homeTown', 'mapId', 'created', 'playTime'])
+  for (const k of ['level', 'exp', 'statPoints', 'baseMaxHp', 'baseMaxMp', 'hp', 'mp', 'gold', 'align', 'inv', 'wh', 'spells', 'hotbar', 'quest', 'kills', 'pkCount', 'petMode', 'clan', 'castle', 'homeTown', 'mapId', 'created', 'playTime'])
     if (d[k] !== undefined) p[k] = d[k];
   for (const s of SLOTS) p.equip[s] = (d.equip && d.equip[s]) || null;
   for (const i of p.inv) i.uid = G.uid++;
@@ -445,6 +450,7 @@ function playerCanAttack(e, force) {
 function dealDamage(src, tgt, dmg, opt = {}) {
   if (tgt.dead || dmg <= 0) return;
   const pl = G.player;
+  if (tgt === pl && pl.god) { floatText(pl.x, pl.y, '0', '#ffb040', 60, 13); return; }
   if (tgt !== pl && tgt.kind === 'struct' && !siegeHostile() && !(src.raider)) return;
   tgt.hp -= dmg; tgt.hurtT = 0.2;
   const big = tgt.boss || tgt.struct;
@@ -506,14 +512,18 @@ function killActor(a, src) {
   a.dead = true; a.deadT = 0; a.moving = false; a.target = null;
   if (a.struct) { onStructDestroyed(a, src); return; }
   SFX.play(a.sprite === 'skeleton' ? 'bonebreak' : a.boss ? 'boom' : 'die', a.x, a.y);
+  if (a.companion) { onCompanionDeath(a); UI.refresh(); return; }
   if (a.spawner) { a.spawner.alive--; a.spawner.timer = a.spawner.respawn * rand(0.8, 1.3); }
+  const byComp = src && src.companion;
   const byPlayer = src === pl || (src && src.faction === 'ally') || a.hitByPlayer;
   if (a.kind === 'monster') {
     const d = a.def;
     if (byPlayer && !pl.dead) {
       const lvDiff = d.lvl - pl.level;
-      const share = src === pl || a.hitByPlayer ? 1 : 0.5;
-      gainExp(Math.max(1, Math.floor(d.exp * share * clamp(1 + lvDiff * 0.06, 0.25, 1.6))));
+      const full = Math.max(1, Math.floor(d.exp * clamp(1 + lvDiff * 0.06, 0.25, 1.6)));
+      // 夥伴擊殺：經驗值一半給主人、一半給夥伴自己
+      if (byComp) { gainExp(Math.max(1, Math.floor(full / 2))); if (src.pet) petGainExp(src, Math.floor(full / 2)); }
+      else gainExp(src === pl || a.hitByPlayer ? full : Math.floor(full / 2));
       if (pl.align < 32767) pl.align = Math.min(32767, pl.align + Math.max(1, d.lvl) * (pl.align < 0 ? 4 : 1));
       pl.kills++;
       const q = pl.quest, Q = QUESTS[q.idx];
@@ -633,6 +643,7 @@ function teleportTo(x, y) {
   p.x = pos.x; p.y = pos.y; p.path = []; p.action = null;
   for (const a of G.map.actors) if (a.target === p) { a.target = null; a.state = 'return'; a.thinkT = 0; }
   burst(p.x, p.y, 20, '#9fd0ff', 24, 2, 0.8, 3, 4);
+  bringCompanions(null, G.map);
   G.cam.x = toScreen(p.x, p.y).x; G.cam.y = toScreen(p.x, p.y).y - 20;
 }
 
@@ -682,7 +693,7 @@ function updatePlayer(dt) {
   }
   if (changed) { recalc(); UI.refresh(); }
   const wp = weightPct(p);
-  const mul = p.haste * (wp >= 100 ? 0.5 : wp >= 80 ? 0.8 : 1);
+  const mul = p.haste * (wp >= 100 ? 0.5 : wp >= 80 ? 0.8 : 1) * (p.gmSpeed || 1);
   const a = p.action;
   if (!a) { p.moveAlong(dt, mul); return; }
   if (a.type === 'move') { if (p.moveAlong(dt, mul)) p.action = null; return; }
@@ -721,6 +732,25 @@ function usePortal(pt) {
   else { const w = getMap('overworld').world; changeMap('overworld', w.crypt.x + 0.5, w.crypt.y - 2); }
 }
 
+// 自動拾取：走過的物品直接撿起；閒置時自動走去撿附近的物品
+function autoPickup(dt) {
+  const p = G.player, items = G.map.items;
+  G.pickFail = G.pickFail || new WeakSet();
+  const ok = (it) => !G.pickFail.has(it) && (it.id === 'gold' || canCarry(it.id, it.qty));
+  for (const it of items.slice()) {
+    if (dist(p.x, p.y, it.x, it.y) < 0.9) { if (ok(it)) pickup(it); else G.pickFail.add(it); }
+  }
+  const fighting = G.map.actors.some((a) => !a.dead && a.target === p && dist(a.x, a.y, p.x, p.y) < 4);
+  if (!p.action && !p.moving && !fighting) {
+    G.idleT = (G.idleT || 0) + dt;
+    if (G.idleT > 0.35) {
+      G.idleT = 0;
+      let best = null, bd = 5.5;
+      for (const it of items) { const d = dist(p.x, p.y, it.x, it.y); if (d < bd && ok(it)) { bd = d; best = it; } }
+      if (best) setAction({ type: 'pickup', item: best });
+    }
+  } else G.idleT = 0;
+}
 function autoNext() {
   const p = G.player;
   let best = null, bd = 9;
@@ -781,6 +811,8 @@ function useItem(inst) {
   const p = G.player; if (p.dead) return;
   const d = ITEMS[inst.id];
   if (d.type === 'weapon' || d.type === 'armor' || d.type === 'acc') { equipItem(inst); return; }
+  if (d.type === 'collar') { useCollar(inst); return; }
+  if (inst.id === 'tame_jerky') { G.targeting = 'tame'; log('請點擊要馴服的野狼（體力需低於一半）。Esc 取消', 'sys'); return; }
   if (d.type === 'book') {
     const s = SPELLS[d.spell], need = s.learn[p.cls];
     if (p.spells.includes(d.spell)) { log('你已經學會「' + s.name + '」了。', 'sys'); return; }
@@ -948,6 +980,8 @@ function doCast(id, target) {
       later(0.9, () => { SFX.play('boom', tx, ty); shake(8); aoeHit(tx, ty, s.aoe, () => randi(60, 100) + sp * 5); });
       break;
     }
+    case 'summon_wolf': case 'summon_golem': case 'summon_fire': SFX.play('cast'); castSummon(s.summon); break;
+    case 'charm': SFX.play('cast'); castCharm(target); break;
     case 'turnundead':
       SFX.play('heal'); G.rings = G.rings || []; G.rings.push({ x: p.x, y: p.y, t: 0, r: s.aoe, col: '255,240,170' });
       aoeHit(p.x, p.y, s.aoe, () => randi(40, 70) + sp * 4, (a) => a.undead);
@@ -1007,10 +1041,15 @@ function updateActor(a, dt) {
   const pl = G.player, W = G.world;
   if (a.dead) { a.deadT += dt; return; }
   if (a.kind === 'struct') return;
+  if (a.companion) {
+    if (a.atkAnim >= 0) { a.atkAnim += dt / 0.45; if (a.atkAnim >= 1) a.atkAnim = -1; }
+    return updateCompanion(a, dt);
+  }
   if (a.atkAnim >= 0) { a.atkAnim += dt / 0.45; if (a.atkAnim >= 1) a.atkAnim = -1; }
   a.atkCd -= dt; a.thinkT -= dt; a.hurtT -= dt; a.sayT -= dt; if (a.slowT > 0) a.slowT -= dt;
   const dp = dist(a.x, a.y, pl.x, pl.y);
   if (a.kind === 'villager' || a.kind === 'dog') return updateVillager(a, dt, dp);
+  if (a.companion) return updateCompanion(a, dt);
   if (dp > 36 && !a.target && a.kind !== 'ally') return;
   const spMul = a.slowT > 0 ? 0.5 : 1;
   // 冒險者喝水
@@ -1343,6 +1382,7 @@ const NPC_LINES = {
   clan: ['要建立自己的血盟嗎？', '有夥伴才能攻下灰岩城'],
   warehouse: ['東西太重可以寄放在這裡', '倉庫在每個村莊都通用喔'],
   jewel: ['戒指和項鍊能讓你更強大', '這些可是稀有的飾品'],
+  pet: ['可愛的寵物在等你喔～', '寵物倒下了就帶回來給我吧', '馴獸肉乾可以馴服野狼'],
   herald: ['灰岩城等待著真正的主人', '有血盟就能向灰岩城宣戰！'],
 };
 function updateNPCs(dt) {
@@ -1374,6 +1414,7 @@ function frame(ts) {
     updateSpawners(dt);
     updateSiege(dt);
     updateFx(dt);
+    if (Settings.autoPickup !== false && !p.dead) autoPickup(dt);
     if (G.autoHunt && !p.action && !p.dead) { G.autoT = (G.autoT || 0) - dt; if (G.autoT <= 0) { G.autoT = 0.5; autoNext(); } }
     if (G.autoHunt && !p.dead && p.hp < p.maxHp * 0.4 && (G.potT || 0) < G.t) {
       G.potT = G.t + 1;
@@ -1421,6 +1462,11 @@ function onPointerDown(e) {
   const p = G.player; if (p.dead) return;
   const force = e.ctrlKey || e.shiftKey || e.button === 2;
   const hit = pickAt(mx, my);
+  if (G.targeting === 'tame') {
+    G.targeting = null;
+    if (hit && hit.kind === 'actor') tameTarget(hit.e); else log('取消馴服。', 'sys');
+    return;
+  }
   if (G.targeting) {
     const sp = G.targeting; G.targeting = null;
     if (hit && hit.kind === 'actor' && playerCanAttack(hit.e, true)) Net.intent('cast', { spell: sp, target: hit.e });
@@ -1465,6 +1511,7 @@ function onKey(e) {
     case 'm': UI.toggle('map'); break;
     case 'n': UI.toggleMinimap(); break;
     case 'o': UI.toggle('settings'); break;
+    case 't': UI.toggle('pet'); break;
     case 'escape': if (G.targeting) { G.targeting = null; log('取消施法。', 'sys'); } else UI.closeAll(); break;
     case 'tab': e.preventDefault(); autoNext(); break;
     case 'enter': UI.focusChat(); e.preventDefault(); break;
@@ -1507,6 +1554,7 @@ function enterWorld(saveData) {
     log('與晨風村的守備隊長 雷恩 對話可以接受委託。', 'npc');
   }
   Music.play('field');
+  for (const inst of p.inv) if (inst.pet && inst.pet.out) { inst.pet.out = false; if (!companions('pet').length) spawnPet(inst); }
   UI.refresh();
 }
 function exitWorld() {

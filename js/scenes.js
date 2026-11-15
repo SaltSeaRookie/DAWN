@@ -14,6 +14,8 @@ const Scenes = {
     $('#btnNewChar').onclick = () => this.show('create');
     $('#btnDelChar').onclick = () => this.del();
     $('#btnLogout').onclick = () => { Net.session = null; this.show('login'); };
+    $('#btnImport').onclick = () => Backup.openImport(() => this.refreshChars());
+    $('#btnBackupAll').onclick = () => { const all = this.chars.map((c) => Net.chars.load(Net.session, c.name)); if (!all.length) { alert('沒有角色可以備份。'); return; } Backup.download(all, Net.session.account + '_all'); };
     // 建立角色
     $('#btnCreateOk').onclick = () => this.create();
     $('#btnCreateCancel').onclick = () => this.show('select');

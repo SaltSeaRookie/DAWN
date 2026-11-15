@@ -18,7 +18,7 @@ function iconCanvas(id, size, kind = 'item') {
 const UI = {
   windows: {}, drag: null,
   init() {
-    const menu = [['btnInv', 'inv'], ['btnChar', 'char'], ['btnSpell', 'spell'], ['btnClan', 'clan'], ['btnMap', 'map'], ['btnSet', 'settings']];
+    const menu = [['btnInv', 'inv'], ['btnChar', 'char'], ['btnSpell', 'spell'], ['btnPet', 'pet'], ['btnClan', 'clan'], ['btnMap', 'map'], ['btnSet', 'settings']];
     for (const [b, w] of menu) $('#' + b).onclick = () => { SFX.play('click'); this.toggle(w); };
     const bm = $('#btnMusic'), bs = $('#btnSfx');
     const sync = () => {
@@ -33,7 +33,7 @@ const UI = {
     const ci = $('#chatInput');
     ci.addEventListener('keydown', (e) => {
       e.stopPropagation();
-      if (e.key === 'Enter') { const v = ci.value.trim(); ci.value = ''; if (v) this.chat(v); ci.blur(); }
+      if (e.key === 'Enter') { const v = ci.value.trim(); ci.value = ''; if (v) Chat.input(v); ci.blur(); }
       else if (e.key === 'Escape') ci.blur();
     });
     // 拖曳到快捷列
@@ -166,7 +166,7 @@ const UI = {
     $('#alignFill').style.background = p.align < 0 ? 'linear-gradient(#b03020,#601008)' : 'linear-gradient(#3a6ab0,#1a3a70)';
     $('#btnChar').classList.toggle('alert', p.statPoints > 0);
     this.refreshHotbar();
-    for (const k of ['inv', 'char', 'spell', 'clan', 'shop', 'wh']) if (this.windows[k]) this['render' + k[0].toUpperCase() + k.slice(1)]();
+    for (const k of ['inv', 'char', 'spell', 'clan', 'shop', 'wh', 'pet', 'petshop']) if (this.windows[k]) this['render' + k[0].toUpperCase() + k.slice(1)]();
   },
 
   tick(dt) {
@@ -249,6 +249,7 @@ const UI = {
     if (id === 'char') { this.win('char', '角色資訊', 16, 60, 340); this.renderChar(); }
     if (id === 'spell') { this.win('spell', '魔法', W - 330 - (this.windows.inv ? 330 : 0), 60, 300); this.renderSpell(); }
     if (id === 'clan') { this.win('clan', '血盟', 370, 60, 320); this.renderClan(); }
+    if (id === 'pet') { this.win('pet', '夥伴（寵物・召喚獸・迷魅）', 370, 60, 340); this.renderPet(); }
     if (id === 'settings') { this.win('settings', '設定', W / 2 - 160, 80, 320); this.renderSettings(); }
     if (id === 'map') {
       const w = Math.min(860, W - 20), h = Math.min(540, window.innerHeight - HUD_H() - 110);
@@ -265,6 +266,7 @@ const UI = {
       s.appendChild(iconCanvas(inst.id, opts.size || 34));
       if (inst.qty > 1) s.appendChild(el('span', 'qty', inst.qty > 9999 ? Math.floor(inst.qty / 1000) + 'k' : inst.qty));
       if (inst.ench) s.appendChild(el('span', 'ench', '+' + inst.ench));
+      if (inst.pet) { s.appendChild(el('span', 'ench', 'Lv' + inst.pet.level)); if (inst.pet.dead) s.classList.add('deadpet'); if (inst.pet.out) s.classList.add('on'); }
       s.addEventListener('mouseenter', (e) => this.showTip(inst, e));
       s.addEventListener('mouseleave', () => this.hideTip());
       if (opts.drag) s.addEventListener('pointerdown', (e) => { if (e.button === 0) this.dragStart(e, { kind: 'item', id: inst.id }); });
@@ -276,6 +278,7 @@ const UI = {
   showTip(inst, e) {
     const d = ITEMS[inst.id], p = G.player;
     let h = '<b class="' + (d.rare ? 'rare' : '') + '">' + esc(itemName(inst)) + '</b>';
+    if (inst.pet) { const pd = inst.pet, st = petStats(pd); h += '<div>' + esc(pd.name) + '（' + PETS[pd.kind].name + '）Lv.' + pd.level + '</div><div>體力 ' + (pd.dead ? '<span class="bad">已倒下</span>' : st.maxHp) + '　攻擊 ' + st.dmg[0] + '-' + st.dmg[1] + '</div><div class="dim">' + PETS[pd.kind].desc + '</div><div class="dim">點擊召喚／收回</div>'; }
     if (d.type === 'weapon') {
       h += '<div>攻擊力 ' + (d.dmg[0] + (inst.ench || 0)) + '-' + (d.dmg[1] + (inst.ench || 0)) + (d.dmgB ? '　額外傷害 +' + d.dmgB : '') + (d.hit ? '　命中 +' + d.hit : '') + '</div>';
       h += '<div>' + (d.ranged ? '遠程（射程 ' + d.range + '，需要箭）' : '近戰') + (d.twoHand ? '・雙手' : '・單手') + '　攻速 ' + d.spd + '</div>';
@@ -453,6 +456,13 @@ const UI = {
     opt('音效', Snd.sfxOn, (v) => { Snd.unlock(); Snd.setSfx(v); this.syncAudio(); });
     opt('像素風格（低解析度）', Settings.pixel, (v) => { Settings.pixel = v; saveSettings(); });
     opt('昏暗中世紀色調', Settings.grade, (v) => { Settings.grade = v; saveSettings(); });
+    opt('自動拾取附近的物品', Settings.autoPickup !== false, (v) => { Settings.autoPickup = v; saveSettings(); });
+    const bk = el('div', 'btnrow');
+    const e1 = el('button', 'btn sm', '⬇ 匯出此角色'); e1.onclick = () => { saveGame(true); Backup.download([serializePlayer(G.player)], G.player.name); };
+    const e2 = el('button', 'btn sm', '📋 複製存檔碼'); e2.onclick = async () => { saveGame(true); const r = await Backup.copyCode([serializePlayer(G.player)]); if (r.ok) this.log('存檔碼已複製到剪貼簿，可以貼到另一台裝置的「匯入角色」。', 'sys'); else prompt('請手動複製這段存檔碼：', r.code); };
+    bk.appendChild(e1); bk.appendChild(e2);
+    w.body.appendChild(el('div', 'dim small', '存檔備份與轉移'));
+    w.body.appendChild(bk);
     const row = el('div', 'btnrow');
     const b0 = el('button', 'btn', '遊戲說明'); b0.onclick = () => this.help();
     const b1 = el('button', 'btn', '存檔'); b1.onclick = () => saveGame(false);
@@ -472,6 +482,7 @@ const UI = {
     else if (role === 'clan') this.openClanNpc(npc);
     else if (role === 'warehouse') this.openWarehouse(npc);
     else if (role === 'herald') this.openHerald(npc);
+    else if (role === 'pet') this.openPetShop(npc);
   },
   dialogHead(npc, text) {
     return '<div class="npc-head"><b>' + esc(npc.name) + '</b> <span class="dim">[' + esc(npc.title || '冒險者') + ']</span></div><div class="npc-text">' + text + '</div>';
@@ -728,10 +739,111 @@ const UI = {
       <p><b>強化</b>：強化卷軸可以強化裝備，超過安全值有機會失敗並讓裝備消失！</p>
       <p><b>血盟</b>：在晨風村找血盟管理員建立血盟，點擊村莊裡的冒險者邀請加入。按 P 開啟血盟視窗可召集盟友。</p>
       <p><b>攻城</b>：有血盟、等級 10 以上可在灰岩城外找攻城傳令官宣戰，摧毀守護之塔就能成為城主並收稅。</p>
-      <p><b>快捷鍵</b>：1-0 快捷列・I 背包・C 角色・S 魔法・P 血盟・M 世界地圖・N 小地圖・O 設定・Tab 最近的怪物・Enter 聊天・Esc 關閉</p>
+      <p><b>夥伴</b>：召喚術、迷魅術與寵物都會跟著你戰鬥。按 T 開啟夥伴視窗切換「攻擊我的目標／自由攻擊／待命／跟隨」。寵物在村莊的寵物商人購買，或用馴獸肉乾馴服體力低於一半的野狼。</p>
+      <p><b>聊天</b>：在對話欄打字，附近的冒險者和 NPC 會回應你。輸入 /help 查看指令。</p>
+      <p><b>快捷鍵</b>：1-0 快捷列・I 背包・C 角色・S 魔法・T 夥伴・P 血盟・M 世界地圖・N 小地圖・O 設定・Tab 最近的怪物・Enter 聊天・Esc 關閉</p>
+      <p><b>備份</b>：設定裡可以匯出角色檔案或複製存檔碼，在選擇角色畫面「匯入角色」即可轉移到其他裝置。</p>
       <p class="dim">遊戲每 30 秒自動存檔。</p></div>`;
   },
 };
+
+// ===== 夥伴與寵物介面 =====
+Object.assign(UI, {
+  renderPet() {
+    const w = this.windows.pet; if (!w) return;
+    const p = G.player, mode = petMode();
+    w.body.innerHTML = '';
+    const modes = el('div', 'tabs');
+    for (const k in PET_MODES) { const b = el('button', 'tab' + (mode === k ? ' on' : ''), PET_MODES[k]); b.onclick = () => setPetMode(k); modes.appendChild(b); }
+    w.body.appendChild(modes);
+    w.body.appendChild(el('div', 'dim small', '攻擊我的目標：協助攻擊你正在打的敵人與攻擊你的敵人。自由攻擊：主動攻擊附近敵人。待命：留在原地。跟隨：只跟著你不戰鬥。安全區域內不會戰鬥。'));
+    const list = el('div', 'list');
+    const all = companions();
+    if (!all.length) list.appendChild(el('div', 'dim', '目前沒有夥伴。'));
+    for (const a of all) {
+      const row = el('div', 'li');
+      const kind = a.companion === 'pet' ? '寵物' : a.companion === 'summon' ? '召喚獸' : '迷魅';
+      const left = a.expire ? Math.max(0, Math.ceil((a.expire - G.t) / 60)) + ' 分' : '';
+      row.appendChild(el('div', 'li-n', '<b>' + esc(a.name) + ' <span class="dim">Lv.' + a.level + '</span></b><span class="dim">' + kind + (left ? '・剩 ' + left : '') +
+        '</span><div class="hpmini"><div style="width:' + Math.round(100 * a.hp / a.maxHp) + '%"></div></div>'));
+      if (a.companion === 'pet') {
+        const b1 = el('button', 'btn sm', '改名'); b1.onclick = () => { const n = prompt('幫 ' + a.name + ' 取個新名字（1～8 字）：', a.name); if (n && n.trim()) { a.name = a.pet.name = n.trim().slice(0, 8); this.refresh(); } };
+        const b2 = el('button', 'btn sm', '收回'); b2.onclick = () => { recallPet(a); this.refresh(); };
+        row.appendChild(b1); row.appendChild(b2);
+      } else {
+        const b = el('button', 'btn sm', a.companion === 'charm' ? '解除' : '遣返'); b.onclick = () => { dismissCompanion(a, a.name + ' 離開了。'); this.refresh(); };
+        row.appendChild(b);
+      }
+      list.appendChild(row);
+    }
+    w.body.appendChild(list);
+    const collars = p.inv.filter((i) => i.pet);
+    if (collars.length) {
+      w.body.appendChild(el('div', 'dim small', '背包中的寵物項圈（點擊召喚／收回）'));
+      const g = el('div', 'grid');
+      for (const c of collars) g.appendChild(this.slotEl(c, (it) => useCollar(it)));
+      w.body.appendChild(g);
+    }
+    w.body.appendChild(el('div', 'dim small', '召喚獸最多 ' + MAX_SUMMONS + ' 隻、迷魅最多 ' + MAX_CHARMS + ' 隻、寵物一次 1 隻。夥伴擊殺的經驗值一半歸你、一半歸夥伴。快捷鍵 T。'));
+  },
+  openPetShop(npc) {
+    this.close('petshop');
+    const w = this.win('petshop', npc.title, 16, 60, 360);
+    w.npc = npc;
+    this.renderPetshop();
+  },
+  renderPetshop() {
+    const w = this.windows.petshop; if (!w) return;
+    const p = G.player;
+    w.body.innerHTML = this.dialogHead(w.npc, '要帶一隻寵物回家嗎？牠們會跟著你一起冒險、一起成長。');
+    const list = el('div', 'list');
+    for (const k in PETS) {
+      const d = PETS[k];
+      const row = el('div', 'li');
+      const cv = makeCanvas(56, 48); const g = cv.getContext('2d'); g.translate(28, 42);
+      const o = { dir: 0.4, moving: false, walk: 0, t: G.t, atk: -1, color: d.color, scale: 0.9 };
+      ({ pwolf: () => drawWolf(g, 0, 0, Object.assign(o, { scale: 0.7 })), fox: () => drawFox(g, 0, 0, o), bear: () => drawBear(g, 0, 4, o), owl: () => drawOwl(g, 0, 10, o), boar: () => drawBoar(g, 0, 0, o) })[d.sprite]();
+      cv.style.width = '42px'; cv.style.height = '36px';
+      row.appendChild(cv);
+      row.appendChild(el('div', 'li-n', '<b>' + d.name + '</b><span class="dim">' + d.desc + '</span>'));
+      if (d.price) {
+        row.appendChild(el('div', 'price', d.price.toLocaleString()));
+        const b = el('button', 'btn sm', '購買');
+        b.onclick = () => {
+          if (p.gold < d.price) { this.log('金幣不足。', 'warn'); SFX.play('error'); return; }
+          const n = prompt('幫你的' + d.name + '取個名字（1～8 字）：', d.name); if (n === null) return;
+          const c = addPetCollar(newPetData(k, 1, (n.trim() || d.name).slice(0, 8)));
+          if (c) { p.gold -= d.price; SFX.play('coin'); this.log('你買下了寵物「' + c.pet.name + '」！點擊背包裡的寵物項圈召喚牠。', 'level'); this.refresh(); }
+        };
+        row.appendChild(b);
+      } else row.appendChild(el('div', 'dim small', '野外馴服'));
+      list.appendChild(row);
+    }
+    w.body.appendChild(list);
+    // 道具
+    const it = el('div', 'li');
+    it.appendChild(iconCanvas('tame_jerky', 28));
+    it.appendChild(el('div', 'li-n', '<b>馴獸肉乾</b><span class="dim">' + ITEMS.tame_jerky.desc + '</span>'));
+    it.appendChild(el('div', 'price', ITEMS.tame_jerky.price));
+    for (const q of [1, 10]) { const b = el('button', 'btn sm', q > 1 ? '×10' : '買'); b.onclick = () => { const c = ITEMS.tame_jerky.price * q; if (p.gold < c) { SFX.play('error'); return; } if (addItem('tame_jerky', q)) { p.gold -= c; SFX.play('coin'); this.refresh(); } }; it.appendChild(b); }
+    w.body.appendChild(el('div', 'list')).appendChild(it);
+    // 復活
+    const dead = p.inv.filter((i) => i.pet && i.pet.dead);
+    if (dead.length) {
+      w.body.appendChild(el('div', 'dim small', '復活倒下的寵物'));
+      for (const c of dead) {
+        const cost = 100 * c.pet.level;
+        const row = el('div', 'li');
+        row.appendChild(el('div', 'li-n', '<b>' + esc(c.pet.name) + ' Lv.' + c.pet.level + '</b><span class="dim">' + PETS[c.pet.kind].name + '</span>'));
+        row.appendChild(el('div', 'price', cost));
+        const b = el('button', 'btn sm', '復活');
+        b.onclick = () => { if (p.gold < cost) { this.log('金幣不足。', 'warn'); SFX.play('error'); return; } p.gold -= cost; c.pet.dead = false; c.pet.hp = null; SFX.play('heal'); this.log(c.pet.name + ' 復活了！', 'level'); this.refresh(); };
+        row.appendChild(b); w.body.appendChild(row);
+      }
+    }
+    w.body.appendChild(el('div', 'inv-foot', '<span>持有金幣 <b>' + p.gold.toLocaleString() + '</b></span>'));
+  },
+});
 function sellPrice(inst, forShop) {
   const d = ITEMS[inst.id];
   const base = d.type === 'junk' ? d.price : Math.floor(d.price * 0.4);

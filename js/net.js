@@ -52,6 +52,11 @@ const LocalBackend = {
       return { ok: true, session: { account } };
     },
   },
+  // 帳號層級的設定（例如管理員權限）
+  meta: {
+    get(session, key) { const a = LocalBackend.db().accounts[session.account]; return a ? a[key] : undefined; },
+    set(session, key, val) { const db = LocalBackend.db(), a = db.accounts[session.account]; if (a) { a[key] = val; LocalBackend.write(db); } },
+  },
   chars: {
     list(session) {
       const a = LocalBackend.db().accounts[session.account]; if (!a) return [];
@@ -86,6 +91,7 @@ const Net = {
   session: null,
   get auth() { return this.backend.auth; },
   get chars() { return this.backend.chars; },
+  get meta() { return this.backend.meta; },
   // 玩家指令：本機模式直接執行，連線模式改送到伺服器
   handlers: {},
   on(type, fn) { this.handlers[type] = fn; },

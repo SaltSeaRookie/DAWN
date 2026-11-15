@@ -187,9 +187,9 @@ class World {
       return t;
     };
     const towns = [
-      town('dawn', '晨風村', 100, 100, 12, ['general', 'smith', 'magic', 'teleport', 'quest', 'clan', 'warehouse', 'guard', 'guard'], 6),
+      town('dawn', '晨風村', 100, 100, 12, ['general', 'smith', 'magic', 'teleport', 'quest', 'clan', 'warehouse', 'pet', 'guard', 'guard'], 6),
       town('leaf', '林語村', 52, 74, 9, ['general', 'magic', 'teleport', 'warehouse', 'guard'], 4),
-      town('port', '銀風港', 74, 146, 10, ['general', 'smith', 'jewel', 'teleport', 'warehouse', 'guard'], 5),
+      town('port', '銀風港', 74, 146, 10, ['general', 'smith', 'jewel', 'teleport', 'warehouse', 'pet', 'guard'], 5),
       town('anvil', '鐵砧鎮', 158, 118, 9, ['general', 'smith', 'jewel', 'teleport', 'warehouse', 'guard'], 4),
     ];
     // 灰岩城

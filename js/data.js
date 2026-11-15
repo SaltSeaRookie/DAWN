@@ -116,6 +116,8 @@ const ITEMS = {
   ea_scroll:     { name: '防具強化卷軸', type: 'consume', w: 1, price: 500, stack: true, desc: '強化防具 +1。超過安全值可能失敗並使防具消失' },
   bew_scroll:    { name: '祝福武器強化卷軸', type: 'consume', w: 1, price: 4000, stack: true, rare: true, desc: '強化武器 +1～+3，風險同一般卷軸' },
   bea_scroll:    { name: '祝福防具強化卷軸', type: 'consume', w: 1, price: 3500, stack: true, rare: true, desc: '強化防具 +1～+3，風險同一般卷軸' },
+  tame_jerky:    { name: '馴獸肉乾', type: 'consume', icon: 'jerky', w: 1, price: 150, stack: true, desc: '對體力低於一半的野狼使用，有機會馴服牠成為寵物' },
+  pet_collar:    { name: '寵物項圈', type: 'collar', icon: 'collar', w: 3, price: 200, desc: '裝著寵物的項圈。點擊召喚或收回寵物' },
   arrow:         { name: '箭', type: 'ammo', w: 0.1, price: 1, stack: true, desc: '弓的彈藥' },
   silver_arrow:  { name: '銀箭', type: 'ammo', w: 0.1, price: 4, stack: true, dmgB: 1, undeadB: 3, desc: '對亡靈額外傷害的箭' },
   // ===== 戰利品 =====
@@ -172,7 +174,27 @@ const SPELLS = {
   heal3:      { name: '高級治癒術', circle: 5, mp: 24, target: 'self', icon: 'heal3', learn: { mage: 18, cleric: 16 }, desc: '恢復大量體力' },
   meteor:     { name: '流星火雨', circle: 5, mp: 40, target: 'enemy', icon: 'meteor', aoe: 3.5, learn: { mage: 18 }, desc: '召喚隕石轟炸大範圍敵人' },
   sanctuary:  { name: '神聖光環', circle: 5, mp: 30, target: 'self', icon: 'sanct', dur: 60, learn: { cleric: 20 }, desc: '60 秒內每秒恢復體力' },
+  charm:      { name: '迷魅術', circle: 3, mp: 16, target: 'enemy', icon: 'charm', learn: { mage: 12 }, desc: '讓一隻怪物暫時成為你的盟友（30 分鐘，最多 3 隻）。頭目、守衛與冒險者無效' },
+  summon_wolf:  { name: '召喚狼靈', circle: 3, mp: 20, target: 'self', icon: 'swolf', summon: 'spiritwolf', learn: { mage: 10, cleric: 10 }, desc: '召喚靈體之狼跟隨作戰（30 分鐘）' },
+  summon_golem: { name: '召喚岩石巨像', circle: 4, mp: 30, target: 'self', icon: 'sgolem', summon: 'stonegolem', learn: { mage: 14, cleric: 14 }, desc: '召喚體力強大的岩石巨像替你擋住敵人（30 分鐘）' },
+  summon_fire:  { name: '召喚火焰元素', circle: 5, mp: 40, target: 'self', icon: 'sfire', summon: 'fireelem', learn: { mage: 18, cleric: 18 }, desc: '召喚會發射火球的火焰元素（30 分鐘）' },
 };
+const MAX_SUMMONS = 3, MAX_CHARMS = 3, COMPANION_TIME = 1800;
+// 召喚獸（強度隨施法者等級與魔攻成長）
+const SUMMONS = {
+  spiritwolf: { name: '狼靈', sprite: 'spiritwolf', hp: [40, 8, 5], dmg: [3, 7, 0.5, 1, 1], ac: [2, 0.5], mr: 20, speed: 3.8, atkSpd: 0.9, range: 1.3 },
+  stonegolem: { name: '岩石巨像', sprite: 'sgolem', hp: [140, 16, 8], dmg: [4, 9, 0.35, 0.7, 0.6], ac: [8, 0.6], mr: 30, speed: 2.5, atkSpd: 1.6, range: 1.6 },
+  fireelem:   { name: '火焰元素', sprite: 'fireelem', hp: [60, 9, 5], dmg: [6, 12, 0.5, 1, 1.5], ac: [3, 0.4], mr: 40, speed: 3.0, atkSpd: 1.3, range: 5.5, proj: 'fire', magic: true },
+};
+// 寵物（原創）
+const PETS = {
+  graywolf:  { name: '灰狼', sprite: 'pwolf', color: '#8a8a90', hp: 40, hpLv: 9, dmg: [2, 6], dmgLv: 0.8, ac: 2, speed: 3.7, atkSpd: 1.0, range: 1.25, price: 0, desc: '用馴獸肉乾在野外馴服野狼取得。忠誠又敏捷' },
+  snowfox:   { name: '雪狐', sprite: 'fox', hp: 32, hpLv: 7, dmg: [3, 7], dmgLv: 1.0, ac: 1, speed: 4.2, atkSpd: 0.8, range: 1.2, price: 2500, desc: '速度很快的小狐狸，攻擊頻繁' },
+  spikeboar: { name: '刺甲豬', sprite: 'boar', hp: 55, hpLv: 11, dmg: [3, 8], dmgLv: 0.9, ac: 5, speed: 3.2, atkSpd: 1.2, range: 1.3, price: 3500, desc: '背上長滿尖刺，皮糙肉厚' },
+  nightowl:  { name: '夜梟', sprite: 'owl', hp: 28, hpLv: 6, dmg: [2, 6], dmgLv: 0.9, ac: 1, speed: 3.8, atkSpd: 1.3, range: 5, proj: 'feather', price: 4500, desc: '從空中投出鋒利的羽毛，能遠程攻擊' },
+  warbear:   { name: '戰熊', sprite: 'bear', hp: 70, hpLv: 14, dmg: [3, 8], dmgLv: 0.8, ac: 4, speed: 3.0, atkSpd: 1.4, range: 1.4, price: 6000, desc: '穿著皮甲的大熊，體力最高的寵物' },
+};
+const PET_MODES = { assist: '攻擊我的目標', free: '自由攻擊', stay: '待命', follow: '跟隨' };
 // 魔法書道具
 for (const id in SPELLS) {
   const s = SPELLS[id];
@@ -198,9 +220,9 @@ const MONSTERS = {
   mummy:    { name: '木乃伊', lvl: 17, hp: 220, dmg: [8, 18], ac: 8, mr: 20, exp: 150, speed: 2.0, atkSpd: 1.4, range: 1.3, aggro: true, aggroR: 5, undead: true, sprite: 'mummy', gold: [26, 64], loot: [['mummy_cloth', 0.5], ['clear_potion', 0.06], ['ea_scroll', 0.04], ['book_lightning', 0.01], ['amulet_guard', 0.008]] },
   sandworm: { name: '沙蟲', lvl: 19, hp: 320, dmg: [10, 22], ac: 9, mr: 10, exp: 210, speed: 2.2, atkSpd: 1.5, range: 1.8, aggro: true, aggroR: 5, sprite: 'worm', color: '#b8905a', gold: [30, 80], loot: [['worm_tooth', 0.5], ['clear_potion', 0.08], ['ew_scroll', 0.05], ['bew_scroll', 0.005], ['giant_belt', 0.004]] },
   wyvern:   { name: '赤鱗飛龍', lvl: 22, hp: 1500, dmg: [12, 26], ac: 12, mr: 30, exp: 1800, speed: 3.0, atkSpd: 1.6, range: 2.2, aggro: true, aggroR: 7, boss: true, breath: true, sprite: 'wyvern', color: '#9a4d26', gold: [500, 1000], respawn: 300,
-    loot: [['wyvern_scale', 1], ['wyvern_scale', 0.5], ['ew_scroll', 0.6], ['bew_scroll', 0.2], ['dragonfang', 0.12], ['gale_bow', 0.12], ['plate', 0.15], ['book_fireball', 0.3], ['ring_str', 0.1]] },
+    loot: [['wyvern_scale', 1], ['wyvern_scale', 0.5], ['ew_scroll', 0.6], ['bew_scroll', 0.2], ['dragonfang', 0.12], ['gale_bow', 0.12], ['plate', 0.15], ['book_fireball', 0.3], ['book_summon_fire', 0.2], ['ring_str', 0.1]] },
   lich:     { name: '墓穴領主', lvl: 24, hp: 1800, dmg: [10, 22], ac: 10, mr: 50, exp: 2200, speed: 2.2, atkSpd: 1.8, range: 6, proj: 'dark', magic: true, aggro: true, aggroR: 8, boss: true, undead: true, summon: 'skeleton', sprite: 'lich', gold: [600, 1200], respawn: 300,
-    loot: [['lich_gem', 1], ['bew_scroll', 0.3], ['bea_scroll', 0.3], ['star_staff', 0.12], ['holy_mace', 0.15], ['archmage_robe', 0.15], ['shadow_cloak', 0.12], ['book_meteor', 0.25], ['book_heal3', 0.25], ['book_sanctuary', 0.2], ['ring_int', 0.1], ['amulet_wis', 0.1]] },
+    loot: [['lich_gem', 1], ['bew_scroll', 0.3], ['bea_scroll', 0.3], ['star_staff', 0.12], ['holy_mace', 0.15], ['archmage_robe', 0.15], ['shadow_cloak', 0.12], ['book_meteor', 0.25], ['book_heal3', 0.25], ['book_sanctuary', 0.2], ['book_summon_fire', 0.25], ['ring_int', 0.1], ['amulet_wis', 0.1]] },
   // 城堡守軍（攻城戰期間為敵對）
   guard:    { name: '城堡守衛', lvl: 18, hp: 380, dmg: [9, 18], ac: 12, mr: 20, exp: 180, speed: 2.6, atkSpd: 1.3, range: 1.4, aggro: true, aggroR: 6, sprite: 'guard', gold: [30, 60], loot: [['clear_potion', 0.1], ['ea_scroll', 0.05]], siege: true },
   guard_captain: { name: '守城隊長', lvl: 22, hp: 1100, dmg: [12, 24], ac: 14, mr: 30, exp: 900, speed: 2.6, atkSpd: 1.2, range: 1.5, aggro: true, aggroR: 7, sprite: 'guard', captain: true, boss: true, gold: [300, 600], loot: [['bew_scroll', 0.3], ['knight_sword', 0.3], ['iron_helm', 0.3]], siege: true },
@@ -242,8 +264,9 @@ const QUESTS = [
 const SHOPS = {
   general: ['red_potion', 'orange_potion', 'clear_potion', 'blue_potion', 'haste_potion', 'return_scroll', 'teleport_scroll', 'arrow', 'silver_arrow', 'ew_scroll', 'ea_scroll', 'leather_belt'],
   smith: ['dagger', 'iron_sword', 'knight_sword', 'war_axe', 'spear', 'claymore', 'mace', 'hunting_bow', 'composite_bow', 'leather_cap', 'iron_helm', 'leather', 'studded', 'chainmail', 'plate', 'travel_cloak', 'wood_shield', 'tower_shield', 'leather_gloves', 'iron_gauntlet', 'leather_boots', 'iron_boots'],
-  magic: ['oak_staff', 'crystal_staff', 'robe', 'wizard_hat', 'blue_potion', 'book_heal1', 'book_lightbolt', 'book_shield', 'book_powerstrike', 'book_glow', 'book_icebolt', 'book_holy', 'book_windshot', 'book_heal2', 'book_lightning', 'book_haste', 'book_earthskin', 'book_blessarmor', 'book_turnundead'],
+  magic: ['oak_staff', 'crystal_staff', 'robe', 'wizard_hat', 'blue_potion', 'book_heal1', 'book_lightbolt', 'book_shield', 'book_powerstrike', 'book_glow', 'book_icebolt', 'book_holy', 'book_windshot', 'book_heal2', 'book_lightning', 'book_haste', 'book_earthskin', 'book_blessarmor', 'book_turnundead', 'book_charm', 'book_summon_wolf', 'book_summon_golem'],
   jewel: ['ring_fire', 'ring_guard', 'amulet_earth', 'amulet_guard', 'leather_belt', 'travel_cloak'],
+  pet: ['tame_jerky', 'red_potion', 'orange_potion'],
 };
 
 function expForLevel(l) { return Math.floor(24 * Math.pow(l, 2.15)); }
