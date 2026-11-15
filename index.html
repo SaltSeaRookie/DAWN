@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>晨曦大陸 Dawnlands</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<canvas id="game"></canvas>
+
+<div id="zoneBanner"></div>
+<div id="buffs"></div>
+<div id="minimapWrap"><canvas id="minimap" width="200" height="130"></canvas></div>
+
+<div id="hud">
+  <div id="hudTop">
+    <span id="zoneLabel">晨風村</span>
+    <span id="zoneType" class="safe">Safety zone · 安全區域</span>
+  </div>
+  <div id="hudL" class="panel">
+    <div class="lvbox">
+      <div id="expFill"></div>
+      <span id="lvText">Lv.1</span><span id="expText">0.0000%</span>
+    </div>
+    <div class="pair">
+      <div class="stat" title="防禦力"><i>🛡</i><span>AC</span><b id="acText">0</b></div>
+      <div class="stat" title="金幣"><i>●</i><span>金幣</span><b id="goldText">0</b></div>
+    </div>
+    <div class="honor" title="正義值">
+      <div id="honorFill"></div><span>正義值</span><b id="honorText">0</b>
+    </div>
+    <div class="day" title="時間"><span id="dayIcon">☀</span><div class="daybar"><div id="dayFill"></div></div></div>
+  </div>
+  <div id="hudC" class="panel">
+    <div class="bars">
+      <div class="bar hp"><div id="hpFill"></div><span id="hpText">HP:0/0</span></div>
+      <div class="emblem"></div>
+      <div class="bar mp"><div id="mpFill"></div><span id="mpText">MP:0/0</span></div>
+    </div>
+    <div class="notice">✦ 歡迎來到晨曦大陸 · 祝你冒險愉快 ✦</div>
+    <div id="chatLog"></div>
+    <input id="chatInput" placeholder="按 Enter 聊天…" maxlength="60" autocomplete="off">
+  </div>
+  <div id="hudR" class="panel">
+    <div id="hotbar"></div>
+    <div class="menu">
+      <button id="btnInv" title="背包 (I)">背包</button>
+      <button id="btnChar" title="角色 (C)">角色</button>
+      <button id="btnMap" title="小地圖 (M)">地圖</button>
+      <button id="btnSave" title="存檔">存檔</button>
+      <button id="btnHelp" title="說明">說明</button>
+    </div>
+  </div>
+</div>
+
+<div id="windows"></div>
+<div id="tip"></div>
+
+<div id="death" class="overlay">
+  <div class="box">
+    <h2>你死了</h2>
+    <p class="dim">失去了部分經驗值。要回到晨風村重新開始嗎？</p>
+    <button id="btnRespawn" class="btn big">回到村莊</button>
+  </div>
+</div>
+
+<div id="start" class="overlay show">
+  <div class="box start">
+    <h1>晨曦大陸</h1>
+    <div class="sub">DAWNLANDS · 2.5D 網頁 RPG</div>
+    <div id="continueBox" style="display:none">
+      <div class="dim">已有存檔：<span id="continueInfo"></span></div>
+      <button id="btnContinue" class="btn big">繼續遊戲</button>
+      <button id="btnDelete" class="btn link">刪除存檔</button>
+      <hr>
+    </div>
+    <label class="dim">角色名稱</label>
+    <input id="nameInput" maxlength="10" placeholder="輸入名稱" value="">
+    <div class="classes">
+      <div class="cls sel" data-cls="knight"><canvas data-cls="knight"></canvas><b>劍士</b><span>高體力近戰，擅長用劍</span></div>
+      <div class="cls" data-cls="ranger"><canvas data-cls="ranger"></canvas><b>遊俠</b><span>手持弓箭，遠距離攻擊</span></div>
+    </div>
+    <button id="btnStart" class="btn big">開始冒險</button>
+    <div class="dim small">點擊移動 / 攻擊 · 1-9 快捷列 · I 背包 · C 角色 · M 地圖</div>
+  </div>
+</div>
+
+<script src="js/util.js"></script>
+<script src="js/data.js"></script>
+<script src="js/world.js"></script>
+<script src="js/sprites.js"></script>
+<script src="js/render.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/game.js"></script>
+</body>
+</html>
