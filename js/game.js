@@ -341,15 +341,17 @@ function playerStrike(m) {
   const roll = () => {
     if (m.dead) return;
     const hit = Math.random() < hitChance(p.level, m.def.lvl, m.def.ac, (p.buffs.holy ? 0.06 : 0) + ench * 0.01);
-    if (!hit) { floatText(m.x, m.y, 'MISS', '#b8c0d0', 60, 13); return; }
+    if (!hit) { floatText(m.x, m.y, 'MISS', '#b8c0d0', 60, 13); SFX.play('miss'); return; }
     let dmg = randi(w.dmg[0], w.dmg[1]) + ench + Math.floor(p.level / 3) + (p.buffs.holy ? 2 : 0) - Math.floor(m.def.ac / 3);
     const crit = Math.random() < 0.06;
     if (crit) dmg = Math.floor(dmg * 1.8);
     dmg = Math.max(1, dmg);
     damageMonster(m, dmg, crit);
   };
+  if (!w.ranged) SFX.play('swing');
   if (w.ranged) {
     later(p.atkDur * 0.55, () => {
+      SFX.play('bow');
       G.projectiles.push({ kind: 'arrow', x: p.x, y: p.y, z: 26, target: m, speed: 14, onHit: roll, holy: !!p.buffs.holy });
     });
   } else later(p.atkDur * 0.5, roll);
@@ -357,15 +359,17 @@ function playerStrike(m) {
 
 function damageMonster(m, dmg, crit) {
   m.hp -= dmg; m.hurtT = 0.2;
+  SFX.play(crit ? 'crit' : 'hit', m.x, m.y);
   floatText(m.x, m.y, String(dmg), crit ? '#ffd040' : '#ffffff', m.def.boss ? 110 : 60, crit ? 20 : 15);
   burst(m.x, m.y, m.def.boss ? 60 : 26, m.type === 'skeleton' ? '#eee8d0' : m.type === 'treant' ? '#7a5a2a' : '#c02020', 7, 2.5, 0.45);
-  if (m.state !== 'chase' && !m.dead) { m.state = 'chase'; m.thinkT = 0; }
+  if (m.state !== 'chase' && !m.dead) { if (m.def.boss && m.state === 'idle') SFX.play('roar', m.x, m.y); m.state = 'chase'; m.thinkT = 0; }
   if (m.hp <= 0) killMonster(m);
 }
 
 function killMonster(m) {
   const p = G.player;
   m.dead = true; m.deadT = 0; m.hp = 0; m.moving = false;
+  SFX.play(m.type === 'skeleton' ? 'bonebreak' : m.def.boss ? 'boom' : 'die', m.x, m.y);
   if (m.spawner) { m.spawner.alive--; m.spawner.timer = m.spawner.respawn * rand(0.8, 1.3); }
   const lvDiff = m.def.lvl - p.level;
   const expGain = Math.max(1, Math.floor(m.def.exp * clamp(1 + lvDiff * 0.06, 0.25, 1.6)));
@@ -400,6 +404,7 @@ function pickup(it) {
   const k = G.items.indexOf(it); if (k < 0) return;
   if (addItem(it.id, it.qty, it.ench)) {
     G.items.splice(k, 1);
+    SFX.play(it.id === 'gold' ? 'coin' : 'pickup');
     const nm = it.id === 'gold' ? '金幣 (' + it.qty + ')' : ITEMS[it.id].name + (it.qty > 1 ? ' (' + it.qty + ')' : '');
     log('獲得了 ' + nm + '。', 'loot');
   }
@@ -416,6 +421,7 @@ function gainExp(n) {
     p.maxHp += hpG; p.maxMp += mpG; p.hp = p.maxHp; p.mp = p.maxMp;
     log('等級提升！你現在是 ' + p.level + ' 級。(體力 +' + hpG + '，魔力 +' + mpG + ')', 'level');
     G.levelFx = { t: 0 };
+    SFX.play('levelup');
     burst(p.x, p.y, 20, '#ffe080', 30, 3, 1.2, 3, 4);
     for (const s in SKILLS) if (SKILLS[s].lvl === p.level) log('你學會了新魔法：' + SKILLS[s].name + '！', 'level');
     saveGame(true);
@@ -430,6 +436,7 @@ function playerDie() {
   p.exp = Math.max(0, p.exp - lose);
   log('你死了。失去了 ' + lose + ' 點經驗值。', 'warn');
   G.autoHunt = false;
+  SFX.play('death');
   UI.showDeath();
 }
 function respawn() {
@@ -441,6 +448,7 @@ function respawn() {
 }
 function teleportTo(x, y) {
   const p = G.player;
+  SFX.play('teleport');
   burst(p.x, p.y, 20, '#9fd0ff', 24, 2, 0.8, 3, 4);
   p.x = x; p.y = y; p.path = []; p.action = null;
   for (const m of G.monsters) if (m.state === 'chase') { m.state = 'return'; m.thinkT = 0; }
@@ -458,18 +466,18 @@ function useItem(inst) {
     case 'red_potion': case 'orange_potion': {
       if (p.hp >= p.maxHp) { log('體力已經全滿了。', 'sys'); return; }
       const h = inst.id === 'red_potion' ? 30 : 80;
-      p.hp = Math.min(p.maxHp, p.hp + h);
+      p.hp = Math.min(p.maxHp, p.hp + h); SFX.play('potion');
       floatText(p.x, p.y, '+' + h, '#60ff80', 60); burst(p.x, p.y, 20, '#ff6060', 10, 1, 0.6, 2, 3);
       log('你覺得舒服多了。', 'sys');
       break;
     }
     case 'blue_potion':
       if (p.mp >= p.maxMp) { log('魔力已經全滿了。', 'sys'); return; }
-      p.mp = Math.min(p.maxMp, p.mp + 25); burst(p.x, p.y, 20, '#6090ff', 10, 1, 0.6, 2, 3);
+      p.mp = Math.min(p.maxMp, p.mp + 25); SFX.play('potion'); burst(p.x, p.y, 20, '#6090ff', 10, 1, 0.6, 2, 3);
       log('你的魔力恢復了。', 'sys');
       break;
     case 'haste_potion':
-      p.buffs.haste = 300; burst(p.x, p.y, 20, '#80ff80', 16, 2, 0.8, 2, 3);
+      p.buffs.haste = 300; SFX.play('potion'); SFX.play('buff'); burst(p.x, p.y, 20, '#80ff80', 16, 2, 0.8, 2, 3);
       log('你的動作突然變快。', 'sys');
       break;
     case 'return_scroll':
@@ -500,10 +508,12 @@ function enchant(inst, safe, label) {
   if (ok) {
     const add = cur < 3 && Math.random() < 0.25 ? 2 : 1;
     inst.ench = cur + add;
+    SFX.play('enchantOk');
     log('+' + cur + ' ' + nm + ' 發出了一陣' + (add > 1 ? '耀眼的' : '') + '藍色光芒。(+' + inst.ench + ')', 'level');
     burst(p.x, p.y, 30, '#80c0ff', 24, 2, 1, 3, 3);
   } else {
     log('+' + cur + ' ' + nm + ' 發出強烈的光芒後就消失了…', 'warn');
+    SFX.play('enchantFail');
     if (label === '武器') p.equip.weapon = null; else p.equip.armor = null;
     burst(p.x, p.y, 30, '#ffffff', 30, 3, 1, 3, 3);
   }
@@ -529,11 +539,12 @@ function unequip(slot) {
 function castSkill(id) {
   const p = G.player; if (p.dead) return;
   const s = SKILLS[id];
-  if (p.level < s.lvl) { log(s.name + ' 需要等級 ' + s.lvl + '。', 'warn'); return; }
-  if (p.mp < s.mp) { log('魔力不足。', 'warn'); return; }
+  if (p.level < s.lvl) { log(s.name + ' 需要等級 ' + s.lvl + '。', 'warn'); SFX.play('error'); return; }
+  if (p.mp < s.mp) { log('魔力不足。', 'warn'); SFX.play('error'); return; }
   if (p.castCd > G.t) return;
   p.castCd = G.t + 0.6;
   p.mp -= s.mp;
+  SFX.play(id === 'heal' ? 'heal' : 'buff');
   if (id === 'heal') {
     const h = 14 + p.level * 2 + randi(0, 8);
     p.hp = Math.min(p.maxHp, p.hp + h);
@@ -573,7 +584,7 @@ function updateMonster(m, dt) {
   const dp = dist(m.x, m.y, p.x, p.y);
   if (dp > 34 && m.state !== 'chase') return; // 遠處的怪物休眠
   const pSafe = inSafe(p);
-  if (m.state === 'idle' && !p.dead && m.def.aggro && dp < m.def.aggroR && !pSafe) { m.state = 'chase'; m.thinkT = 0; }
+  if (m.state === 'idle' && !p.dead && m.def.aggro && dp < m.def.aggroR && !pSafe) { m.state = 'chase'; m.thinkT = 0; if (m.def.boss) SFX.play('roar', m.x, m.y); }
   if (m.state === 'chase') {
     const leash = m.def.boss ? 16 : 13;
     if (p.dead || pSafe || dist(m.x, m.y, m.home.x, m.home.y) > leash) { m.state = 'return'; m.thinkT = 0; return; }
@@ -581,6 +592,7 @@ function updateMonster(m, dt) {
     if (m.def.breath && dp < 6 && dp > 2.5 && m.atkCd <= 0 && Math.random() < 0.02) {
       // 火焰吐息
       m.face(p.x, p.y); m.atkAnim = 0; m.atkCd = m.def.atkSpd * 1.6; m.path = [];
+      SFX.play('fire', m.x, m.y);
       G.projectiles.push({ kind: 'fire', x: m.x, y: m.y, z: 70, target: p, speed: 7, from: m, onHit: () => monsterHit(m, 1.3) });
       return;
     }
@@ -627,10 +639,11 @@ function updateMonster(m, dt) {
 function monsterHit(m, mul) {
   const p = G.player; if (p.dead) return;
   const hit = Math.random() < hitChance(m.def.lvl, p.level, p.ac, 0.05);
-  if (!hit) { floatText(p.x, p.y, 'MISS', '#b8c0d0', 60, 13); return; }
+  if (!hit) { floatText(p.x, p.y, 'MISS', '#b8c0d0', 60, 13); SFX.play('miss'); return; }
   let dmg = Math.round(randi(m.def.dmg[0], m.def.dmg[1]) * mul) - Math.floor(p.ac / 2);
   dmg = Math.max(1, dmg);
   p.hp -= dmg; p.hurtT = 0.25;
+  SFX.play('hurt');
   floatText(p.x, p.y, String(dmg), '#ff5050', 60, 15);
   burst(p.x, p.y, 26, '#c01818', 6, 2, 0.4);
   if (dmg > p.maxHp * 0.2) shake(4);
@@ -675,7 +688,7 @@ function updateTown(dt) {
     if (o.lineT <= 0) {
       o.lineT = rand(18, 45);
       const near = dist(o.x, o.y, G.player.x, G.player.y) < 14;
-      if (o.isDog) { if (near) { o.speak('汪！汪！', 2.5); log(o.name + '：汪！汪！', 'chat'); } }
+      if (o.isDog) { if (near) { o.speak('汪！汪！', 2.5); SFX.play('bark', o.x, o.y); log(o.name + '：汪！汪！', 'chat'); } }
       else if (near || Math.random() < 0.3) { const l = pick(ADVENTURER_LINES); o.speak(l, 5); log(o.name + '：' + l, 'chat'); }
     }
   }
@@ -695,7 +708,7 @@ function updateFx(dt) {
     if (d < pr.speed * dt || (tg.dead && tg !== G.player)) {
       G.projectiles.splice(i, 1);
       if (!tg.dead || tg === G.player) pr.onHit();
-      if (pr.kind === 'fire') burst(tg.x, tg.y, 20, '#ff8020', 20, 3, 0.6, 3, 2);
+      if (pr.kind === 'fire') { burst(tg.x, tg.y, 20, '#ff8020', 20, 3, 0.6, 3, 2); SFX.play('boom', tg.x, tg.y); }
       continue;
     }
     pr.x += (dx / d) * pr.speed * dt; pr.y += (dy / d) * pr.speed * dt;
@@ -839,6 +852,8 @@ window.addEventListener('load', () => {
   resize();
   window.addEventListener('resize', resize);
   canvas.addEventListener('pointerdown', onPointerDown);
+  window.addEventListener('pointerdown', () => Snd.unlock(), true);
+  window.addEventListener('keydown', () => Snd.unlock(), true);
   canvas.addEventListener('pointermove', onPointerMove);
   window.addEventListener('pointerup', () => { G.mouse.down = false; });
   canvas.addEventListener('contextmenu', (e) => e.preventDefault());

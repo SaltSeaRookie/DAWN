@@ -10,6 +10,10 @@
 <canvas id="game"></canvas>
 
 <div id="zoneBanner"></div>
+<div id="audioCtl">
+  <button id="btnMusic" class="actl"><span>♪</span><em>音樂</em></button>
+  <button id="btnSfx" class="actl"><span>🔊</span><em>音效</em></button>
+</div>
 <div id="buffs"></div>
 <div id="minimapWrap"><canvas id="minimap" width="200" height="130"></canvas></div>
 
@@ -86,10 +90,12 @@
   </div>
 </div>
 
+<script src="assets/music/theme.js"></script>
 <script src="js/util.js"></script>
 <script src="js/data.js"></script>
 <script src="js/world.js"></script>
 <script src="js/sprites.js"></script>
+<script src="js/audio.js"></script>
 <script src="js/render.js"></script>
 <script src="js/ui.js"></script>
 <script src="js/game.js"></script>

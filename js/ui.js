@@ -43,6 +43,15 @@ const UI = {
         ci.blur();
       } else if (e.key === 'Escape') ci.blur();
     });
+    // 音樂 / 音效開關
+    const bm = $('#btnMusic'), bs = $('#btnSfx');
+    const sync = () => {
+      bm.classList.toggle('off', !Snd.musicOn); bm.title = '背景音樂：' + (Snd.musicOn ? '開' : '關');
+      bs.classList.toggle('off', !Snd.sfxOn); bs.title = '音效：' + (Snd.sfxOn ? '開' : '關');
+    };
+    bm.onclick = () => { Snd.unlock(); Snd.setMusic(!Snd.musicOn); sync(); };
+    bs.onclick = () => { Snd.unlock(); Snd.setSfx(!Snd.sfxOn); sync(); SFX.play('click'); };
+    sync();
     // 開始畫面
     this.initStart();
   },
@@ -181,7 +190,7 @@ const UI = {
     d.style.left = x + 'px'; d.style.top = y + 'px'; if (w) d.style.width = w + 'px';
     const head = el('div', 'win-h', '<span>' + esc(title) + '</span>');
     const close = el('button', 'win-x', 'Close');
-    close.onclick = () => this.close(id);
+    close.onclick = () => { SFX.play('click'); this.close(id); };
     head.appendChild(close);
     const body = el('div', 'win-b');
     d.appendChild(head); d.appendChild(body);
@@ -191,6 +200,7 @@ const UI = {
     head.addEventListener('pointermove', (e) => { if (drag) { d.style.left = clamp(e.clientX - drag[0], 0, window.innerWidth - 80) + 'px'; d.style.top = clamp(e.clientY - drag[1], 0, window.innerHeight - 40) + 'px'; } });
     head.addEventListener('pointerup', () => { drag = null; });
     $('#windows').appendChild(d);
+    SFX.play('open');
     this.windows[id] = { el: d, body };
     return this.windows[id];
   },
@@ -312,8 +322,8 @@ const UI = {
           const b = el('button', 'btn sm', q > 1 ? '×' + q : '買');
           b.onclick = () => {
             const cost = d.price * q;
-            if (p.gold < cost) { this.log('金幣不足。', 'warn'); return; }
-            if (addItem(id, q)) { p.gold -= cost; this.log('購買了 ' + d.name + (q > 1 ? ' ×' + q : '') + '。', 'loot'); this.refresh(); }
+            if (p.gold < cost) { this.log('金幣不足。', 'warn'); SFX.play('error'); return; }
+            if (addItem(id, q)) { p.gold -= cost; SFX.play('coin'); this.log('購買了 ' + d.name + (q > 1 ? ' ×' + q : '') + '。', 'loot'); this.refresh(); }
           };
           row.appendChild(b);
         }
@@ -331,7 +341,7 @@ const UI = {
         const b = el('button', 'btn sm', inst.qty > 1 ? '全賣' : '賣');
         b.onclick = () => {
           const q = inst.qty;
-          p.gold += each * q; removeItem(inst, q);
+          p.gold += each * q; removeItem(inst, q); SFX.play('coin');
           this.log('賣出 ' + d.name + (q > 1 ? ' ×' + q : '') + '，獲得 ' + each * q + ' 金幣。', 'loot');
           this.refresh();
         };
@@ -344,7 +354,7 @@ const UI = {
         b.onclick = () => {
           let sum = 0;
           for (const inst of junk) { sum += ITEMS[inst.id].price * inst.qty; removeItem(inst, inst.qty); }
-          p.gold += sum; this.log('販賣了所有戰利品，獲得 ' + sum + ' 金幣。', 'loot'); this.refresh();
+          p.gold += sum; SFX.play('coin'); this.log('販賣了所有戰利品，獲得 ' + sum + ' 金幣。', 'loot'); this.refresh();
         };
         w.body.appendChild(b);
       }
@@ -374,7 +384,7 @@ const UI = {
       const b = el('button', 'btn sm', '傳送');
       b.onclick = () => {
         const p = G.player;
-        if (p.gold < d.cost) { this.log('金幣不足。', 'warn'); return; }
+        if (p.gold < d.cost) { this.log('金幣不足。', 'warn'); SFX.play('error'); return; }
         let tx = Math.floor(d.p.x), ty = Math.floor(d.p.y);
         for (let r = 0; r < 5 && W.blocked(tx, ty); r++) { tx += randi(-1, 1); ty += randi(-1, 1); }
         if (W.blocked(tx, ty)) { this.log('傳送失敗。', 'warn'); return; }
@@ -394,11 +404,11 @@ const UI = {
     const p = G.player, q = p.quest, Q = QUESTS[q.idx];
     let html, btn = null;
     if (!Q) html = '你已經完成了所有委託，真正的英雄！村子的和平都靠你了。';
-    else if (!q.active) { html = Q.text + '<div class="reward">報酬：' + Q.gold + ' 金幣、' + Q.exp + ' 經驗值、' + ITEMS[Q.item[0]].name + ' ×' + Q.item[1] + '</div>'; btn = ['接受委託', () => { q.active = true; q.count = 0; this.log('【委託】接受：消滅 ' + MONSTERS[Q.target].name + ' ×' + Q.count, 'quest'); this.close('quest'); }]; }
+    else if (!q.active) { html = Q.text + '<div class="reward">報酬：' + Q.gold + ' 金幣、' + Q.exp + ' 經驗值、' + ITEMS[Q.item[0]].name + ' ×' + Q.item[1] + '</div>'; btn = ['接受委託', () => { q.active = true; q.count = 0; SFX.play('quest'); this.log('【委託】接受：消滅 ' + MONSTERS[Q.target].name + ' ×' + Q.count, 'quest'); this.close('quest'); }]; }
     else if (q.count >= Q.count) {
       html = '做得好！這是你的報酬。';
       btn = ['領取報酬', () => {
-        p.gold += Q.gold; addItem(Q.item[0], Q.item[1]); gainExp(Q.exp);
+        p.gold += Q.gold; SFX.play('quest'); addItem(Q.item[0], Q.item[1]); gainExp(Q.exp);
         this.log('【委託】完成！獲得 ' + Q.gold + ' 金幣、' + Q.exp + ' 經驗值、' + ITEMS[Q.item[0]].name + ' ×' + Q.item[1], 'quest');
         q.idx++; q.active = false; q.count = 0; saveGame(true); this.close('quest'); this.refresh();
       }];

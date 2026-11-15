@@ -33,12 +33,17 @@ python3 -m http.server 8000
 - 武器 / 防具強化卷軸（超過安全值可能失敗而消失）
 - 委託任務鏈、等級成長、正義值、日夜循環與光源
 - 每 30 秒自動存檔到瀏覽器 localStorage
+- 背景音樂：`assets/music/theme.mid`，由內建的 MIDI 解析器與 Web Audio 合成器即時演奏（含鼓組與殘響）
+- 音效：揮劍、射箭、命中、爆擊、喝水、施法、升級、強化成功／失敗、飛龍咆哮與火焰等，全部程序化生成
+- 左上角可分別開關「音樂」與「音效」，設定會記住
 
 ## 檔案結構
 
 ```
 index.html
 css/style.css
+assets/music/  背景音樂 MIDI（theme.js 為 base64 版本，讓 file:// 也能載入）
+js/audio.js    MIDI 解析與合成、程序化音效
 js/util.js     亂數、噪聲、A* 尋路
 js/data.js     物品、怪物、職業、委託資料
 js/world.js    地圖生成、地表貼圖、建築與物件
