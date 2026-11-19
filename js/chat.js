@@ -92,7 +92,7 @@ const Chat = {
     if (GM.handle(cmd, args)) return;
     switch (cmd) {
       case 'help': case '說明':
-        say('指令：/who 附近的人・/pos 座標・/time 時間・/save 存檔・/w 名字 訊息 悄悄話・/roll 擲骰・/auto 自動狩獵開關・/pickup 自動拾取開關・/mode 攻擊|自由|待命|跟隨・/pet 夥伴視窗・/stuck 卡住時回村・/clear 清除訊息・/backup 匯出存檔');
+        say('指令：/who 附近的人・/pos 座標・/time 時間・/save 存檔・/w 名字 訊息 悄悄話・/c 訊息 盟頻・/roll 擲骰・/auto 自動狩獵開關・/pickup 自動拾取開關・/mode 攻擊|自由|待命|跟隨・/pet 夥伴視窗・/stuck 卡住時回村・/clear 清除訊息・/backup 匯出存檔');
         break;
       case 'who': {
         const list = this.responders(16).filter((a) => !(a instanceof NPC) && !a.companion && a.kind !== 'dog');
@@ -125,6 +125,7 @@ const Chat = {
         setPetMode(m); break;
       }
       case 'pet': UI.toggle('pet'); break;
+      case 'c': case 'clan': { const msg = args.join(' '); if (!msg) { say('用法：/c 訊息', 'warn'); break; } clanChat(msg); break; }
       case 'auto': useHotbarEntry({ kind: 'auto' }); break;
       case 'stuck': if (p.dead) break; say('你被傳送回村莊。'); goHome(); break;
       case 'clear': $('#chatLog').innerHTML = ''; break;

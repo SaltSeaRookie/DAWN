@@ -36,6 +36,15 @@ const UI = {
       if (e.key === 'Enter') { const v = ci.value.trim(); ci.value = ''; if (v) Chat.input(v); ci.blur(); }
       else if (e.key === 'Escape') ci.blur();
     });
+    // 聊天欄大小：拖曳面板上緣或按 ▲▼
+    const steps = [176, 250, 340, 440];
+    $('#chatBig').onclick = () => setHudHeight(steps.find((s) => s > HUD_H() + 5) || steps[steps.length - 1], true);
+    $('#chatSmall').onclick = () => setHudHeight(steps.slice().reverse().find((s) => s < HUD_H() - 5) || steps[0], true);
+    const rz = $('#hudResize');
+    let rs = null;
+    rz.addEventListener('pointerdown', (e) => { rs = { y: e.clientY, h: HUD_H() }; rz.setPointerCapture(e.pointerId); e.preventDefault(); });
+    rz.addEventListener('pointermove', (e) => { if (rs) setHudHeight(rs.h + (rs.y - e.clientY)); });
+    rz.addEventListener('pointerup', () => { if (rs) { rs = null; setHudHeight(HUD_H(), true); } });
     // 拖曳到快捷列
     window.addEventListener('pointermove', (e) => this.dragMove(e));
     window.addEventListener('pointerup', (e) => this.dragEnd(e));

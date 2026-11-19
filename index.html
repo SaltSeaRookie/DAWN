@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 <title>晨曦大陸 Dawnlands</title>
-<link rel="stylesheet" href="css/style.css?v=2.5.0">
+<link rel="stylesheet" href="css/style.css?v=2.6.0">
 </head>
 <body class="in-scene">
 <canvas id="game"></canvas>
@@ -84,6 +84,7 @@
 <div id="buffs"></div>
 <div id="minimapWrap"><canvas id="minimap" width="200" height="130"></canvas></div>
 <div id="hud">
+  <div id="hudResize" title="拖曳調整聊天欄大小"></div>
   <div id="hudTop">
     <span id="zoneLabel"></span>
     <span id="zoneType" class="safe"></span>
@@ -107,6 +108,7 @@
       <div class="emblem"></div>
       <div class="bar mp"><div id="mpFill"></div><span id="mpText">MP</span></div>
     </div>
+    <div class="chatbtns"><button id="chatBig" title="擴大聊天欄">▲</button><button id="chatSmall" title="縮小聊天欄">▼</button></div>
     <div id="chatLog"></div>
     <input id="chatInput" placeholder="按 Enter 聊天…" maxlength="60" autocomplete="off">
   </div>
@@ -136,22 +138,24 @@
   </div>
 </div>
 
-<script src="js/version.js?v=2.5.0"></script>
-<script src="assets/music/theme.js?v=2.5.0"></script>
-<script src="js/util.js?v=2.5.0"></script>
-<script src="js/data.js?v=2.5.0"></script>
-<script src="js/net.js?v=2.5.0"></script>
-<script src="js/world.js?v=2.5.0"></script>
-<script src="js/assets.js?v=2.5.0"></script>
-<script src="js/sprites.js?v=2.5.0"></script>
-<script src="js/audio.js?v=2.5.0"></script>
-<script src="js/render.js?v=2.5.0"></script>
-<script src="js/companions.js?v=2.5.0"></script>
-<script src="js/life.js?v=2.5.0"></script>
-<script src="js/backup.js?v=2.5.0"></script>
-<script src="js/chat.js?v=2.5.0"></script>
-<script src="js/ui.js?v=2.5.0"></script>
-<script src="js/scenes.js?v=2.5.0"></script>
-<script src="js/game.js?v=2.5.0"></script>
+<script src="js/version.js?v=2.6.0"></script>
+<script src="assets/music/theme.js?v=2.6.0"></script>
+<script src="js/util.js?v=2.6.0"></script>
+<script src="js/data.js?v=2.6.0"></script>
+<script src="js/names.js?v=2.6.0"></script>
+<script src="js/net.js?v=2.6.0"></script>
+<script src="js/world.js?v=2.6.0"></script>
+<script src="js/assets.js?v=2.6.0"></script>
+<script src="js/sprites.js?v=2.6.0"></script>
+<script src="js/audio.js?v=2.6.0"></script>
+<script src="js/render.js?v=2.6.0"></script>
+<script src="js/companions.js?v=2.6.0"></script>
+<script src="js/life.js?v=2.6.0"></script>
+<script src="js/backup.js?v=2.6.0"></script>
+<script src="js/chat.js?v=2.6.0"></script>
+<script src="js/ui.js?v=2.6.0"></script>
+<script src="js/clan.js?v=2.6.0"></script>
+<script src="js/scenes.js?v=2.6.0"></script>
+<script src="js/game.js?v=2.6.0"></script>
 </body>
 </html>

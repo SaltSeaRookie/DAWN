@@ -149,6 +149,7 @@ const Scenes = {
     const name = $('#cName').value.trim();
     const msg = $('#cMsg');
     if (!/^[一-鿿A-Za-z0-9]{2,8}$/.test(name)) { msg.textContent = '名稱需為 2～8 個中文、英文或數字。'; SFX.play('error'); return; }
+    if (isReservedName(name)) { msg.textContent = '「' + name + '」是遊戲中角色的名字，請換一個。'; SFX.play('error'); return; }
     const used = Object.values(this.cc.add).reduce((a, x) => a + x, 0);
     if (used < CREATE_BONUS && !confirm('還有 ' + (CREATE_BONUS - used) + ' 點能力值沒有分配，確定要建立嗎？')) return;
     const c = CLASSES[this.cc.cls];

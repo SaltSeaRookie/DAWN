@@ -9,7 +9,15 @@ const G = {
   siege: null,
 };
 let canvas, ctx, DPR = 1, VW = 0, VH = 0;
-const HUD_H = () => (window.innerWidth < 760 ? 150 : 176);
+let hudHeight = 176;
+const HUD_H = () => (window.innerWidth < 760 ? 150 : hudHeight);
+function setHudHeight(h, save) {
+  hudHeight = clamp(Math.round(h), 176, Math.max(176, Math.floor(window.innerHeight * 0.65)));
+  const root = document.documentElement;
+  if (window.innerWidth < 760) root.style.removeProperty('--hud-h'); else root.style.setProperty('--hud-h', hudHeight + 'px');
+  if (save) { Settings.hudH = hudHeight; saveSettings(); }
+  const box = document.getElementById('chatLog'); if (box) box.scrollTop = box.scrollHeight;
+}
 
 // ---------- 實體 ----------
 class Entity {
@@ -78,7 +86,7 @@ function makeFighter(x, y, lvl, evil) {
   const cls = pick(FIGHTER_CLS);
   const look = Object.assign({}, pick(FIGHTER_LOOKS[cls]));
   const ranged = cls === 'ranger' || cls === 'mage';
-  const name = evil ? pick(PKER_NAMES) : pick(FIGHTER_NAMES);
+  const name = Names.take(evil ? PKER_NAMES : FIGHTER_NAMES);
   const a = new Actor({
     x, y, kind: evil ? 'pker' : 'fighter', faction: evil ? 'pker' : 'fighter', cls, name, level: lvl, look,
     maxHp: Math.round((cls === 'knight' ? 30 : cls === 'mage' ? 18 : 24) + lvl * (cls === 'knight' ? 11 : cls === 'mage' ? 6 : 8)),
@@ -244,7 +252,7 @@ function populateTowns(m) {
       const p = { x: t.x + rand(-5, 5), y: t.y + rand(-5, 5) };
       if (W.blocked(p.x, p.y)) continue;
       const cls = pick(FIGHTER_CLS);
-      const v = new Actor({ x: p.x, y: p.y, kind: 'villager', faction: 'villager', name: pick(FIGHTER_NAMES), cls, level: randi(3, 25), look: Object.assign({}, pick(FIGHTER_LOOKS[cls])), speed: rand(2.2, 3), town: t });
+      const v = new Actor({ x: p.x, y: p.y, kind: 'villager', faction: 'villager', name: Names.take(FIGHTER_NAMES), cls, level: randi(3, 25), look: Object.assign({}, pick(FIGHTER_LOOKS[cls])), speed: rand(2.2, 3), town: t });
       if (Math.random() < 0.35) { v.clan = pick(NPC_CLANS); v.emblem = clanEmblemFor(v.clan); }
       v.lineT = rand(10, 40); v.waitT = rand(0, 4);
       m.actors.push(v);
@@ -402,6 +410,7 @@ function loadPlayer(d) {
   for (const s of SLOTS) p.equip[s] = (d.equip && d.equip[s]) || null;
   for (const i of p.inv) i.uid = G.uid++;
   if (!p.hotbar || p.hotbar.length < 10) p.hotbar = defaultHotbar(p.cls);
+  if (p.clan) normalizeClan(p.clan);
   return p;
 }
 function saveGame(silent) {
@@ -569,7 +578,7 @@ function killActor(a, src) {
     const d = a.def;
     if (byPlayer && !pl.dead) {
       const lvDiff = d.lvl - pl.level;
-      const full = Math.max(1, Math.floor(d.exp * clamp(1 + lvDiff * 0.06, 0.25, 1.6)));
+      const full = Math.max(1, Math.floor(d.exp * clamp(1 + lvDiff * 0.06, 0.25, 1.6) * clanExpMul()));
       // 夥伴擊殺：經驗值一半給主人、一半給夥伴自己
       if (byComp) { gainExp(Math.max(1, Math.floor(full / 2))); if (src.pet) petGainExp(src, Math.floor(full / 2)); }
       else gainExp(src === pl || a.hitByPlayer ? full : Math.floor(full / 2));
@@ -1351,74 +1360,13 @@ function updateSpawners(dt) {
       if (m.id === 'overworld' && nP < 5) spawnFighter(m, true);
     }
   }
-  for (let i = m.actors.length - 1; i >= 0; i--) { const a = m.actors[i]; if (a.dead && a.deadT > 3 && a.kind !== 'struct') m.actors.splice(i, 1); }
+  for (let i = m.actors.length - 1; i >= 0; i--) {
+    const a = m.actors[i];
+    if (a.dead && a.deadT > 3 && a.kind !== 'struct') { if ((a.kind === 'fighter' || a.kind === 'pker') && !a.clanMember) Names.release(a.name); m.actors.splice(i, 1); }
+  }
 }
 
-// ---------- 血盟 ----------
-function clanCap() { return 2 + Math.floor((G.player.d.st || G.player.base).cha / 3); }
-function createClan(name, emblem) {
-  const p = G.player;
-  if (p.clan) return '你已經有血盟了。';
-  if (p.level < 5) return '需要等級 5 才能建立血盟。';
-  if (p.gold < 3000) return '建立血盟需要 3000 金幣。';
-  if (!name || name.length < 2 || name.length > 8) return '血盟名稱需為 2～8 個字。';
-  if (NPC_CLANS.includes(name) || name === ENEMY_CLAN || name === '灰岩騎士團') return '這個名稱已經被使用了。';
-  p.gold -= 3000;
-  p.clan = { name, emblem, members: [], founded: Date.now() };
-  log('血盟「' + name + '」成立了！你是血盟的盟主。', 'level'); SFX.play('quest');
-  saveGame(true); UI.refresh();
-  return null;
-}
-function recruit(v) {
-  const p = G.player;
-  if (!p.clan) return '你還沒有血盟。';
-  if (v.clan) return v.name + ' 已經是「' + v.clan + '」的成員了。';
-  if (p.clan.members.length >= clanCap()) return '血盟人數已達上限（魅力越高，能招募的人越多）。';
-  if (v.refuseT && G.t < v.refuseT) return v.name + ' 不想再談這件事了。';
-  const cha = p.d.st.cha;
-  const chance = clamp(0.35 + (cha - 10) * 0.06 + p.level * 0.01 + (p.align >= 500 ? 0.1 : p.align < 0 ? -0.25 : 0), 0.05, 0.9);
-  if (Math.random() < chance) {
-    v.clan = p.clan.name; v.emblem = p.clan.emblem;
-    p.clan.members.push({ name: v.name, cls: v.cls, level: v.level, look: v.look });
-    v.speak('好啊！以後請多指教！', 4);
-    log(v.name + ' 加入了血盟「' + p.clan.name + '」！', 'level'); SFX.play('quest');
-    saveGame(true); UI.refresh();
-    return null;
-  }
-  v.refuseT = G.t + 60;
-  v.speak(pick(['再考慮看看吧…', '我還是喜歡一個人。', '你的血盟有什麼好處？']), 4);
-  return v.name + ' 拒絕了你的邀請。';
-}
-function summonAllies(n, ttl, near) {
-  const p = G.player, list = p.clan ? p.clan.members.slice(0, n) : [];
-  const spawned = [];
-  for (const mbr of list) {
-    const base = near || p;
-    const pos = G.world.nearestFree(base.x + rand(-2, 2), base.y + rand(-2, 2));
-    const cls = mbr.cls;
-    const lvl = Math.max(mbr.level, p.level - 2);
-    const a = new Actor({
-      x: pos.x, y: pos.y, kind: 'ally', faction: 'ally', name: mbr.name, cls, level: lvl, look: mbr.look || pick(FIGHTER_LOOKS[cls]),
-      maxHp: 30 + lvl * 10, ac: Math.floor(lvl / 2) + 3, mr: lvl, er: 4, dmg: [2 + Math.floor(lvl / 2), 6 + lvl], atkSpd: 1.0,
-      range: cls === 'ranger' ? 6 : cls === 'mage' ? 5.5 : 1.35, proj: cls === 'ranger' ? 'arrow' : cls === 'mage' ? 'magic' : null, magic: cls === 'mage',
-      aggro: true, aggroR: 9, speed: 3.4, clan: p.clan.name, emblem: p.clan.emblem, align: 1000,
-    });
-    a.expire = ttl ? G.t + ttl : 0;
-    G.map.actors.push(a); spawned.push(a);
-    burst(a.x, a.y, 20, '#9fd0ff', 16, 2, 0.6);
-  }
-  return spawned;
-}
-function callAllies() {
-  const p = G.player;
-  if (!p.clan || !p.clan.members.length) return '你的血盟還沒有成員。';
-  if (inSafe(p)) return '在安全區域內無法召集盟友。';
-  if (p.callT && G.t < p.callT) return '召集令冷卻中（還有 ' + Math.ceil(p.callT - G.t) + ' 秒）。';
-  p.callT = G.t + 300;
-  const s = summonAllies(3, 180);
-  log('你召集了 ' + s.length + ' 位盟友前來助陣！（3 分鐘）', 'level'); SFX.play('quest');
-  return null;
-}
+// ---------- 血盟：見 js/clan.js ----------
 
 // ---------- 攻城戰 ----------
 function declareSiege() {
@@ -1437,7 +1385,7 @@ function declareSiege() {
   for (const s of C.guardSpots) { const g = makeMonster('guard', s.x, s.y); g.home = { x: s.x, y: s.y }; m.actors.push(g); }
   const cap = makeMonster('guard_captain', C.tower.x - 1.5, C.tower.y); cap.home = { x: cap.x, y: cap.y }; m.actors.push(cap);
   // 血盟成員全員集結
-  const allies = summonAllies(6, 0, { x: C.x0 - 4, y: C.cy });
+  const allies = summonAllies(6 + clanLevel(), 0, { x: C.x0 - 4, y: C.cy });
   for (const a of allies) a.siegeAlly = true;
   log('⚔ 血盟「' + p.clan.name + '」向灰岩城宣戰！攻城戰開始（10 分鐘）。摧毀城門，擊破守護之塔！', 'level');
   SFX.play('roar');
@@ -1597,6 +1545,7 @@ function frameBody(ts) {
     separate(acts.filter((a) => !a.dead && dist(a.x, a.y, p.x, p.y) < 30));
     updateNPCs(dt);
     socialTick(dt);
+    clanTick(dt);
     updateSpawners(dt);
     updateSiege(dt);
     updateFx(dt);
@@ -1705,6 +1654,7 @@ function onKey(e) {
   }
 }
 function resize() {
+  if (typeof Settings !== 'undefined') setHudHeight(Settings.hudH || hudHeight);
   DPR = Math.min(2, window.devicePixelRatio || 1);
   VW = window.innerWidth; VH = window.innerHeight;
   canvas.width = VW * DPR; canvas.height = VH * DPR;
@@ -1723,12 +1673,18 @@ function enterWorld(saveData) {
   const p = loadPlayer(saveData);
   G.player = p;
   G.maps = {}; G.siege = null; G.raid = null; G.raidT = undefined; G.autoHunt = false;
+  // 電腦角色避開所有玩家角色與血盟成員的名字
+  const taken = [p.name];
+  try { const db = LocalBackend.db(); for (const a of Object.values(db.accounts)) taken.push(...Object.keys(a.chars)); } catch (e) { /* */ }
+  if (p.clan) taken.push(...p.clan.members.map((m) => m.name));
+  Names.reset(taken);
   G.day = saveData.day || 0.3;
   setMap(['crypt', 'isle'].includes(saveData.mapId) ? saveData.mapId : 'overworld');
   recalc(p);
   if (saveData.x && !G.world.blocked(saveData.x, saveData.y)) { p.x = saveData.x; p.y = saveData.y; }
   else { const t = G.world.towns[0] || { x: G.world.entry.x, y: G.world.entry.y - 2 }; const q = G.world.nearestFree(t.x + 1, t.y + 2); p.x = q.x; p.y = q.y; }
   if (ownsCastle()) { const m = getMap('overworld'); m.tower.ownerColor = '#7ad0ff'; }
+  if (p.clan) { spawnClanMembers(G.map); if (p.clan.notice) later(1, () => clanLog('公告：' + p.clan.notice)); }
   const ow = getMap('overworld').world;
   G.boards = ow.objs.filter((o) => o && o.kind === 'board').map((o) => ({ x: o.tx + 0.5, y: o.ty + 0.5, npc: getMap('overworld').npcs.find((n) => n.role === 'quest') }));
   const s = toScreen(p.x, p.y); G.cam.x = s.x; G.cam.y = s.y;

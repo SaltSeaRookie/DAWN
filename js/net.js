@@ -66,7 +66,9 @@ const LocalBackend = {
       const db = LocalBackend.db(), a = db.accounts[session.account];
       if (!a) return { ok: false, error: '帳號不存在。' };
       if (Object.keys(a.chars).length >= MAX_CHARS) return { ok: false, error: '角色欄位已滿。' };
-      for (const acc of Object.values(db.accounts)) if (acc.chars[data.name]) return { ok: false, error: '這個名稱已經有人使用了。' };
+      const low = data.name.toLowerCase();
+      for (const acc of Object.values(db.accounts)) for (const n of Object.keys(acc.chars)) if (n.toLowerCase() === low) return { ok: false, error: '這個名稱已經有人使用了。' };
+      if (typeof isReservedName === 'function' && isReservedName(data.name)) return { ok: false, error: '這個名稱是保留名稱，請換一個。' };
       data.created = Date.now();
       a.chars[data.name] = data;
       return LocalBackend.write(db) ? { ok: true } : { ok: false, error: '儲存失敗。' };
