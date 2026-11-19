@@ -361,3 +361,47 @@ const EXTRA_LOOT = {
   wyvern: [['dragon_plate', 0.1], ['dragon_shield', 0.12], ['flame_sword', 0.2]], lich: [['holy_robe', 0.12], ['amulet_light', 0.15], ['frost_blade', 0.12], ['sun_staff', 0.12]],
 };
 for (const k in EXTRA_LOOT) MONSTERS[k].loot.push(...EXTRA_LOOT[k]);
+
+// ===== 回魔裝備（v2.5）：mpr＝每 3 秒額外恢復的魔力 =====
+Object.assign(ITEMS, {
+  meditation_circlet: { name: '冥想頭環', type: 'armor', slot: 'helm', ac: 1, mpr: 2, mr: 5, w: 8, price: 2400, safe: 4, lvl: 8, cls: ['mage', 'cleric', 'ranger'] },
+  starweave_robe:     { name: '星紋長袍', type: 'armor', slot: 'armor', ac: 2, mr: 12, mpr: 3, mp: 20, w: 45, price: 6800, safe: 4, lvl: 12, cls: ['mage', 'cleric'] },
+  tidal_robe:         { name: '潮汐法衣', type: 'armor', slot: 'armor', ac: 3, mr: 18, mpr: 5, mp: 40, sp: 1, w: 50, price: 22000, safe: 4, lvl: 18, cls: ['mage', 'cleric'], res: { water: 15 }, rare: true },
+  serene_cloak:       { name: '靜謐斗篷', type: 'armor', slot: 'cloak', ac: 1, mpr: 1, mr: 5, w: 15, price: 2200, safe: 4 },
+  spring_ring:        { name: '泉水戒指', type: 'acc', slot: 'ring', mpr: 1, mp: 10, w: 2, price: 2600 },
+  tide_ring:          { name: '潮汐戒指', type: 'acc', slot: 'ring', mpr: 2, res: { water: 10 }, w: 2, price: 9000, rare: true },
+  moon_pendant:       { name: '月光項鍊', type: 'acc', slot: 'amulet', mpr: 2, mp: 20, w: 5, price: 7000, rare: true },
+  sage_gloves:        { name: '賢者手套', type: 'armor', slot: 'gloves', ac: 1, mpr: 1, sp: 1, w: 8, price: 3200, safe: 4, lvl: 10, cls: ['mage', 'cleric'] },
+  coral_staff:        { name: '珊瑚法杖', type: 'weapon', wclass: 'staff', dmg: [3, 8], sp: 3, mpr: 2, mp: 20, spd: 1.0, range: 1.4, w: 50, price: 9500, safe: 6, lvl: 15, twoHand: true, cls: ['mage', 'cleric'], res: { water: 10 } },
+  pearl:              { name: '珍珠', type: 'junk', w: 1, price: 220, stack: true },
+  pirate_coin:        { name: '海盜金幣', type: 'junk', w: 1, price: 120, stack: true },
+  croc_hide:          { name: '鱷魚皮', type: 'junk', w: 6, price: 140, stack: true },
+  serpent_scale:      { name: '海蛇鱗片', type: 'junk', w: 8, price: 2200, stack: true, rare: true },
+  pirate_sabre:       { name: '海盜彎刀', type: 'weapon', wclass: 'sword', dmg: [6, 14], hit: 1, spd: 0.8, range: 1.4, w: 70, price: 7000, safe: 6, lvl: 14, cls: ['knight', 'ranger'] },
+});
+for (const id in ITEMS) { const it = ITEMS[id]; if (it.icon) continue; if (it.type === 'weapon') it.icon = it.wclass; else if (it.type === 'armor' || it.type === 'acc') it.icon = it.slot; else it.icon = 'junk'; }
+// 既有法系裝備加上回魔
+Object.assign(ITEMS.robe, { mpr: 1 }); Object.assign(ITEMS.archmage_robe, { mpr: 2 }); Object.assign(ITEMS.crystal_staff, { mpr: 1 });
+Object.assign(ITEMS.star_staff, { mpr: 2 }); Object.assign(ITEMS.amulet_wis, { mpr: 1 }); Object.assign(ITEMS.wizard_hat, { mpr: 1 });
+SHOPS.magic.splice(4, 0, 'meditation_circlet', 'starweave_robe', 'sage_gloves', 'serene_cloak');
+SHOPS.jewel.push('spring_ring');
+SHOPS.coral = ['red_potion', 'orange_potion', 'clear_potion', 'blue_potion', 'return_scroll', 'arrow', 'silver_arrow', 'coral_staff', 'spring_ring', 'serene_cloak', 'pirate_sabre'];
+MONSTERS.ghost.loot.push(['spring_ring', 0.01], ['meditation_circlet', 0.015]);
+MONSTERS.mummy.loot.push(['moon_pendant', 0.006], ['starweave_robe', 0.01]);
+MONSTERS.lich.loot.push(['tidal_robe', 0.12], ['moon_pendant', 0.15]);
+
+// ===== 翡翠群島的怪物 =====
+Object.assign(MONSTERS, {
+  crab:        { name: '巨鉗蟹', lvl: 15, hp: 170, dmg: [7, 16], ac: 10, mr: 10, exp: 110, speed: 2.4, atkSpd: 1.3, range: 1.4, aggro: true, aggroR: 4, sprite: 'scorpion', color: '#c8502a', gold: [20, 50], loot: [['pearl', 0.35], ['orange_potion', 0.12], ['ea_scroll', 0.04], ['ring_ice', 0.01]] },
+  jungle_spider:{ name: '叢林毒蛛', lvl: 17, hp: 180, dmg: [8, 17], ac: 7, mr: 10, exp: 135, speed: 3.2, atkSpd: 1.0, range: 1.3, aggro: true, aggroR: 5.5, sprite: 'spider', color: '#2a5a2a', gold: [22, 54], loot: [['spider_silk', 0.5], ['clear_potion', 0.06], ['ew_scroll', 0.04], ['sage_gloves', 0.012]] },
+  croc:        { name: '鱷魚人', lvl: 19, hp: 260, dmg: [10, 21], ac: 11, mr: 10, exp: 190, speed: 2.7, atkSpd: 1.25, range: 1.6, aggro: true, aggroR: 5.5, sprite: 'lizard', color: '#3a5a3a', gold: [28, 70], loot: [['croc_hide', 0.5], ['clear_potion', 0.08], ['ew_scroll', 0.05], ['bea_scroll', 0.005], ['tide_ring', 0.006]] },
+  pirate:      { name: '海盜', lvl: 21, hp: 300, dmg: [11, 23], ac: 12, mr: 15, exp: 230, speed: 3.0, atkSpd: 1.0, range: 1.4, aggro: true, aggroR: 6, sprite: 'pirate', gold: [40, 100], loot: [['pirate_coin', 0.6], ['clear_potion', 0.1], ['ew_scroll', 0.05], ['pirate_sabre', 0.02], ['bew_scroll', 0.006]] },
+  pirate_captain: { name: '海盜船長', lvl: 26, hp: 2200, dmg: [16, 32], ac: 15, mr: 40, exp: 2800, speed: 3.0, atkSpd: 1.1, range: 1.5, aggro: true, aggroR: 8, boss: true, sprite: 'pirate', captainLook: true, gold: [800, 1500], respawn: 300,
+    loot: [['pirate_coin', 1], ['bew_scroll', 0.35], ['bea_scroll', 0.3], ['pirate_sabre', 0.4], ['storm_bow', 0.12], ['dragon_shield', 0.1], ['tide_ring', 0.2], ['swift_boots', 0.15]] },
+  sea_serpent: { name: '深海巨蛇', lvl: 28, hp: 2600, dmg: [15, 30], ac: 14, mr: 50, exp: 3200, speed: 2.4, atkSpd: 1.6, range: 5, proj: 'ice', magic: true, aggro: true, aggroR: 8, boss: true, sprite: 'worm', color: '#2a8a8a', gold: [900, 1600], respawn: 300,
+    loot: [['serpent_scale', 1], ['tidal_robe', 0.2], ['coral_staff', 0.3], ['moon_pendant', 0.2], ['bew_scroll', 0.3], ['book_blizzard', 0.2], ['amulet_light', 0.15]] },
+});
+QUESTS.push(
+  { target: 'croc', count: 15, gold: 3000, exp: 6000, item: ['clear_potion', 20], text: '銀風港的船員說翡翠群島的鱷魚人襲擊了漁船，搭船過去消滅 15 隻鱷魚人。' },
+  { target: 'pirate_captain', count: 1, gold: 9000, exp: 12000, item: ['bew_scroll', 3], text: '海盜灣的海盜船長掠奪商船已久，去翡翠群島討伐他！' },
+);

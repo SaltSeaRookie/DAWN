@@ -2,10 +2,11 @@
 // ===== 世界：地圖生成（原創大陸＋地下城）=====
 const TW = 64, TH = 32, HW = 32, HH = 16;
 const TILE = { GRASS: 0, DARKGRASS: 1, DIRT: 2, COBBLE: 3, SOIL: 4, WATER: 5, SAND: 6, CANYON: 7, DESERT: 8, BRIDGE: 9, DUNGEON: 10, SEA: 11, SNOW: 12 };
-const BIOME = { TOWN: 0, MEADOW: 1, FOREST: 2, BONE: 3, CANYON: 4, DESERT: 5, COAST: 6, CASTLE: 7, HIGHLAND: 8, PLAIN: 9, CRYPT: 10 };
+const BIOME = { TOWN: 0, MEADOW: 1, FOREST: 2, BONE: 3, CANYON: 4, DESERT: 5, COAST: 6, CASTLE: 7, HIGHLAND: 8, PLAIN: 9, CRYPT: 10, JUNGLE: 11, BEACH: 12, COVE: 13 };
 const BIOME_INFO = [
   { name: '村莊' }, { name: '碧波草原' }, { name: '幽影森林' }, { name: '骸骨荒原' }, { name: '赤岩峽谷' },
   { name: '灰燼沙漠' }, { name: '銀砂海岸' }, { name: '灰岩城' }, { name: '霜嶺高地' }, { name: '灰岩平原' }, { name: '地下墓穴' },
+  { name: '翡翠叢林' }, { name: '珊瑚海灘' }, { name: '海盜灣' },
 ];
 const WATER_TILES = new Set([TILE.WATER, TILE.SEA]);
 
@@ -18,7 +19,7 @@ class World {
     this.objs = []; this.decos = []; this.lights = [];
     this.towns = []; this.places = []; this.portals = []; this.npcSpots = []; this.gates = [];
     this.ambient = 0;
-    if (id === 'crypt') this.genCrypt(); else this.genOverworld();
+    if (id === 'crypt') this.genCrypt(); else if (id === 'isle') this.genIsle(); else this.genOverworld();
   }
   alloc(w, h) {
     this.w = w; this.h = h; const n = w * h;
@@ -189,7 +190,7 @@ class World {
     const towns = [
       town('dawn', '晨風村', 100, 100, 12, ['general', 'smith', 'magic', 'teleport', 'quest', 'clan', 'warehouse', 'pet', 'guard', 'guard'], 6),
       town('leaf', '林語村', 52, 74, 9, ['general', 'magic', 'teleport', 'warehouse', 'guard'], 4),
-      town('port', '銀風港', 74, 146, 10, ['general', 'smith', 'jewel', 'teleport', 'warehouse', 'pet', 'guard'], 5),
+      town('port', '銀風港', 74, 146, 10, ['general', 'smith', 'jewel', 'teleport', 'warehouse', 'pet', 'captain', 'guard'], 5),
       town('anvil', '鐵砧鎮', 158, 118, 9, ['general', 'smith', 'jewel', 'teleport', 'warehouse', 'guard'], 4),
     ];
     // 灰岩城
@@ -374,6 +375,89 @@ class World {
     }
     this.addObj({ kind: 'brazier', tx: C.x0 - 2, ty: Math.floor(C.cy) + 3, v: 0 });
     this.lights.push({ x: C.x0 - 1.5, y: C.cy + 3.5, r: 220 });
+  }
+
+  // ================= 翡翠群島 =================
+  genIsle() {
+    this.alloc(150, 150);
+    const S = this.seed + 500, W = this.w, H = this.h, R = mulberry32(S);
+    const cx = 75, cy = 75;
+    // 主島＋東北的海盜灣小島＋南方的蛇礁
+    const islands = [[75, 75, 46], [118, 34, 22], [62, 124, 18], [30, 40, 16]];
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+      const i = y * W + x;
+      let h = 0;
+      for (const [ix, iy, r] of islands) h = Math.max(h, 1 - Math.hypot(x - ix, y - iy) / r);
+      h += (fbm(x * 0.05, y * 0.05, S) - 0.5) * 0.55;
+      let t, b;
+      const cove = Math.hypot(x - 118, y - 34) < 24;
+      if (h < 0.08) { t = TILE.SEA; b = BIOME.BEACH; }
+      else if (h < 0.17) { t = TILE.SAND; b = cove ? BIOME.COVE : BIOME.BEACH; }
+      else { t = fbm(x * 0.09, y * 0.09, S + 4) > 0.6 ? TILE.DARKGRASS : TILE.GRASS; b = cove ? BIOME.COVE : BIOME.JUNGLE; if (cove && fbm(x * 0.1, y * 0.1, S + 9) > 0.55) t = TILE.DIRT; }
+      this.tiles[i] = t; this.biome[i] = b;
+      this.variant[i] = clamp(Math.floor(fbm(x * 0.12, y * 0.12, S + 77) * 6 + (R() - 0.5) * 1.6), 0, 5);
+      if (t === TILE.SEA) this.blockArr[i] = 1;
+    }
+    // 連接各島的沙洲與木棧橋
+    const link = (x0, y0, x1, y1) => {
+      const n = Math.ceil(Math.hypot(x1 - x0, y1 - y0));
+      for (let k = 0; k <= n; k++) {
+        const x = Math.round(lerp(x0, x1, k / n)), y = Math.round(lerp(y0, y1, k / n));
+        for (let oy = -1; oy <= 1; oy++) for (let ox = -1; ox <= 1; ox++) {
+          const tx = x + ox, ty = y + oy; if (!this.inBounds(tx, ty)) continue;
+          const j = this.idx(tx, ty);
+          if (this.tiles[j] === TILE.SEA) { this.tiles[j] = TILE.BRIDGE; this.blockArr[j] = 0; }
+          this.road[j] = 1;
+        }
+      }
+    };
+    link(cx, cy, 118, 34); link(cx, cy, 62, 124); link(cx, cy, 30, 40);
+    // 村莊
+    const t = { id: 'coral', name: '珊瑚鎮', x: cx + 0.5, y: cy + 0.5, r: 9, npcs: ['coral', 'warehouse', 'pet', 'captain', 'jewel', 'guard'], houses: 4 };
+    this.towns.push(t);
+    for (let yy = cy - 10; yy <= cy + 10; yy++) for (let xx = cx - 10; xx <= cx + 10; xx++) {
+      const d = dist(xx, yy, cx, cy), k = this.idx(xx, yy);
+      if (d <= t.r + 0.5) { this.safe[k] = 1; this.biome[k] = BIOME.TOWN; this.tiles[k] = d < t.r - 2 ? TILE.COBBLE : TILE.SAND; this.blockArr[k] = 0; }
+    }
+    this.places.push({ name: '珊瑚鎮', x: cx, y: cy, kind: 'town' });
+    // 碼頭：往西找海岸
+    let dock = null;
+    for (let x = cx - 10; x > 4; x--) { if (this.tiles[this.idx(x, cy)] === TILE.SEA) { dock = { x: x + 3, y: cy }; break; } }
+    dock = dock || { x: cx - 12, y: cy };
+    link(cx, cy, dock.x - 1, dock.y);
+    this.dock = { x: dock.x + 0.5, y: dock.y + 0.5 };
+    this.places.push({ name: '碼頭', x: dock.x, y: dock.y, kind: 'spot' });
+    // 物件
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+      const i = y * W + x;
+      if (this.blockArr[i] || this.safe[i] || this.road[i]) continue;
+      if (x < 3 || y < 3 || x >= W - 3 || y >= H - 3) continue;
+      const b = this.biome[i], r = R();
+      if (this.tiles[i] === TILE.SAND) { if (r < 0.03) this.addObj({ kind: 'palm', tx: x, ty: y, v: (R() * 2) | 0 }); else if (r < 0.07) this.addDeco(x, y, 'pebble', 0); continue; }
+      if (b === BIOME.JUNGLE) {
+        const dens = fbm(x * 0.08, y * 0.08, S + 41);
+        if (dens > 0.5 && r < 0.28) this.addObj({ kind: r < 0.14 ? 'palm' : 'tree', tx: x, ty: y, v: r < 0.14 ? (R() * 2) | 0 : 3 + ((R() * 3) | 0) });
+        else if (r < 0.04) this.addObj({ kind: 'palm', tx: x, ty: y, v: (R() * 2) | 0 });
+        else if (r < 0.2) this.addDeco(x, y, 'grass', (R() * 3) | 0);
+        else if (r < 0.24) this.addDeco(x, y, 'flower', (R() * 3) | 0);
+      } else if (b === BIOME.COVE) {
+        if (r < 0.025) this.addObj({ kind: 'crate', tx: x, ty: y, v: 0 });
+        else if (r < 0.04) this.addObj({ kind: 'rock', tx: x, ty: y, v: (R() * 3) | 0 });
+        else if (r < 0.08) this.addDeco(x, y, 'bones', (R() * 3) | 0);
+      }
+    }
+    this.buildTown(t, R);
+    this.addObj({ kind: 'ship', tx: Math.floor(dock.x) - 5, ty: Math.floor(dock.y) + 3, v: 0 }, false);
+    this.cove = { x: 120, y: 32 }; this.reef = { x: 62, y: 128 };
+    this.clearArea(this.cove.x + 0.5, this.cove.y + 0.5, 4, TILE.SAND);
+    this.addObj({ kind: 'brazier', tx: this.cove.x - 3, ty: this.cove.y, v: 0 });
+    this.lights.push({ x: this.cove.x - 2.5, y: this.cove.y + 0.5, r: 220 });
+    this.clearArea(this.reef.x + 0.5, this.reef.y + 0.5, 3.5, TILE.SAND);
+    this.places.push({ name: '海盜灣', x: 118, y: 34, kind: 'boss', zone: 20 });
+    this.places.push({ name: '蛇礁', x: this.reef.x, y: this.reef.y, kind: 'boss', zone: 8 });
+    this.places.push({ name: '翡翠叢林', x: 52, y: 82, kind: 'spot' });
+    this.places.push({ name: '西方小島', x: 30, y: 40, kind: 'spot' });
+    this.floodReach(cx, cy + 2);
   }
 
   // ================= 地下墓穴 =================

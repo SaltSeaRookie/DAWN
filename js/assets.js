@@ -394,6 +394,28 @@ function buildExtraSprites() {
     g.beginPath(); g.moveTo(183, 56); g.quadraticCurveTo(215, 80, 183, 116); g.closePath(); g.fill();
     g.fillStyle = '#a02020'; g.beginPath(); g.moveTo(124, 20); g.lineTo(144, 26); g.lineTo(124, 32); g.fill();
   });
+  // 椰子樹
+  for (let v = 0; v < 2; v++) spr('palm' + v, 110, 150, 55, 138, (g) => {
+    const R = mulberry32(1700 + v);
+    g.fillStyle = 'rgba(0,0,0,0.28)'; g.beginPath(); g.ellipse(64, 138, 30, 10, 0, 0, 7); g.fill();
+    // 彎曲的樹幹
+    const lean = v ? -14 : 16;
+    g.strokeStyle = '#7a5a34'; g.lineWidth = 9; g.lineCap = 'round';
+    g.beginPath(); g.moveTo(55, 138); g.quadraticCurveTo(55 + lean * 0.2, 90, 55 + lean, 48); g.stroke();
+    g.strokeStyle = '#5a4024'; g.lineWidth = 1.5;
+    for (let k = 0; k < 9; k++) { const t = k / 9, x = 55 + lean * t * t, y = 138 - t * 90; g.beginPath(); g.moveTo(x - 4, y); g.lineTo(x + 4, y - 2); g.stroke(); }
+    const tx = 55 + lean, ty = 46;
+    // 葉子
+    for (let k = 0; k < 8; k++) {
+      const a = (k / 8) * Math.PI * 2 + R() * 0.3, len = 34 + R() * 10;
+      const ex = tx + Math.cos(a) * len, ey = ty + Math.sin(a) * len * 0.55 + 10;
+      g.strokeStyle = k % 2 ? '#3a7a2a' : '#4e9a34'; g.lineWidth = 7;
+      g.beginPath(); g.moveTo(tx, ty); g.quadraticCurveTo((tx + ex) / 2, ty - 14, ex, ey); g.stroke();
+      g.strokeStyle = '#2a5a1e'; g.lineWidth = 1;
+      g.beginPath(); g.moveTo(tx, ty); g.quadraticCurveTo((tx + ex) / 2, ty - 14, ex, ey); g.stroke();
+    }
+    g.fillStyle = '#6a4a20'; for (const [dx, dy] of [[-4, 4], [3, 6], [0, 9]]) { g.beginPath(); g.arc(tx + dx, ty + dy, 4, 0, 7); g.fill(); }
+  });
   // 牆上火把
   spr('torch0', 20, 60, 10, 56, (g) => {
     g.fillStyle = '#3a2a1a'; g.fillRect(8, 20, 4, 36);

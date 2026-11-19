@@ -211,7 +211,7 @@ const UI = {
         const m = G.maps.overworld;
         st.style.display = 'block'; st.innerHTML = '⚠ ' + ENEMY_CLAN + ' 突襲中！守護之塔 ' + Math.ceil(100 * m.tower.hp / m.tower.maxHp) + '%';
       } else st.style.display = 'none';
-      if (this.windows.map) drawWorldMap(this.windows.map.cv);
+      if (this.windows.map) drawWorldMap(this.windows.map.cv, this.windows.map.mapId);
     }
   },
   toggleMinimap() { $('#minimapWrap').classList.toggle('hide'); },
@@ -266,9 +266,19 @@ const UI = {
     if (id === 'map') {
       const w = Math.min(860, W - 20), h = Math.min(540, window.innerHeight - HUD_H() - 110);
       const win = this.win('map', '世界地圖', (W - w) / 2, 40, w);
-      const cv = makeCanvas(w - 22, h); cv.className = 'mapcv'; win.body.appendChild(cv); win.cv = cv;
-      win.body.appendChild(el('div', 'dim small', G.map.id === 'overworld' ? '紅點為你的位置。' : '你目前在地下墓穴中。'));
-      drawWorldMap(cv);
+      win.mapId = G.map.id === 'isle' ? 'isle' : 'overworld';
+      const tabs = el('div', 'tabs');
+      const cv = makeCanvas(w - 22, h - 34); cv.className = 'mapcv';
+      const note = el('div', 'dim small');
+      const show = (id) => {
+        win.mapId = id;
+        tabs.querySelectorAll('.tab').forEach((b) => b.classList.toggle('on', b.dataset.id === id));
+        note.textContent = G.map.id === id ? '紅點為你的位置。' : G.map.id === 'crypt' ? '你目前在地下墓穴中。' : (id === 'isle' ? '在銀風港找船長搭船前往翡翠群島。' : '在珊瑚鎮找船長搭船回到大陸。');
+        drawWorldMap(cv, id);
+      };
+      for (const [id, nm] of [['overworld', '晨曦大陸'], ['isle', '翡翠群島']]) { const b = el('button', 'tab', nm); b.dataset.id = id; b.onclick = () => show(id); tabs.appendChild(b); }
+      win.body.appendChild(tabs); win.body.appendChild(cv); win.body.appendChild(note); win.cv = cv;
+      show(win.mapId);
     }
   },
 
@@ -303,6 +313,7 @@ const UI = {
     if (d.hp) h += '<div>體力上限 +' + d.hp + '</div>';
     if (d.mp) h += '<div>魔力上限 +' + d.mp + '</div>';
     if (d.weight) h += '<div>負重上限 +' + d.weight + '</div>';
+    if (d.mpr) h += '<div>魔力回復 +' + d.mpr + '（每 3 秒）</div>';
     if (d.move) h += '<div>移動速度 +' + Math.round(d.move * 100) + '%</div>';
     if (d.slow) h += '<div>攻擊時 ' + Math.round(d.slow * 100) + '% 機率使敵人減速</div>';
     if (d.stat) h += '<div>' + Object.keys(d.stat).map((k) => STAT_NAMES[k] + ' +' + d.stat[k]).join('　') + '</div>';
@@ -381,7 +392,7 @@ const UI = {
     const more = el('div');
     const dmgLo = wd.dmg[0] + d.dmgB + Math.floor(p.level / 4) + (wd.ranged ? Math.floor(statMod(st.dex) * 0.8) : statMod(st.str));
     more.innerHTML = '<div class="sep"></div>' + row('攻擊力', Math.max(1, dmgLo) + ' - ' + Math.max(1, dmgLo + wd.dmg[1] - wd.dmg[0])) + row('攻擊方式', wd.ranged ? '遠程' : '近戰') +
-      row('魔法等級', d.mlevel) + row('魔攻加成', (d.sp >= 0 ? '+' : '') + d.sp) + row('魔法防禦', d.mr + '%') + row('迴避 ER', d.er) +
+      row('魔法等級', d.mlevel) + row('魔攻加成', (d.sp >= 0 ? '+' : '') + d.sp) + row('魔法防禦', d.mr + '%') + row('魔力回復', '+' + (d.mpr || 0)) + row('迴避 ER', d.er) +
       '<div class="sep"></div><div class="res">' + [['earth', '地'], ['water', '水'], ['fire', '火'], ['wind', '風']].map(([k, n]) => '<span>' + n + ' <b>' + d.res[k] + '%</b></span>').join('') + '</div>' +
       '<div class="sep"></div>' + row('善惡值', '<i style="color:' + alignColor(p.align) + '">' + alignName(p.align) + ' ' + p.align + '</i>') + row('擊殺數', p.kills) + (p.pkCount ? row('PK 次數', p.pkCount, 'bad') : '');
     left.appendChild(more);
@@ -498,9 +509,10 @@ const UI = {
 
   // ---------- NPC ----------
   openNPC(npc) {
-    if (npc.kind === 'villager' || npc.kind === 'dog') return this.openVillager(npc);
+    if (npc.kind === 'villager' || npc.kind === 'dog' || npc.kind === 'fighter') return this.openVillager(npc);
     const role = npc.role;
-    if (role === 'general' || role === 'smith' || role === 'magic' || role === 'jewel') this.openShop(npc);
+    if (role === 'general' || role === 'smith' || role === 'magic' || role === 'jewel' || role === 'coral') this.openShop(npc);
+    else if (role === 'captain') this.openCaptain(npc);
     else if (role === 'teleport') this.openTeleport(npc);
     else if (role === 'quest') this.openQuest(npc);
     else if (role === 'clan') this.openClanNpc(npc);
@@ -521,7 +533,7 @@ const UI = {
   renderShop() {
     const w = this.windows.shop; if (!w) return;
     const p = G.player, npc = w.npc;
-    const greet = { general: '歡迎光臨！藥水、卷軸、箭都在這裡。', smith: '看看我的武器和盔甲吧！', magic: '魔法的奧秘就在書頁之間。', jewel: '每一件飾品都是精心挑選的。' }[npc.role];
+    const greet = { coral: '歡迎來到珊瑚鎮！島上的特產都在這裡。', general: '歡迎光臨！藥水、卷軸、箭都在這裡。', smith: '看看我的武器和盔甲吧！', magic: '魔法的奧秘就在書頁之間。', jewel: '每一件飾品都是精心挑選的。' }[npc.role];
     w.body.innerHTML = this.dialogHead(npc, greet);
     const tabs = el('div', 'tabs');
     for (const [k, l] of [['buy', '購買'], ['sell', '販賣']]) {
@@ -589,6 +601,15 @@ const UI = {
     }
     w.body.appendChild(list);
     w.body.appendChild(el('div', 'inv-foot', '<span>持有金幣 <b>' + p.gold.toLocaleString() + '</b></span><span>負重 ' + weightPct(p) + '%</span>'));
+  },
+  openCaptain(npc) {
+    this.close('captain');
+    const w = this.win('captain', npc.title, 16, 60, 320);
+    const toIsle = G.map.id === 'overworld';
+    w.body.innerHTML = this.dialogHead(npc, toIsle ? '要出海前往<b>翡翠群島</b>嗎？那裡有珊瑚鎮、叢林、海盜灣，還有傳說中的深海巨蛇。建議等級 15 以上。船費 500 金幣。' : '要回<b>銀風港</b>了嗎？船費 500 金幣。');
+    const b = el('button', 'btn', toIsle ? '⛵ 出航前往翡翠群島（500）' : '⛵ 返回銀風港（500）');
+    b.onclick = () => { const e = sail(toIsle ? 'isle' : 'overworld'); if (e) { this.log(e, 'warn'); SFX.play('error'); } else this.close('captain'); };
+    w.body.appendChild(b);
   },
   openTeleport(npc) {
     this.close('tp');
@@ -725,7 +746,9 @@ const UI = {
     if (v.kind === 'dog') { v.speak('汪！', 2); SFX.play('bark', v.x, v.y); return; }
     const w = this.win('vill', v.name, 16, 60, 300);
     const p = G.player;
-    const line = pick(['今天天氣真好。', '你也是冒險者嗎？', '聽說灰岩城的守衛很強。', '我正在找一個好血盟。', '要不要一起去狩獵？']);
+    const L = v.life;
+    const line = L ? ({ hunt: pick(['正在練功中！', '這附近的怪還不錯打。', '你也是來練功的嗎？']), travel: '藥水快沒了，正要回村補給。', errand: '在買東西，等我一下～', rest: pick(['在篝火旁休息一下真舒服。', '休息完再出發！']), leave: '準備出發去練功了！' }[L.state] || '你好！')
+      : pick(['今天天氣真好。', '你也是冒險者嗎？', '聽說灰岩城的守衛很強。', '我正在找一個好血盟。', '要不要一起去狩獵？']);
     w.body.innerHTML = this.dialogHead({ name: v.name, title: CLASSES[v.cls].name + ' Lv.' + v.level }, (v.clan ? '<span class="dim">[' + esc(v.clan) + ']</span><br>' : '') + line);
     const row = el('div', 'btnrow');
     if (p.clan && !v.clan) {
@@ -733,6 +756,7 @@ const UI = {
       b.onclick = () => { const e = recruit(v); if (e) { this.log(e, 'warn'); } this.close('vill'); };
       row.appendChild(b);
     }
+    if (v.kind === 'fighter') row.appendChild(el('div', 'dim small', '提示：按住 Ctrl 或 Shift 點擊才會強制攻擊（會變成紫名）。'));
     w.body.appendChild(row);
     v.face(p.x, p.y);
   },

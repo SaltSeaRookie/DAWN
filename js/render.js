@@ -281,6 +281,7 @@ function drawObj(o, S) {
     case 'torch': s = SPR.torch0; break;
     case 'crate': s = SPR.crate0; break;
     case 'snowrock': s = SPR.snowrock0; break;
+    case 'palm': s = SPR['palm' + o.v]; break;
   }
   if (!s) return;
   if (sx < -s.c.width || sx > VW + s.c.width || sy < -40 || sy > VH + s.c.height) return;
@@ -363,7 +364,10 @@ function drawEntity(e, S, labels) {
       case 'goblin': H({ kind: 'goblin', body: '#6a5a3a', skin: '#7a9a3a', legs: '#4a3a24', boots: '#3a2a18', weapon: d.bow ? 'bow' : 'club', scale: 0.82, draw: e.atkAnim >= 0 && e.atkAnim < 0.6 }, 48); break;
       case 'skeleton': H({ kind: 'skeleton', body: '#e6e0cc', legs: '#e6e0cc', sleeve: '#e6e0cc', weapon: d.bow ? 'bow' : 'rusty', draw: e.atkAnim >= 0 && e.atkAnim < 0.6, shield: !d.bow && e.id % 2 === 0, shieldCol: '#5a4a3a' }, 56); break;
       case 'ghoul': H({ kind: 'ghoul', body: '#5a6250', skin: '#8e9e83', legs: '#4a4a3a', boots: '#6e7a62', sleeve: '#8e9e83' }, 52, 16); break;
-      case 'lizard': H({ kind: 'lizard', body: '#4f8a46', skin: '#4f8a46', legs: '#3f7038', boots: '#2e5528', sleeve: '#4f8a46', belt: '#6a4a2a', weapon: 'spear', scale: 1.1 }, 62, 18); break;
+      case 'lizard': { const c = d.color || '#4f8a46'; H({ kind: 'lizard', body: c, skin: c, legs: shade(c, -0.2), boots: shade(c, -0.4), sleeve: c, belt: '#6a4a2a', weapon: 'spear', scale: d.color ? 1.25 : 1.1 }, 62, 18); break; }
+      case 'pirate': H(d.captainLook
+        ? { body: '#2a2a4a', legs: '#1a1a2a', hair: '#1a1010', cape: '#8a1a1a', trim: '#e0c060', belt: '#5a3a1a', weapon: 'claymore', skin: '#c89070', scale: 1.3 }
+        : { body: '#e8e0d0', sleeve: '#a02a2a', legs: '#2a2a3a', hood: '#a02a2a', belt: '#5a3a1a', weapon: 'sword', skin: '#c89070' }, d.captainLook ? 70 : 56, 16); break;
       case 'werewolf': H({ kind: 'werewolf', body: '#5a4a3a', skin: '#6a5a48', legs: '#4a3a2a', boots: '#3a2a1a', sleeve: '#6a5a48', scale: 1.15 }, 64, 18); break;
       case 'mummy': H({ kind: 'mummy', body: '#c8b890', skin: '#d8c8a0', legs: '#c0b088', boots: '#a89870', sleeve: '#d0c098', belt: '#8a7a5a' }, 56); break;
       case 'lich': drawShadow(ctx, sx, sy, 16, 6); drawHumanoid(ctx, sx, sy, Object.assign(o, { kind: 'lich', body: '#2a1a3a', robe: true, bone: '#e6e0cc', skin: '#e6e0cc', sleeve: '#3a2a4a', weapon: 'staff', crown: true, scale: 1.35, eye: '#9a4aff' })); top = sy - 82; bb = [sx - 22, sy - 80, sx + 22, sy + 4];
@@ -554,9 +558,9 @@ function drawMinimap(mc) {
 }
 
 // ===== 世界地圖（羊皮紙風格）=====
-function drawWorldMap(cv) {
+function drawWorldMap(cv, mapId = 'overworld') {
   const g = cv.getContext('2d');
-  const W = G.map.id === 'overworld' ? G.world : G.maps.overworld.world;
+  const W = getMap(mapId).world;
   const w = cv.width, h = cv.height;
   g.setTransform(1, 0, 0, 1, 0, 0);
   // 羊皮紙底
@@ -609,7 +613,7 @@ function drawWorldMap(cv) {
     g.fillStyle = '#2a1e10'; g.fillText(pl.name, x, y - 20);
   }
   // 玩家位置
-  if (G.map.id === 'overworld') {
+  if (G.map.id === mapId) {
     const [x, y] = P(G.player.x, G.player.y);
     g.fillStyle = '#c01818'; g.beginPath(); g.arc(x, y, 5 + Math.sin(G.t * 5), 0, 7); g.fill();
     g.strokeStyle = '#fff'; g.lineWidth = 2; g.stroke();

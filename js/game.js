@@ -90,6 +90,7 @@ function makeFighter(x, y, lvl, evil) {
     clan: !evil && Math.random() < 0.45 ? pick(NPC_CLANS) : evil && Math.random() < 0.5 ? ENEMY_CLAN : null,
   });
   if (a.clan) a.emblem = clanEmblemFor(a.clan);
+  if (!evil) initLife(a);
   return a;
 }
 function clanEmblemFor(name) {
@@ -134,7 +135,7 @@ function recalc(p = G.player) {
     if (it.type === 'armor') d.ac += (it.ac || 0) + e;
     else if (it.ac) d.ac += it.ac;
     if (it.type === 'weapon') { d.hit += (it.hit || 0) + Math.floor(e / 2); d.dmgB += (it.dmgB || 0) + e; }
-    d.mr += it.mr || 0; d.er += it.er || 0; d.sp += it.sp || 0; d.hpB += it.hp || 0; d.mpB += it.mp || 0; d.weightB += it.weight || 0; d.move = (d.move || 0) + (it.move || 0);
+    d.mr += it.mr || 0; d.er += it.er || 0; d.sp += it.sp || 0; d.hpB += it.hp || 0; d.mpB += it.mp || 0; d.weightB += it.weight || 0; d.move = (d.move || 0) + (it.move || 0); d.mpr = (d.mpr || 0) + (it.mpr || 0);
     if (it.stat) for (const k in it.stat) st[k] += it.stat[k];
     if (it.res) for (const k in it.res) d.res[k] += it.res[k];
   }
@@ -171,7 +172,7 @@ function getMap(id) {
   const w = new World(id, 20261115);
   const m = { id, world: w, actors: [], items: [], spawners: [], npcs: [] };
   G.maps[id] = m;
-  if (id === 'overworld') populateOverworld(m); else populateCrypt(m);
+  if (id === 'overworld') populateOverworld(m); else if (id === 'isle') populateIsle(m); else populateCrypt(m);
   return m;
 }
 function setMap(id) {
@@ -192,14 +193,15 @@ function changeMap(id, x, y) {
   G.cam.x = toScreen(p.x, p.y).x; G.cam.y = toScreen(p.x, p.y).y;
   UI.zone(G.world.zoneName(p.x, p.y), inSafe(p));
   bringCompanions(from, G.map);
-  log(id === 'crypt' ? '你走進了陰冷的地下墓穴…' : '你回到了地面。', 'sys');
+  if (id === 'crypt') log('你走進了陰冷的地下墓穴…', 'sys'); else if (from && from.id === 'crypt') log('你回到了地面。', 'sys');
 }
 
 const NPC_NAMES = {
+  coral: ['瑪琳'], captain: ['老舵手', '海鷗船長'],
   general: ['露西亞', '米拉', '朵拉', '蘿絲'], smith: ['巴頓', '葛倫', '老鐵'], magic: ['賽琳', '奧斯卡'], teleport: ['艾琳', '諾娃', '薇拉', '妮可'],
   quest: ['雷恩'], clan: ['莫里斯'], warehouse: ['湯姆', '貝拉', '班恩', '漢克'], jewel: ['莉莉', '卡門'], pet: ['芙蘿', '傑克'], guard: ['村莊守衛'],
 };
-const NPC_TITLES = { general: '雜貨商人', smith: '武器防具商', magic: '魔法商人', teleport: '傳送師', quest: '守備隊長', clan: '血盟管理員', warehouse: '倉庫管理員', jewel: '飾品商人', pet: '寵物商人', guard: '守衛', herald: '攻城傳令官' };
+const NPC_TITLES = { general: '雜貨商人', smith: '武器防具商', magic: '魔法商人', teleport: '傳送師', quest: '守備隊長', clan: '血盟管理員', warehouse: '倉庫管理員', jewel: '飾品商人', pet: '寵物商人', guard: '守衛', herald: '攻城傳令官', coral: '島嶼商人', captain: '船長' };
 const NPC_LOOKS = {
   general: { body: '#8a3a4a', robe: true, hair: '#6a3a1a', longHair: true, skin: '#f0cfa8' },
   smith: { body: '#5a4a3a', legs: '#3a2e24', hair: '#2a1a10', skin: '#d8a880', belt: '#2a1a10', weapon: 'axe' },
@@ -210,10 +212,17 @@ const NPC_LOOKS = {
   warehouse: { body: '#6a5a3a', legs: '#4a3a2a', hair: '#8a6a3a', skin: '#e8c49a', belt: '#3a2614' },
   jewel: { body: '#2a6a5a', robe: true, hair: '#e8d070', longHair: true, skin: '#f0d0b0' },
   pet: { body: '#4a6a3a', legs: '#3a3a2a', hair: '#c87a3a', longHair: true, skin: '#f0d0b0', belt: '#6a4a2a', cape: '#3a5a2a' },
+  coral: { body: '#2a8a8a', robe: true, hair: '#f0e0b0', longHair: true, skin: '#d8a070' },
+  captain: { body: '#2a3a5a', legs: '#2a2a3a', hair: '#e8e8e8', cape: '#5a1a1a', trim: '#d0b050', skin: '#c89070', belt: '#3a2614' },
   herald: { body: '#5a5a7a', legs: '#3a3a4a', helm: '#b8a040', skin: '#e0b890', cape: '#2a2a6a', trim: '#d0b050', weapon: 'spear' },
 };
 
 function populateOverworld(m) {
+  const W = m.world;
+  populateTowns(m);
+  populateField(m);
+}
+function populateTowns(m) {
   const W = m.world;
   // 村莊 NPC 與守衛
   for (const t of W.towns) {
@@ -245,6 +254,9 @@ function populateOverworld(m) {
       d.lineT = rand(10, 40); d.waitT = 0; m.actors.push(d);
     }
   }
+}
+function populateField(m) {
+  const W = m.world;
   // 灰岩城：傳令官、城門、守護塔
   const C = W.castle;
   m.npcs.push(new NPC(C.herald.x, C.herald.y, '奧德里奇', NPC_TITLES.herald, 'herald', NPC_LOOKS.herald, 'castle'));
@@ -291,6 +303,23 @@ function populateOverworld(m) {
   for (let i = 0; i < 20; i++) spawnFighter(m, false);
   for (let i = 0; i < 5; i++) spawnFighter(m, true);
 }
+function populateIsle(m) {
+  const W = m.world;
+  populateTowns(m);
+  const table = [
+    { b: BIOME.BEACH, type: 'crab', n: 14, max: 3 }, { b: BIOME.JUNGLE, type: 'jungle_spider', n: 12, max: 3 },
+    { b: BIOME.JUNGLE, type: 'croc', n: 12, max: 2, dmin: 25 }, { b: BIOME.COVE, type: 'pirate', n: 10, max: 3 },
+  ];
+  for (const s of table) for (let i = 0; i < s.n; i++) {
+    const p = W.randomFreeTile((x, y) => W.biomeAt(x, y) === s.b && dist(x, y, 75, 75) > (s.dmin || 15) && dist(x, y, W.cove.x, W.cove.y) > 6 && dist(x, y, W.reef.x, W.reef.y) > 6);
+    if (p) m.spawners.push({ type: s.type, x: p.x + 0.5, y: p.y + 0.5, max: s.max, alive: 0, timer: 0, respawn: 30 });
+  }
+  m.spawners.push({ type: 'pirate_captain', x: W.cove.x + 0.5, y: W.cove.y + 0.5, max: 1, alive: 0, timer: 0, respawn: MONSTERS.pirate_captain.respawn });
+  m.spawners.push({ type: 'sea_serpent', x: W.reef.x + 0.5, y: W.reef.y + 0.5, max: 1, alive: 0, timer: 0, respawn: MONSTERS.sea_serpent.respawn });
+  for (const sp of m.spawners) for (let i = 0; i < sp.max; i++) spawnFrom(m, sp);
+  m.fighterT = 0;
+  for (let i = 0; i < 6; i++) spawnFighter(m, false);
+}
 function populateCrypt(m) {
   const W = m.world;
   const groups = [['skeleton', 0, 35, 10, 3], ['skeleton_archer', 15, 60, 7, 2], ['ghoul', 20, 70, 6, 2], ['ghost', 30, 999, 7, 2], ['mummy', 45, 999, 5, 2]];
@@ -313,13 +342,14 @@ function spawnFrom(m, sp) {
   }
   return null;
 }
-const FIELD_LEVELS = { [BIOME.MEADOW]: [2, 8], [BIOME.PLAIN]: [6, 16], [BIOME.FOREST]: [5, 16], [BIOME.BONE]: [8, 20], [BIOME.CANYON]: [12, 25], [BIOME.HIGHLAND]: [14, 26], [BIOME.DESERT]: [12, 26] };
+const FIELD_LEVELS = { [BIOME.MEADOW]: [2, 8], [BIOME.PLAIN]: [6, 16], [BIOME.FOREST]: [5, 16], [BIOME.BONE]: [8, 20], [BIOME.CANYON]: [12, 25], [BIOME.HIGHLAND]: [14, 26], [BIOME.DESERT]: [12, 26], [BIOME.JUNGLE]: [16, 28], [BIOME.BEACH]: [14, 24] };
 function spawnFighter(m, evil) {
   const W = m.world;
   const p = W.randomFreeTile((x, y) => {
     const b = W.biomeAt(x, y);
     if (!FIELD_LEVELS[b]) return false;
     if (evil && (b === BIOME.MEADOW || dist(x, y, 100, 100) < 40)) return false;
+    if (m.id === 'isle' && dist(x, y, 75, 75) < 14) return false;
     for (const t of W.towns) if (dist(x, y, t.x, t.y) < t.r + 4) return false;
     if (G.player && dist(x, y, G.player.x, G.player.y) < 15) return false;
     return true;
@@ -650,9 +680,24 @@ function respawn() {
   UI.refresh();
 }
 function goHome() {
-  const t = getMap('overworld').world.towns.find((t) => t.id === G.player.homeTown) || getMap('overworld').world.towns[0];
-  if (G.map.id !== 'overworld') changeMap('overworld', t.x, t.y + 2);
-  else teleportTo(t.x + rand(-1, 1), t.y + 2);
+  const p = G.player;
+  if (G.world.towns.length) {
+    const t = G.world.towns.find((t) => t.id === p.homeTown) || G.world.towns.slice().sort((a, b) => dist(a.x, a.y, p.x, p.y) - dist(b.x, b.y, p.x, p.y))[0];
+    teleportTo(t.x + rand(-1, 1), t.y + 2); return;
+  }
+  const ow = getMap('overworld').world;
+  const t = ow.towns.find((t) => t.id === p.homeTown) || ow.towns[0];
+  changeMap('overworld', t.x, t.y + 2);
+}
+// 搭船往返銀風港與翡翠群島
+function sail(to) {
+  const p = G.player, cost = 500;
+  if (p.gold < cost) return '船費需要 ' + cost + ' 金幣。';
+  p.gold -= cost;
+  if (to === 'isle') { const w = getMap('isle').world; changeMap('isle', w.dock.x + 1, w.dock.y); log('經過一段航行，你抵達了翡翠群島。', 'level'); }
+  else { const t = getMap('overworld').world.towns.find((t) => t.id === 'port'); changeMap('overworld', t.x - 2, t.y + 4); log('你搭船回到了銀風港。', 'level'); }
+  SFX.play('quest');
+  return null;
 }
 function teleportTo(x, y) {
   const p = G.player;
@@ -696,8 +741,11 @@ function updatePlayer(dt) {
       const safe = inSafe(p);
       const con = statMod(p.d.st.con), wis = statMod(p.d.st.wis);
       p.hp = Math.min(p.maxHp, p.hp + Math.max(1, Math.floor(p.maxHp * (safe ? 0.06 : 0.02)) + Math.max(0, con)));
-      p.mp = Math.min(p.maxMp, p.mp + Math.max(1, Math.floor(p.maxMp * (safe ? 0.08 : 0.03)) + Math.max(0, wis)));
-    } else if (!p.weightWarned) { p.weightWarned = true; log('負重超過 50%，體力與魔力不會自然恢復。', 'warn'); }
+      p.mp = Math.min(p.maxMp, p.mp + Math.max(1, Math.floor(p.maxMp * (safe ? 0.08 : 0.03)) + Math.max(0, wis)) + (p.d.mpr || 0));
+    } else {
+      if (p.d.mpr) p.mp = Math.min(p.maxMp, p.mp + p.d.mpr);
+      if (!p.weightWarned) { p.weightWarned = true; log('負重超過 50%，體力與魔力不會自然恢復（回魔裝備仍有效）。', 'warn'); }
+    }
     if (wp < 50) p.weightWarned = false;
   }
   if (p.buffs.sanctuary) { p.sancT = (p.sancT || 0) + dt; if (p.sancT >= 1) { p.sancT = 0; const h = 5 + p.d.sp; p.hp = Math.min(p.maxHp, p.hp + h); } }
@@ -1175,11 +1223,12 @@ function updateActor(a, dt) {
   const dp = dist(a.x, a.y, pl.x, pl.y);
   if (a.kind === 'villager' || a.kind === 'dog') return updateVillager(a, dt, dp);
   if (a.companion) return updateCompanion(a, dt);
+  if (a.life && lifeUpdate(a, dt, dp > 36)) return;
   if (dp > 36 && !a.target && a.kind !== 'ally') return;
   const spMul = a.slowT > 0 ? 0.5 : 1;
   // 冒險者喝水
-  if ((a.kind === 'fighter' || a.kind === 'pker' || a.kind === 'ally') && a.hp < a.maxHp * 0.35 && G.t > a.potT) {
-    a.potT = G.t + 6; a.hp = Math.min(a.maxHp, a.hp + Math.round(a.maxHp * 0.3)); burst(a.x, a.y, 20, '#ff8080', 8, 1, 0.5, 2, 2);
+  if ((a.kind === 'fighter' || a.kind === 'pker' || a.kind === 'ally') && a.hp < a.maxHp * 0.35 && G.t > a.potT && (!a.life || a.life.pots > 0)) {
+    a.potT = G.t + 6; if (a.life) a.life.pots--; a.hp = Math.min(a.maxHp, a.hp + Math.round(a.maxHp * 0.3)); burst(a.x, a.y, 20, '#ff8080', 8, 1, 0.5, 2, 2);
   }
   // 盟友時效
   if (a.kind === 'ally' && a.expire && G.t > a.expire) { a.dead = true; a.deadT = 9; burst(a.x, a.y, 20, '#9fd0ff', 16, 2, 0.6); return; }
@@ -1293,13 +1342,13 @@ function updateSpawners(dt) {
     }
   }
   // 冒險者補充
-  if (m.id === 'overworld') {
+  if (m.id === 'overworld' || m.id === 'isle') {
     m.fighterT -= dt;
     if (m.fighterT <= 0) {
       m.fighterT = 20;
       const nF = m.actors.filter((a) => a.kind === 'fighter' && !a.dead).length, nP = m.actors.filter((a) => a.kind === 'pker' && !a.dead && !a.raider).length;
-      if (nF < 20) spawnFighter(m, false);
-      if (nP < 5) spawnFighter(m, true);
+      if (nF < (m.id === 'isle' ? 6 : 20)) spawnFighter(m, false);
+      if (m.id === 'overworld' && nP < 5) spawnFighter(m, true);
     }
   }
   for (let i = m.actors.length - 1; i >= 0; i--) { const a = m.actors[i]; if (a.dead && a.deadT > 3 && a.kind !== 'struct') m.actors.splice(i, 1); }
@@ -1511,6 +1560,8 @@ const NPC_LINES = {
   clan: ['要建立自己的血盟嗎？', '有夥伴才能攻下灰岩城'],
   warehouse: ['東西太重可以寄放在這裡', '倉庫在每個村莊都通用喔'],
   jewel: ['戒指和項鍊能讓你更強大', '這些可是稀有的飾品'],
+  coral: ['珍珠可以賣個好價錢喔', '島上的珊瑚法杖只有這裡買得到'],
+  captain: ['要出海嗎？', '海上的風很舒服啊', '翡翠群島可是個好地方'],
   pet: ['可愛的寵物在等你喔～', '寵物倒下了就帶回來給我吧', '馴獸肉乾可以馴服野狼'],
   herald: ['灰岩城等待著真正的主人', '有血盟就能向灰岩城宣戰！'],
 };
@@ -1524,6 +1575,11 @@ function updateNPCs(dt) {
 // ---------- 主迴圈 ----------
 let lastT = 0, saveT = 0, zoneShown = '', townShown = null;
 function frame(ts) {
+  // 任何一格出錯都不會讓遊戲停住
+  try { frameBody(ts); } catch (e) { if (!frame.errT || ts - frame.errT > 5000) { frame.errT = ts; console.error(e); } }
+  requestAnimationFrame(frame);
+}
+function frameBody(ts) {
   const dt = Math.min(0.05, (ts - lastT) / 1000 || 0.016);
   lastT = ts;
   if (G.running) {
@@ -1540,6 +1596,7 @@ function frame(ts) {
     for (let i = 0; i < acts.length; i++) updateActor(acts[i], dt);
     separate(acts.filter((a) => !a.dead && dist(a.x, a.y, p.x, p.y) < 30));
     updateNPCs(dt);
+    socialTick(dt);
     updateSpawners(dt);
     updateSiege(dt);
     updateFx(dt);
@@ -1553,12 +1610,11 @@ function frame(ts) {
     // 區域提示、記錄最近村莊
     const zn = G.world.zoneName(p.x, p.y);
     if (zn !== zoneShown) { zoneShown = zn; UI.zone(zn, inSafe(p)); }
-    if (G.map.id === 'overworld') { const t = G.world.townAt(p.x, p.y); if (t && t !== townShown) { p.homeTown = t.id; } townShown = t; }
+    { const t = G.world.townAt(p.x, p.y); if (t && t !== townShown) { p.homeTown = t.id; } townShown = t; }
     saveT += dt; if (saveT > 30) { saveT = 0; saveGame(true); }
     UI.tick(dt);
     render();
   } else if (typeof Scenes !== 'undefined') Scenes.frame(dt);
-  requestAnimationFrame(frame);
 }
 function screenToWorld(mx, my) {
   const sx = mx - VW / 2 + G.cam.x, sy = my - (VH - HUD_H()) / 2 + G.cam.y;
@@ -1606,7 +1662,8 @@ function onPointerDown(e) {
     if (hit.kind === 'actor') {
       const a = hit.e;
       if (playerCanAttack(a, force)) Net.intent('attack', { target: a, force });
-      else if (a.faction === 'fighter' || a.faction === 'ally' || a.kind === 'townguard') { a.speak(a.kind === 'townguard' ? '保持秩序。' : pick(['你好！', '一起加油吧！', '嗨～']), 2.5); if (a.faction === 'fighter') log('提示：按住 Ctrl 或 Shift 點擊可以強制攻擊其他冒險者（會變成紫名）。', 'sys'); }
+      else if (a.faction === 'fighter') Net.intent('talk', { npc: a });
+      else if (a.faction === 'ally' || a.kind === 'townguard') a.speak(a.kind === 'townguard' ? '保持秩序。' : pick(['你好！', '一起加油吧！', '嗨～']), 2.5);
       return;
     }
     if (hit.kind === 'npc') { Net.intent('talk', { npc: hit.e }); return; }
@@ -1667,7 +1724,7 @@ function enterWorld(saveData) {
   G.player = p;
   G.maps = {}; G.siege = null; G.raid = null; G.raidT = undefined; G.autoHunt = false;
   G.day = saveData.day || 0.3;
-  setMap(saveData.mapId === 'crypt' ? 'crypt' : 'overworld');
+  setMap(['crypt', 'isle'].includes(saveData.mapId) ? saveData.mapId : 'overworld');
   recalc(p);
   if (saveData.x && !G.world.blocked(saveData.x, saveData.y)) { p.x = saveData.x; p.y = saveData.y; }
   else { const t = G.world.towns[0] || { x: G.world.entry.x, y: G.world.entry.y - 2 }; const q = G.world.nearestFree(t.x + 1, t.y + 2); p.x = q.x; p.y = q.y; }

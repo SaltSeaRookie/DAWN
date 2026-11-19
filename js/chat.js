@@ -216,6 +216,7 @@ const GM = {
       if (!a.length) return say('用法：/tp 地點名稱｜x y｜crypt｜overworld', 'warn');
       if (a[0] === 'crypt' || a[0] === '地下墓穴內') { const w = getMap('crypt').world; changeMap('crypt', w.entry.x + 1, w.entry.y); return; }
       if (a[0] === 'overworld') { changeMap('overworld', 100, 103); return; }
+      if (a[0] === 'isle' || a[0] === '翡翠群島') { const w = getMap('isle').world; changeMap('isle', w.dock.x + 1, w.dock.y); return; }
       const x = parseFloat(a[0]), y = parseFloat(a[1]);
       if (!isNaN(x) && !isNaN(y)) { teleportTo(x, y); say('傳送到 ' + x + ', ' + y); return; }
       const ow = getMap('overworld').world;
