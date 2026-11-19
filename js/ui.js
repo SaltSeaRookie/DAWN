@@ -479,7 +479,8 @@ const UI = {
     const b2 = el('button', 'btn', '選擇角色'); b2.onclick = () => { exitWorld(); this.leaveGame(); Scenes.show('select'); };
     row.appendChild(b0); row.appendChild(b1); row.appendChild(b2);
     w.body.appendChild(row);
-    w.body.appendChild(el('div', 'dim small', '模式：本機（資料儲存在這個瀏覽器）。帳號：' + esc(Net.session ? Net.session.account : '')));
+    w.body.appendChild(el('div', 'dim small', '版本 v' + GAME_VERSION + '・模式：本機（資料儲存在這個瀏覽器）。帳號：' + esc(Net.session ? Net.session.account : '')));
+    const vb = el('button', 'btn sm link', '檢查更新'); vb.onclick = async () => { await Version.check(); if (!Version.remote) this.log('目前已是最新版本 v' + GAME_VERSION + '。', 'sys'); }; w.body.appendChild(vb);
   },
 
   // ---------- NPC ----------
@@ -757,7 +758,7 @@ const UI = {
       <p><b>攻城</b>：有血盟、等級 10 以上可在灰岩城外找攻城傳令官宣戰，摧毀守護之塔就能成為城主並收稅。</p>
       <p><b>夥伴</b>：召喚術、迷魅術與寵物都會跟著你戰鬥。按 T 開啟夥伴視窗切換「攻擊我的目標／自由攻擊／待命／跟隨」。寵物在村莊的寵物商人購買，或用馴獸肉乾馴服體力低於一半的野狼。</p>
       <p><b>聊天</b>：在對話欄打字，附近的冒險者和 NPC 會回應你。輸入 /help 查看指令。</p>
-      <p><b>快捷鍵</b>：1-0 快捷列・I 背包・C 角色・S 魔法・T 夥伴・P 血盟・M 世界地圖・N 小地圖・O 設定・Tab 最近的怪物・Enter 聊天・Esc 關閉</p>
+      <p><b>快捷鍵</b>：1-0 快捷列・Tab／I 背包・C 角色・S 魔法・T 夥伴・P 血盟・M 世界地圖・N 小地圖・O 設定・Q 最近的怪物・Enter 聊天・Esc 關閉</p>
       <p><b>備份</b>：設定裡可以匯出角色檔案或複製存檔碼，在選擇角色畫面「匯入角色」即可轉移到其他裝置。</p>
       <p class="dim">遊戲每 30 秒自動存檔。</p></div>`;
   },

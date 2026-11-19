@@ -1629,7 +1629,8 @@ function onKey(e) {
     case 'o': UI.toggle('settings'); break;
     case 't': UI.toggle('pet'); break;
     case 'escape': if (G.targeting) { G.targeting = null; log('取消施法。', 'sys'); } else UI.closeAll(); break;
-    case 'tab': e.preventDefault(); autoNext(); break;
+    case 'tab': e.preventDefault(); UI.toggle('inv'); break;
+    case 'q': autoNext(); break;
     case 'enter': UI.focusChat(); e.preventDefault(); break;
   }
 }

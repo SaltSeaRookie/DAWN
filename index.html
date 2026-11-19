@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 <title>晨曦大陸 Dawnlands</title>
-<link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="css/style.css?v=2.3.0">
 </head>
 <body class="in-scene">
 <canvas id="game"></canvas>
@@ -30,7 +30,7 @@
         <button type="button" id="btnQuit" class="btn">離開</button>
       </div>
     </form>
-    <div class="note">本機模式：帳號與角色儲存在這台裝置的瀏覽器中，<br>沒有帳號時輸入新的帳號密碼即可建立。</div>
+    <div class="note"><span class="verLabel"></span>・本機模式：帳號與角色儲存在這台裝置的瀏覽器中，<br>沒有帳號時輸入新的帳號密碼即可建立。</div>
   </div>
 </div>
 
@@ -113,7 +113,7 @@
   <div id="hudR" class="panel">
     <div id="hotbar"></div>
     <div class="menu">
-      <button id="btnInv" title="背包 (I)">背包</button>
+      <button id="btnInv" title="背包 (Tab / I)">背包</button>
       <button id="btnChar" title="角色 (C)">角色</button>
       <button id="btnSpell" title="魔法 (S)">魔法</button>
       <button id="btnPet" title="夥伴 (T)">夥伴</button>
@@ -124,6 +124,7 @@
   </div>
 </div>
 
+<div id="updateBar"></div>
 <div id="windows"></div>
 <div id="tip"></div>
 
@@ -135,20 +136,21 @@
   </div>
 </div>
 
-<script src="assets/music/theme.js"></script>
-<script src="js/util.js"></script>
-<script src="js/data.js"></script>
-<script src="js/net.js"></script>
-<script src="js/world.js"></script>
-<script src="js/assets.js"></script>
-<script src="js/sprites.js"></script>
-<script src="js/audio.js"></script>
-<script src="js/render.js"></script>
-<script src="js/companions.js"></script>
-<script src="js/backup.js"></script>
-<script src="js/chat.js"></script>
-<script src="js/ui.js"></script>
-<script src="js/scenes.js"></script>
-<script src="js/game.js"></script>
+<script src="js/version.js?v=2.3.0"></script>
+<script src="assets/music/theme.js?v=2.3.0"></script>
+<script src="js/util.js?v=2.3.0"></script>
+<script src="js/data.js?v=2.3.0"></script>
+<script src="js/net.js?v=2.3.0"></script>
+<script src="js/world.js?v=2.3.0"></script>
+<script src="js/assets.js?v=2.3.0"></script>
+<script src="js/sprites.js?v=2.3.0"></script>
+<script src="js/audio.js?v=2.3.0"></script>
+<script src="js/render.js?v=2.3.0"></script>
+<script src="js/companions.js?v=2.3.0"></script>
+<script src="js/backup.js?v=2.3.0"></script>
+<script src="js/chat.js?v=2.3.0"></script>
+<script src="js/ui.js?v=2.3.0"></script>
+<script src="js/scenes.js?v=2.3.0"></script>
+<script src="js/game.js?v=2.3.0"></script>
 </body>
 </html>

@@ -324,3 +324,10 @@ body:not(.in-game) #hud, body:not(.in-game) #minimapWrap, body:not(.in-game) #bu
   .cw-cols { grid-template-columns: 1fr; }
   .tablet h1 { font-size: 32px; }
 }
+
+/* ===== 版本更新提醒 ===== */
+#updateBar { position: fixed; left: 50%; top: 10px; transform: translateX(-50%); z-index: 100002; display: none; align-items: center; gap: 8px; max-width: calc(100vw - 20px);
+  padding: 8px 12px; background: linear-gradient(#4a3a1a, #2a2010); border: 1px solid var(--gold); border-radius: 4px; box-shadow: 0 6px 20px rgba(0,0,0,0.6); font-size: 13px; color: #fff2d0; }
+#updateBar.show { display: flex; }
+#updateBar b { color: #ffd76a; }
+#updateBar .btn { margin: 0; white-space: nowrap; }
