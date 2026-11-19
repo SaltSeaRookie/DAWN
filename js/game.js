@@ -35,6 +35,18 @@ class Entity {
   speak(text, t = 4) { this.say = text; this.sayT = t; }
 }
 
+// 會過期的仇恨名單（被誤打的冒險者一段時間後就不再追打）
+class GrudgeSet {
+  constructor() { this.m = new Map(); }
+  add(id, ttl = 60) { this.m.set(id, G.t + ttl); }
+  has(id) { const e = this.m.get(id); if (e === undefined) return false; if (G.t > e) { this.m.delete(id); return false; } return true; }
+  delete(id) { this.m.delete(id); }
+  clear() { this.m.clear(); }
+}
+const PINK_TIME = 20;        // 紫名秒數
+const FIGHTER_GRUDGE = 8;    // 冒險者被誤打後追擊秒數
+const GUARD_COOLDOWN = 120;  // 守衛處罰紅名後的冷卻秒數
+
 // 所有非玩家的角色（怪物、冒險者、邪惡冒險者、守衛、盟友、村民、建築）
 class Actor extends Entity {
   constructor(o) {
@@ -43,7 +55,7 @@ class Actor extends Entity {
       kind: 'monster', faction: 'monster', name: '', level: 1, maxHp: 10, ac: 0, mr: 0, er: 0,
       dmg: [1, 3], atkSpd: 1.2, range: 1.3, proj: null, magic: false, aggro: false, aggroR: 5, undead: false,
       sprite: 'human', look: null, clan: null, emblem: null, align: 0, boss: false, def: null,
-      state: 'idle', target: null, thinkT: rand(0, 1.5), atkCd: 0, deadT: 0, grudge: new Set(), slowT: 0, potT: 0,
+      state: 'idle', target: null, thinkT: rand(0, 1.5), atkCd: 0, deadT: 0, grudge: new GrudgeSet(), slowT: 0, potT: 0,
     }, o);
     this.hp = this.maxHp;
     this.home = { x: this.x, y: this.y };
@@ -128,6 +140,7 @@ function recalc(p = G.player) {
   }
   const B = p.buffs;
   if (B.shield) d.ac += 2;
+  if (B.warcry) d.ac += 3;
   if (B.earthskin) d.ac += 5;
   if (B.blessarmor) { d.ac += 4; d.mr += 10; }
   d.st = st;
@@ -426,7 +439,7 @@ function isHostile(a, b) {
     case 'fighter': return !bSafe && (bf === 'monster' || bf === 'pker' || (bf === 'player' && pl.pinkT > 0 && a.grudge.has(pl.id)));
     case 'pker': return !bSafe && (bf === 'player' || bf === 'fighter' || bf === 'ally' || (a.raider && b.struct === 'tower' && ownsCastle()));
     case 'ally': return !bSafe && (bf === 'monster' || bf === 'pker' || (bf === 'castle' && siegeHostile() && !(b.struct === 'gate' && b.open)));
-    case 'townguard': return bf === 'pker' || (bf === 'player' && pl.align < 0);
+    case 'townguard': return bf === 'pker' || (bf === 'player' && pl.align < 0 && G.t > (pl.guardSafeT || 0));
     case 'castle':
       if (b.struct) return false;
       if (bf === 'pker') return true;
@@ -451,6 +464,12 @@ function dealDamage(src, tgt, dmg, opt = {}) {
   if (tgt.dead || dmg <= 0) return;
   const pl = G.player;
   if (tgt === pl && pl.god) { floatText(pl.x, pl.y, '0', '#ffb040', 60, 13); return; }
+  if (tgt === pl && src && src.kind === 'townguard') {
+    if (G.t <= (pl.guardSafeT || 0)) return;
+    pl.guardSafeT = G.t + GUARD_COOLDOWN;
+    for (const a of G.map.actors) if (a.kind === 'townguard' && a.target === pl) { a.target = null; a.state = 'return'; }
+    later(0.3, () => log('守衛：這次只是警告，邪惡之人！別在村裡惹事。', 'npc'));
+  }
   if (tgt !== pl && tgt.kind === 'struct' && !siegeHostile() && !(src.raider)) return;
   tgt.hp -= dmg; tgt.hurtT = 0.2;
   const big = tgt.boss || tgt.struct;
@@ -463,14 +482,14 @@ function dealDamage(src, tgt, dmg, opt = {}) {
   if (src) {
     if (tgt !== pl) {
       if (src === pl) tgt.hitByPlayer = true;
-      tgt.grudge.add(src.id);
+      tgt.grudge.add(src.id, tgt.faction === 'fighter' && src === pl ? FIGHTER_GRUDGE : 60);
       if (!tgt.target || tgt.target.dead || (tgt.state !== 'chase' && !tgt.struct)) { tgt.target = src; tgt.state = 'chase'; tgt.thinkT = 0; }
       if (tgt.boss && !tgt.roared) { tgt.roared = true; SFX.play('roar', tgt.x, tgt.y); }
       // 被攻擊的冒險者會呼叫附近的同伴
       if (tgt.faction === 'fighter' && src === pl) {
         if (tgt.align >= 0 && pl.pinkT <= 0 && !tgt.grudge.has('pk' + pl.id)) { log('你攻擊了無辜的冒險者，名字變成了紫色！', 'warn'); }
-        if (tgt.align >= 0) pl.pinkT = 60;
-        for (const o of G.map.actors) if (o.faction === 'fighter' && !o.dead && dist(o.x, o.y, tgt.x, tgt.y) < 7) { o.grudge.add(pl.id); if (!o.target) { o.target = pl; o.state = 'chase'; } }
+        if (tgt.align >= 0) pl.pinkT = PINK_TIME;
+        for (const o of G.map.actors) if (o.faction === 'fighter' && !o.dead && dist(o.x, o.y, tgt.x, tgt.y) < 7) { o.grudge.add(pl.id, FIGHTER_GRUDGE); if (!o.target) { o.target = pl; o.state = 'chase'; } }
       }
     } else {
       // 玩家被打：沒有行動時自動反擊
@@ -687,7 +706,7 @@ function updatePlayer(dt) {
     p.buffs[k] -= dt;
     if (p.buffs[k] <= 0) {
       delete p.buffs[k]; changed = true;
-      const msg = { haste: '你的動作恢復正常速度。', holy: '武器上神聖的氣息消失了。', shield: '防護術的效果消失了。', glow: '身邊的光芒消失了。', earthskin: '大地之膚的效果消失了。', blessarmor: '祝福鎧甲的效果消失了。', sanctuary: '神聖光環消失了。' }[k];
+      const msg = { haste: '你的動作恢復正常速度。', holy: '武器上神聖的氣息消失了。', shield: '防護術的效果消失了。', glow: '身邊的光芒消失了。', might: '力量祝福的效果消失了。', warcry: '戰吼的效果消失了。', earthskin: '大地之膚的效果消失了。', blessarmor: '祝福鎧甲的效果消失了。', sanctuary: '神聖光環消失了。' }[k];
       if (msg) log(msg, 'sys');
     }
   }
@@ -784,7 +803,7 @@ function playerStrike(t, mul = 1) {
   const roll = (extraMul = 1) => {
     if (t.dead) return;
     const statB = w.ranged ? Math.floor(statMod(st.dex) * 0.8) : statMod(st.str);
-    let base = randi(w.dmg[0], w.dmg[1]) + p.d.dmgB + Math.floor(p.level / 4) + Math.max(-2, statB) + (p.buffs.holy ? 2 : 0);
+    let base = randi(w.dmg[0], w.dmg[1]) + p.d.dmgB + Math.floor(p.level / 4) + Math.max(-2, statB) + (p.buffs.holy ? 2 : 0) + (p.buffs.might ? 3 : 0);
     if (t.undead) base += (w.undeadB || 0) + (p.buffs.holy ? 3 : 0);
     if (arrow) { const ad = ITEMS[arrow.id]; base += ad.dmgB || 0; if (t.undead) base += ad.undeadB || 0; }
     const hitB = (p.d.hit + (w.ranged ? statMod(st.dex) : statMod(st.str)) + (p.buffs.holy ? 2 : 0) + ench * 0.5) * 0.02;
@@ -937,10 +956,16 @@ function doCast(id, target) {
   p.atkAnim = 0; p.atkDur = 0.35;
   if (target) p.face(target.x, target.y);
   const sp = p.d.sp;
+  const healOne = (t, n) => {
+    t.hp = Math.min(t.maxHp, t.hp + n); floatText(t.x, t.y, '+' + n, '#60ff80', 60);
+    for (let i = 0; i < 18; i++) G.particles.push({ x: t.x + rand(-0.4, 0.4), y: t.y + rand(-0.4, 0.4), z: rand(0, 20), vx: 0, vy: 0, vz: rand(30, 60), life: 1, max: 1, color: '#c8f0ff', size: 2.5 });
+  };
+  // 治癒術會補給自己與附近夥伴中體力比例最低的一位
   const heal = (n) => {
-    p.hp = Math.min(p.maxHp, p.hp + n); floatText(p.x, p.y, '+' + n, '#60ff80', 60);
-    for (let i = 0; i < 18; i++) G.particles.push({ x: p.x + rand(-0.4, 0.4), y: p.y + rand(-0.4, 0.4), z: rand(0, 20), vx: 0, vy: 0, vz: rand(30, 60), life: 1, max: 1, color: '#c8f0ff', size: 2.5 });
-    SFX.play('heal');
+    let t = p, low = p.hp / p.maxHp;
+    for (const a of companions()) if (dist(a.x, a.y, p.x, p.y) < 7 && a.hp / a.maxHp < low) { low = a.hp / a.maxHp; t = a; }
+    healOne(t, n); SFX.play('heal');
+    if (t !== p) log('治癒術恢復了 ' + t.name + ' 的體力。', 'sys');
   };
   const buff = (k, msg, col) => { p.buffs[k] = s.dur; log(msg, 'sys'); burst(p.x, p.y, 30, col, 20, 2, 0.9, 2.5, 3); SFX.play('buff'); recalc(); };
   const aoeHit = (cx, cy, r, base, filter) => {
@@ -978,6 +1003,93 @@ function doCast(id, target) {
       for (let i = 0; i < 6; i++) G.meteors.push({ x: tx + rand(-2.5, 2.5), y: ty + rand(-2.5, 2.5), t: -i * 0.12, dur: 0.7 });
       SFX.play('fire');
       later(0.9, () => { SFX.play('boom', tx, ty); shake(8); aoeHit(tx, ty, s.aoe, () => randi(60, 100) + sp * 5); });
+      break;
+    }
+    case 'flamering': {
+      SFX.play('fire'); G.rings = G.rings || []; G.rings.push({ x: p.x, y: p.y, t: 0, r: s.aoe, col: '255,140,40' });
+      for (let i = 0; i < 24; i++) { const a = i / 24 * Math.PI * 2; G.particles.push({ x: p.x + Math.cos(a) * 1.2, y: p.y + Math.sin(a) * 1.2, z: 6, vx: Math.cos(a) * 3, vy: Math.sin(a) * 3, vz: 20, life: 0.6, max: 0.6, color: i % 2 ? '#ffb030' : '#ff5010', size: 3 }); }
+      aoeHit(p.x, p.y, s.aoe, () => randi(8, 14) + sp * 2); break;
+    }
+    case 'frostnova': {
+      SFX.play('cast'); G.rings = G.rings || []; G.rings.push({ x: p.x, y: p.y, t: 0, r: s.aoe, col: '170,230,255' });
+      for (let i = 0; i < 30; i++) { const a = Math.random() * 7; G.particles.push({ x: p.x, y: p.y, z: 8, vx: Math.cos(a) * 4, vy: Math.sin(a) * 4, vz: 10, life: 0.7, max: 0.7, color: '#d8f4ff', size: 2.5 }); }
+      for (const a of G.map.actors.slice()) if (!a.dead && dist(a.x, a.y, p.x, p.y) <= s.aoe && playerCanAttack(a, false)) { magicHit(p, a, randi(10, 18) + sp * 2); a.slowT = 5; }
+      break;
+    }
+    case 'holylight': {
+      SFX.play('heal'); G.rings = G.rings || []; G.rings.push({ x: target.x, y: target.y, t: 0, r: s.aoe, col: '255,240,170' });
+      burst(target.x, target.y, 30, '#fff6c0', 24, 2, 0.8, 3, 4);
+      for (const a of G.map.actors.slice()) if (!a.dead && dist(a.x, a.y, target.x, target.y) <= s.aoe && playerCanAttack(a, false)) magicHit(p, a, (randi(10, 16) + sp * 2) * (a.undead ? 2 : 1));
+      break;
+    }
+    case 'arrowrain': {
+      const tx = target.x, ty = target.y; let n = 0;
+      for (let i = 0; i < 5; i++) { const ar = pickArrow(target); if (!ar) break; removeItem(ar, 1); n++; }
+      if (!n) { log('沒有箭了！', 'warn'); break; }
+      SFX.play('bow');
+      for (let i = 0; i < 14; i++) later(i * 0.04, () => { const ax = tx + rand(-1.8, 1.8), ay = ty + rand(-1.8, 1.8); G.projectiles.push({ kind: 'arrow', x: ax - 2.5, y: ay - 2.5, z: 140, target: { x: ax, y: ay, dead: false, rain: true }, speed: 16, onHit: () => burst(ax, ay, 2, '#c8b890', 3, 1, 0.3, 2, 1) }); });
+      later(0.55, () => { for (const a of G.map.actors.slice()) if (!a.dead && dist(a.x, a.y, tx, ty) <= s.aoe && playerCanAttack(a, false)) physHit(p, a, 0.5 + n * 0.12, { base: randi(p.weaponDef.dmg[0], p.weaponDef.dmg[1]) + p.d.dmgB + statMod(p.d.st.dex), hit: 0.1, ranged: true }); });
+      break;
+    }
+    case 'whirlwind': {
+      if (p.weaponDef.ranged) { log('旋風斬需要近戰武器。', 'warn'); p.mp += s.mp; break; }
+      SFX.play('swing'); later(0.12, () => SFX.play('swing'));
+      p.spinT = 0.5; G.rings = G.rings || []; G.rings.push({ x: p.x, y: p.y, t: 0, r: s.aoe, col: '230,230,255' });
+      later(0.15, () => { for (const a of G.map.actors.slice()) if (!a.dead && dist(a.x, a.y, p.x, p.y) <= s.aoe && playerCanAttack(a, false)) physHit(p, a, 1.1, { base: randi(p.weaponDef.dmg[0], p.weaponDef.dmg[1]) + p.d.dmgB + statMod(p.d.st.str) + Math.floor(p.level / 4), hit: 0.05 }); });
+      break;
+    }
+    case 'poison': {
+      SFX.play('cast'); G.clouds = G.clouds || [];
+      G.clouds.push({ x: target.x, y: target.y, r: s.aoe, t: 0, dur: 6, tick: 0, dmg: () => randi(5, 9) + sp });
+      break;
+    }
+    case 'chainlightning': {
+      SFX.play('thunder');
+      const hit = [target], pts = [[p.x, p.y], [target.x, target.y]];
+      let cur = target;
+      for (let k = 0; k < 3; k++) {
+        let nx = null, bd = 4.5;
+        for (const a of G.map.actors) if (!a.dead && !hit.includes(a) && playerCanAttack(a, false)) { const d = dist(a.x, a.y, cur.x, cur.y); if (d < bd) { bd = d; nx = a; } }
+        if (!nx) break; hit.push(nx); pts.push([nx.x, nx.y]); cur = nx;
+      }
+      G.chains = G.chains || []; G.chains.push({ pts, t: 0, dur: 0.5 });
+      hit.forEach((a, i) => later(0.05 + i * 0.08, () => { if (!a.dead) magicHit(p, a, Math.round((randi(20, 32) + sp * 3) * Math.pow(0.8, i))); }));
+      break;
+    }
+    case 'blizzard': {
+      const tx = target.x, ty = target.y;
+      G.snows = G.snows || []; G.snows.push({ x: tx, y: ty, r: s.aoe, t: 0, dur: 1.8 });
+      SFX.play('cast');
+      for (let w = 0; w < 3; w++) later(0.3 + w * 0.5, () => { for (const a of G.map.actors.slice()) if (!a.dead && dist(a.x, a.y, tx, ty) <= s.aoe && playerCanAttack(a, false)) { magicHit(p, a, randi(22, 36) + sp * 3); a.slowT = 4; } });
+      break;
+    }
+    case 'groupheal': {
+      const n = 30 + sp * 4 + randi(0, 10);
+      healOne(p, n);
+      for (const a of companions()) if (dist(a.x, a.y, p.x, p.y) < 7) healOne(a, n);
+      for (const a of G.map.actors) if (a.kind === 'ally' && !a.dead && dist(a.x, a.y, p.x, p.y) < 7) healOne(a, n);
+      G.rings = G.rings || []; G.rings.push({ x: p.x, y: p.y, t: 0, r: 7, col: '170,255,190' });
+      SFX.play('heal'); break;
+    }
+    case 'might': buff('might', '一股力量湧入你的身體。（傷害 +3）', '#ff9a60'); break;
+    case 'warcry': {
+      buff('warcry', '你發出了震天的戰吼！（防禦 +3）', '#ffd080'); SFX.play('roar');
+      for (const a of G.map.actors) if (!a.dead && a.kind === 'monster' && dist(a.x, a.y, p.x, p.y) < 5 && !inSafe(a)) { a.target = p; a.state = 'chase'; a.grudge.add(p.id); }
+      break;
+    }
+    case 'blink': {
+      const mw = screenToWorld(G.mouse.x, G.mouse.y);
+      let tx = mw.x, ty = mw.y;
+      const d = dist(p.x, p.y, tx, ty);
+      if (d > 8) { tx = p.x + (tx - p.x) / d * 8; ty = p.y + (ty - p.y) / d * 8; }
+      if (G.world.blocked(tx, ty)) { const q = G.world.nearestFree(tx, ty); tx = q.x; ty = q.y; }
+      teleportTo(tx, ty); break;
+    }
+    case 'trueshot': {
+      if (!p.weaponDef.ranged) { log('需要裝備弓。', 'warn'); p.mp += s.mp; break; }
+      const ar = pickArrow(target); if (!ar) { log('沒有箭了！', 'warn'); break; }
+      removeItem(ar, 1); SFX.play('bow');
+      G.projectiles.push({ kind: 'arrow', x: p.x, y: p.y, z: 26, target, speed: 22, holy: true, onHit: () => { physHit(p, target, 2.5, { base: randi(p.weaponDef.dmg[0], p.weaponDef.dmg[1]) + p.d.dmgB + statMod(p.d.st.dex), hit: 0.25, ranged: true, crit: 0.25 }); burst(target.x, target.y, 26, '#fff2a0', 14, 3, 0.5); } });
       break;
     }
     case 'summon_wolf': case 'summon_golem': case 'summon_fire': SFX.play('cast'); castSummon(s.summon); break;
@@ -1366,7 +1478,11 @@ function updateFx(dt) {
   for (let i = G.texts.length - 1; i >= 0; i--) { const t = G.texts[i]; t.t += dt; if (t.t > 1.1) G.texts.splice(i, 1); }
   const items = G.map.items;
   for (let i = items.length - 1; i >= 0; i--) { const it = items[i]; it.t += dt; if (it.t > 180) items.splice(i, 1); }
-  for (const k of ['bolts', 'rings', 'meteors']) if (G[k]) { for (const b of G[k]) b.t += dt; G[k] = G[k].filter((b) => b.t < (b.dur || 0.5)); }
+  for (const c of G.clouds || []) {
+    c.tick -= dt;
+    if (c.tick <= 0) { c.tick = 1; for (const a of G.map.actors.slice()) if (!a.dead && dist(a.x, a.y, c.x, c.y) <= c.r && playerCanAttack(a, false)) magicHit(G.player, a, c.dmg()); }
+  }
+  for (const k of ['bolts', 'rings', 'meteors', 'clouds', 'chains', 'snows']) if (G[k]) { for (const b of G[k]) b.t += dt; G[k] = G[k].filter((b) => b.t < (b.dur || 0.5)); }
   if (G.clickFx) { G.clickFx.t += dt; if (G.clickFx.t > 0.6) G.clickFx = null; }
   if (G.levelFx) { G.levelFx.t += dt; if (G.levelFx.t > 1.6) G.levelFx = null; }
   if (G.shake > 0) G.shake = Math.max(0, G.shake - dt * 30);

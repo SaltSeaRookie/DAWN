@@ -174,6 +174,20 @@ const SPELLS = {
   heal3:      { name: '高級治癒術', circle: 5, mp: 24, target: 'self', icon: 'heal3', learn: { mage: 18, cleric: 16 }, desc: '恢復大量體力' },
   meteor:     { name: '流星火雨', circle: 5, mp: 40, target: 'enemy', icon: 'meteor', aoe: 3.5, learn: { mage: 18 }, desc: '召喚隕石轟炸大範圍敵人' },
   sanctuary:  { name: '神聖光環', circle: 5, mp: 30, target: 'self', icon: 'sanct', dur: 60, learn: { cleric: 20 }, desc: '60 秒內每秒恢復體力' },
+  // ----- 範圍與追加魔法 -----
+  flamering:  { name: '烈焰環', circle: 1, mp: 8, target: 'self', icon: 'fring', aoe: 2.2, learn: { mage: 3 }, desc: '以自己為中心爆發火焰，傷害周圍所有敵人' },
+  whirlwind:  { name: '旋風斬', circle: 1, mp: 6, target: 'self', icon: 'whirl', aoe: 1.9, learn: { knight: 5 }, desc: '揮舞武器橫掃身邊所有敵人（需近戰武器）' },
+  holylight:  { name: '聖光爆', circle: 2, mp: 9, target: 'enemy', icon: 'hlight', aoe: 2, learn: { cleric: 4 }, desc: '在目標處降下聖光，範圍傷害，對亡靈加倍' },
+  arrowrain:  { name: '箭雨', circle: 2, mp: 8, target: 'enemy', icon: 'arrows', aoe: 2.2, bow: true, learn: { ranger: 5 }, desc: '向目標區域射出箭雨（最多消耗 5 支箭）' },
+  frostnova:  { name: '冰霜新星', circle: 2, mp: 12, target: 'self', icon: 'frost', aoe: 2.6, learn: { mage: 6 }, desc: '向四周釋放寒氣，傷害並減速周圍敵人' },
+  blink:      { name: '瞬移術', circle: 2, mp: 6, target: 'self', icon: 'blink', learn: { mage: 5, cleric: 8, ranger: 10 }, desc: '瞬間移動到滑鼠位置（最遠 8 格）' },
+  warcry:     { name: '戰吼', circle: 2, mp: 8, target: 'self', icon: 'warcry', dur: 60, learn: { knight: 10 }, desc: '吸引周圍怪物攻擊你，並提升防禦 3（60 秒）' },
+  poison:     { name: '毒霧', circle: 3, mp: 14, target: 'enemy', icon: 'poison', aoe: 2.5, learn: { mage: 9 }, desc: '在目標處產生毒霧，6 秒內持續傷害範圍內敵人' },
+  might:      { name: '力量祝福', circle: 3, mp: 10, target: 'self', icon: 'might', dur: 300, learn: { knight: 8, cleric: 9, ranger: 10 }, desc: '物理傷害 +3（5 分鐘）' },
+  trueshot:   { name: '穿心箭', circle: 3, mp: 12, target: 'enemy', icon: 'trueshot', bow: true, learn: { ranger: 14 }, desc: '射出一支 2.5 倍傷害、容易爆擊的箭' },
+  chainlightning: { name: '連鎖閃電', circle: 4, mp: 24, target: 'enemy', icon: 'chain', learn: { mage: 15 }, desc: '閃電在最多 4 個敵人之間跳躍' },
+  groupheal:  { name: '群體治癒術', circle: 4, mp: 22, target: 'self', icon: 'gheal', learn: { cleric: 13, mage: 16 }, desc: '治療自己與周圍所有夥伴、盟友' },
+  blizzard:   { name: '暴風雪', circle: 5, mp: 45, target: 'enemy', icon: 'blizz', aoe: 4, learn: { mage: 20 }, desc: '大範圍的冰雪風暴，造成三次傷害並減速' },
   charm:      { name: '迷魅術', circle: 3, mp: 16, target: 'enemy', icon: 'charm', learn: { mage: 12 }, desc: '讓一隻怪物暫時成為你的盟友（30 分鐘，最多 3 隻）。頭目、守衛與冒險者無效' },
   summon_wolf:  { name: '召喚狼靈', circle: 3, mp: 20, target: 'self', icon: 'swolf', summon: 'spiritwolf', learn: { mage: 10, cleric: 10 }, desc: '召喚靈體之狼跟隨作戰（30 分鐘）' },
   summon_golem: { name: '召喚岩石巨像', circle: 4, mp: 30, target: 'self', icon: 'sgolem', summon: 'stonegolem', learn: { mage: 14, cleric: 14 }, desc: '召喚體力強大的岩石巨像替你擋住敵人（30 分鐘）' },
@@ -268,6 +282,13 @@ const SHOPS = {
   jewel: ['ring_fire', 'ring_guard', 'amulet_earth', 'amulet_guard', 'leather_belt', 'travel_cloak'],
   pet: ['tame_jerky', 'red_potion', 'orange_potion'],
 };
+
+// 魔法商人販賣 1～4 階魔法書（5 階只能從頭目取得）
+SHOPS.magic = ['oak_staff', 'crystal_staff', 'robe', 'wizard_hat', 'blue_potion'].concat(
+  Object.keys(SPELLS).filter((s) => SPELLS[s].circle <= 4).sort((a, b) => SPELLS[a].circle - SPELLS[b].circle).map((s) => 'book_' + s));
+// 5 階新魔法書加入頭目掉落
+MONSTERS.lich.loot.push(['book_blizzard', 0.2]);
+MONSTERS.wyvern.loot.push(['book_blizzard', 0.15]);
 
 function expForLevel(l) { return Math.floor(24 * Math.pow(l, 2.15)); }
 function alignName(v) { return v >= 500 ? '正義' : v < 0 ? '邪惡' : '中立'; }

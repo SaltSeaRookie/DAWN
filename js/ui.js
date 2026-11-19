@@ -239,7 +239,19 @@ const UI = {
     this.windows[id] = { el: d, body };
     return this.windows[id];
   },
-  front(d) { this.z = (this.z || 20) + 1; d.style.zIndex = this.z; },
+  front(d) {
+    // 視窗層級維持在 20～80 之間，避免蓋過提示框
+    this.z = (this.z || 20) + 1;
+    if (this.z > 80) { const ws = Object.values(this.windows).map((w) => w.el).sort((a, b) => (+a.style.zIndex || 0) - (+b.style.zIndex || 0)); this.z = 20; for (const w of ws) w.style.zIndex = ++this.z; this.z++; }
+    d.style.zIndex = this.z;
+  },
+  placeTip(t, target) {
+    const r = target.getBoundingClientRect(), tw = t.offsetWidth, th = t.offsetHeight;
+    let x = r.left + r.width / 2 - tw / 2, y = r.top - th - 8;
+    if (y < 4) y = r.bottom + 8;                                  // 上方放不下改放下方
+    if (y + th > window.innerHeight - 4) { y = Math.max(4, r.top + r.height / 2 - th / 2); x = r.right + 8; if (x + tw > window.innerWidth - 4) x = r.left - tw - 8; }
+    t.style.left = clamp(x, 4, window.innerWidth - tw - 4) + 'px'; t.style.top = clamp(y, 4, window.innerHeight - th - 4) + 'px';
+  },
   close(id) { const w = this.windows[id]; if (w) { w.el.remove(); delete this.windows[id]; } this.hideTip(); },
   closeAll() { for (const k in this.windows) this.close(k); },
   toggle(id) {
@@ -300,9 +312,7 @@ const UI = {
     if (d.desc) h += '<div class="dim">' + esc(d.desc) + '</div>';
     h += '<div class="dim">重量 ' + (Math.round(itemWeight(inst) * 10) / 10) + '　售價 ' + sellPrice(inst) + '</div>';
     const t = $('#tip'); t.innerHTML = h; t.style.display = 'block';
-    const r = e.target.getBoundingClientRect();
-    t.style.left = clamp(r.left - 10, 4, window.innerWidth - 240) + 'px';
-    t.style.top = Math.max(4, r.top - t.offsetHeight - 6) + 'px';
+    this.placeTip(t, e.currentTarget || e.target);
   },
   hideTip() { $('#tip').style.display = 'none'; },
 
@@ -330,6 +340,7 @@ const UI = {
   askDrop(inst) {
     let q = inst.qty;
     if (inst.qty > 1) { const v = prompt('要丟棄多少個 ' + ITEMS[inst.id].name + '？（最多 ' + inst.qty + '）', inst.qty); if (v === null) return; q = clamp(parseInt(v, 10) || 0, 0, inst.qty); if (!q) return; }
+    else if (inst.pet) { if (!confirm('項圈裡有寵物「' + inst.pet.name + '」，丟棄後會失去牠，確定嗎？')) return; const out = companions('pet').find((x) => x.pet === inst.pet); if (out) recallPet(out, true); }
     else if (ITEMS[inst.id].rare || inst.ench) { if (!confirm('確定要丟棄 ' + itemName(inst) + ' 嗎？')) return; }
     dropFromInv(inst, q);
   },
@@ -402,10 +413,9 @@ const UI = {
       c.appendChild(el('span', 'qty', s.mp));
       c.addEventListener('mouseenter', (e) => {
         const t = $('#tip');
-        t.innerHTML = '<b>' + s.name + '</b><div>第 ' + s.circle + ' 階　消耗 MP ' + s.mp + '</div><div>' + esc(s.desc) + '</div>' + (s.dur ? '<div class="dim">持續 ' + s.dur + ' 秒</div>' : '') +
+        t.innerHTML = '<b>' + s.name + '</b><div>第 ' + s.circle + ' 階　消耗 MP ' + s.mp + (s.aoe ? '　範圍 ' + s.aoe : '') + '</div><div>' + esc(s.desc) + '</div>' + (s.dur ? '<div class="dim">持續 ' + s.dur + ' 秒</div>' : '') +
           (has ? '<div class="dim">點擊施放・拖曳到快捷列</div>' : '<div class="bad">尚未學會（Lv.' + s.learn[p.cls] + ' 可學，需要魔法書）</div>');
-        t.style.display = 'block'; const r = e.target.getBoundingClientRect();
-        t.style.left = clamp(r.left - 10, 4, window.innerWidth - 240) + 'px'; t.style.top = Math.max(4, r.top - t.offsetHeight - 6) + 'px';
+        t.style.display = 'block'; this.placeTip(t, c);
       });
       c.addEventListener('mouseleave', () => this.hideTip());
       if (has) {
@@ -534,20 +544,26 @@ const UI = {
         list.appendChild(row);
       }
     } else {
-      const items = p.inv.slice();
+      const items = p.inv.filter((i) => !i.pet);
       if (!items.length) list.appendChild(el('div', 'dim', '沒有可以販賣的物品。'));
       for (const inst of items) {
         const d = ITEMS[inst.id], each = sellPrice(inst, true);
         const row = el('div', 'li');
         row.appendChild(iconCanvas(inst.id, 28));
         row.appendChild(el('div', 'li-n', '<b>' + esc(itemName(inst)) + '</b><span class="dim">每個 ' + each + ' 金幣</span>'));
-        const b = el('button', 'btn sm', inst.qty > 1 ? '全賣' : '賣');
-        b.onclick = () => {
+        const sell = (q) => {
+          if (!p.inv.includes(inst)) return;
+          q = clamp(q, 1, inst.qty);
           if ((d.rare || inst.ench >= 5) && !confirm('確定要賣掉 ' + itemName(inst) + ' 嗎？')) return;
-          const q = inst.qty; p.gold += each * q; removeItem(inst, q); SFX.play('coin');
+          p.gold += each * q; removeItem(inst, q); SFX.play('coin');
           this.log('賣出 ' + d.name + (q > 1 ? ' ×' + q : '') + '，獲得 ' + (each * q).toLocaleString() + ' 金幣。', 'loot'); this.refresh();
         };
-        row.appendChild(b);
+        if (inst.qty > 1) {
+          const b1 = el('button', 'btn sm', '賣 1'); b1.onclick = () => sell(1);
+          const b2 = el('button', 'btn sm', '數量'); b2.onclick = () => { const v = prompt('要賣幾個 ' + d.name + '？（最多 ' + inst.qty + '）', inst.qty); if (v !== null) sell(parseInt(v, 10) || 0); };
+          const b3 = el('button', 'btn sm', '全賣'); b3.onclick = () => sell(inst.qty);
+          row.appendChild(b1); row.appendChild(b2); row.appendChild(b3);
+        } else { const b = el('button', 'btn sm', '賣'); b.onclick = () => sell(1); row.appendChild(b); }
         list.appendChild(row);
       }
       const junk = items.filter((i) => ITEMS[i.id].type === 'junk');

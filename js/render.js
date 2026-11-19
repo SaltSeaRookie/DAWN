@@ -114,6 +114,20 @@ function render() {
     ctx.strokeStyle = 'rgba(' + r.col + ',' + (1 - k) + ')'; ctx.lineWidth = 4; ctx.beginPath(); ctx.ellipse(sx, sy, rr, rr / 2, 0, 0, 7); ctx.stroke();
   }
 
+  for (const c of G.clouds || []) {
+    const [sx, sy] = S(c.x, c.y), a = Math.min(1, (c.dur - c.t) / 0.6, c.t / 0.3);
+    const rr = c.r * HW * 1.4;
+    const gr = ctx.createRadialGradient(sx, sy - 10, 4, sx, sy - 10, rr);
+    gr.addColorStop(0, 'rgba(120,220,80,' + 0.45 * a + ')'); gr.addColorStop(1, 'rgba(60,140,40,0)');
+    ctx.fillStyle = gr; ctx.beginPath(); ctx.ellipse(sx, sy - 10, rr, rr * 0.55, 0, 0, 7); ctx.fill();
+    if (Math.random() < 0.4) G.particles.push({ x: c.x + rand(-c.r, c.r) * 0.7, y: c.y + rand(-c.r, c.r) * 0.7, z: 2, vx: 0, vy: 0, vz: 25, life: 0.8, max: 0.8, color: '#a8ff70', size: 3 });
+  }
+  for (const sn of G.snows || []) {
+    const [sx, sy] = S(sn.x, sn.y), rr = sn.r * HW * 1.4;
+    ctx.fillStyle = 'rgba(200,230,255,0.18)'; ctx.beginPath(); ctx.ellipse(sx, sy, rr, rr * 0.55, 0, 0, 7); ctx.fill();
+    for (let i = 0; i < 6; i++) G.particles.push({ x: sn.x + rand(-sn.r, sn.r) * 0.75, y: sn.y + rand(-sn.r, sn.r) * 0.75, z: rand(80, 160), vx: 1.5, vy: 1.5, vz: -150, life: 0.8, max: 0.8, color: Math.random() < 0.5 ? '#ffffff' : '#bfe6ff', size: 2.5 });
+  }
+
   // 深度排序
   const list = [];
   for (let j = y0; j <= y1; j++)
@@ -141,6 +155,19 @@ function render() {
     while (yy < sy - 20) { yy += rand(18, 30); xx = sx + rand(-14, 14); ctx.lineTo(xx, yy); }
     ctx.stroke(); ctx.shadowBlur = 0;
     ctx.fillStyle = 'rgba(200,220,255,' + a * 0.4 + ')'; ctx.beginPath(); ctx.ellipse(sx, sy, 30, 14, 0, 0, 7); ctx.fill();
+  }
+  for (const ch of G.chains || []) {
+    const a = 1 - ch.t / ch.dur;
+    ctx.strokeStyle = 'rgba(200,225,255,' + a + ')'; ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    ch.pts.forEach(([x, y], i) => {
+      const [sx, sy] = S(x, y);
+      if (!i) { ctx.moveTo(sx, sy - 30); return; }
+      const [px, py] = S(ch.pts[i - 1][0], ch.pts[i - 1][1]);
+      for (let k = 1; k <= 4; k++) ctx.lineTo(lerp(px, sx, k / 5) + rand(-8, 8), lerp(py, sy, k / 5) - 30 + rand(-8, 8));
+      ctx.lineTo(sx, sy - 30);
+    });
+    ctx.stroke();
   }
   for (const mt of G.meteors || []) {
     if (mt.t < 0) continue;
@@ -325,8 +352,8 @@ function drawEntity(e, S, labels) {
     const o = { dir: e.dir, moving: e.moving, walk: e.walk, t: G.t + e.id, atk: e.atkAnim, color: d.color, scale: e.scale };
     if (e.dead) { ctx.save(); ctx.translate(sx, sy); ctx.scale(1, 0.55); ctx.rotate(Math.PI / 2 * 0.9); ctx.translate(-sx, -sy); }
     if (e.hurtT > 0 && !e.dead) ctx.filter = 'brightness(1.8)';
-    else if (e.companion === 'charm') ctx.filter = 'saturate(1.3) drop-shadow(0 0 3px #ff70c8)';
     else if (e.slowT > 0) ctx.filter = 'hue-rotate(160deg) saturate(1.5)';
+    if (e.companion === 'charm') glowUnder(sx, sy, 26 + Math.sin(G.t * 4) * 3, 'rgba(255,110,200,0.45)');
     const H = (opts, h, w = 14) => { drawShadow(ctx, sx, sy, 11, 4); drawHumanoid(ctx, sx, sy, Object.assign(o, opts)); top = sy - h; bb = [sx - w, sy - h + 2, sx + w, sy + 4]; };
     switch (d.sprite) {
       case 'wolf': drawShadow(ctx, sx, sy, 16, 6); drawWolf(ctx, sx, sy, o); top = sy - 34; bb = [sx - 24, sy - 34, sx + 24, sy + 4]; break;
@@ -592,6 +619,11 @@ function drawWorldMap(cv) {
   g.restore();
 }
 
+function glowUnder(x, y, r, col) {
+  const gr = ctx.createRadialGradient(x, y, 0, x, y, r);
+  gr.addColorStop(0, col); gr.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = gr; ctx.beginPath(); ctx.ellipse(x, y, r, r * 0.55, 0, 0, 7); ctx.fill();
+}
 // 召喚獸與寵物
 function drawCompanionEntity(e, sx, sy, labels) {
   const fade = e.dead ? clamp(1 - e.deadT / 0.8, 0, 1) : 1;
@@ -601,10 +633,11 @@ function drawCompanionEntity(e, sx, sy, labels) {
   let top = sy - 40, bb = [sx - 18, sy - 36, sx + 18, sy + 4];
   switch (e.sprite) {
     case 'spiritwolf':
-      ctx.globalAlpha = fade * 0.8; ctx.filter = 'drop-shadow(0 0 6px #7ac0ff)';
+      glowUnder(sx, sy - 6, 30, 'rgba(120,180,255,0.45)');
+      ctx.globalAlpha = fade * 0.8;
       drawShadow(ctx, sx, sy, 16, 6, 0.2); drawWolf(ctx, sx, sy, Object.assign(o, { color: '#a8d0ff', eye: '#ffffff', scale: 1.05 })); top = sy - 36; bb = [sx - 24, sy - 34, sx + 24, sy + 4]; break;
     case 'sgolem':
-      ctx.filter = 'drop-shadow(0 0 4px #7ad0ff)';
+      glowUnder(sx, sy, 34, 'rgba(120,200,255,0.35)');
       drawShadow(ctx, sx, sy, 22, 8); drawGolem(ctx, sx, sy, o); top = sy - 66; bb = [sx - 24, sy - 62, sx + 24, sy + 4]; break;
     case 'fireelem': { drawShadow(ctx, sx, sy, 14, 5, 0.25); const h = drawFireElemental(ctx, sx, sy, o); top = sy - h - 52; bb = [sx - 16, sy - h - 50, sx + 16, sy + 4]; break; }
     case 'pwolf': drawShadow(ctx, sx, sy, 15, 5); drawWolf(ctx, sx, sy, Object.assign(o, { color: '#8a8a90', eye: '#80d0ff', scale: 0.92 })); top = sy - 32;
