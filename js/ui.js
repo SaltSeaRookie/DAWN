@@ -520,7 +520,8 @@ const UI = {
   openNPC(npc) {
     if (npc.kind === 'villager' || npc.kind === 'dog' || npc.kind === 'fighter') return this.openVillager(npc);
     const role = npc.role;
-    if (role === 'general' || role === 'smith' || role === 'magic' || role === 'jewel' || role === 'coral') this.openShop(npc);
+    if (role === 'castleshop' && !ownsCastle()) { npc.speak('抱歉，我只服務灰岩城的城主血盟。', 3); this.log(npc.name + '：抱歉，我只服務灰岩城的城主血盟。', 'npc'); return; }
+    if (role === 'general' || role === 'smith' || role === 'magic' || role === 'jewel' || role === 'coral' || role === 'castleshop') this.openShop(npc);
     else if (role === 'captain') this.openCaptain(npc);
     else if (role === 'teleport') this.openTeleport(npc);
     else if (role === 'quest') this.openQuest(npc);
@@ -542,7 +543,7 @@ const UI = {
   renderShop() {
     const w = this.windows.shop; if (!w) return;
     const p = G.player, npc = w.npc;
-    const greet = { coral: '歡迎來到珊瑚鎮！島上的特產都在這裡。', general: '歡迎光臨！藥水、卷軸、箭都在這裡。', smith: '看看我的武器和盔甲吧！', magic: '魔法的奧秘就在書頁之間。', jewel: '每一件飾品都是精心挑選的。' }[npc.role];
+    const greet = { castleshop: '城主大人，這些都是城堡御用的珍品。', coral: '歡迎來到珊瑚鎮！島上的特產都在這裡。', general: '歡迎光臨！藥水、卷軸、箭都在這裡。', smith: '看看我的武器和盔甲吧！', magic: '魔法的奧秘就在書頁之間。', jewel: '每一件飾品都是精心挑選的。' }[npc.role];
     w.body.innerHTML = this.dialogHead(npc, greet);
     const tabs = el('div', 'tabs');
     for (const [k, l] of [['buy', '購買'], ['sell', '販賣']]) {
@@ -572,7 +573,7 @@ const UI = {
           b.onclick = () => {
             const cost = d.price * q;
             if (p.gold < cost) { this.log('金幣不足。', 'warn'); SFX.play('error'); return; }
-            if (addItem(id, q)) { p.gold -= cost; SFX.play('coin'); this.log('購買了 ' + d.name + (q > 1 ? ' ×' + q : '') + '。', 'loot'); this.refresh(); }
+            if (addItem(id, q)) { p.gold -= cost; castleTax(cost, 'trade'); SFX.play('coin'); this.log('購買了 ' + d.name + (q > 1 ? ' ×' + q : '') + '。', 'loot'); this.refresh(); }
           };
           row.appendChild(b);
         }
@@ -590,7 +591,7 @@ const UI = {
           if (!p.inv.includes(inst)) return;
           q = clamp(q, 1, inst.qty);
           if ((d.rare || inst.ench >= 5) && !confirm('確定要賣掉 ' + itemName(inst) + ' 嗎？')) return;
-          p.gold += each * q; removeItem(inst, q); SFX.play('coin');
+          p.gold += each * q; castleTax(each * q, 'trade'); removeItem(inst, q); SFX.play('coin');
           this.log('賣出 ' + d.name + (q > 1 ? ' ×' + q : '') + '，獲得 ' + (each * q).toLocaleString() + ' 金幣。', 'loot'); this.refresh();
         };
         if (inst.qty > 1) {
@@ -604,7 +605,7 @@ const UI = {
       const junk = items.filter((i) => ITEMS[i.id].type === 'junk');
       if (junk.length) {
         const b = el('button', 'btn', '一鍵販賣所有戰利品');
-        b.onclick = () => { let sum = 0; for (const inst of junk) { sum += sellPrice(inst, true) * inst.qty; removeItem(inst, inst.qty); } p.gold += sum; SFX.play('coin'); this.log('販賣了所有戰利品，獲得 ' + sum.toLocaleString() + ' 金幣。', 'loot'); this.refresh(); };
+        b.onclick = () => { let sum = 0; for (const inst of junk) { sum += sellPrice(inst, true) * inst.qty; removeItem(inst, inst.qty); } p.gold += sum; castleTax(sum, 'trade'); SFX.play('coin'); this.log('販賣了所有戰利品，獲得 ' + sum.toLocaleString() + ' 金幣。', 'loot'); this.refresh(); };
         w.body.appendChild(b);
       }
     }

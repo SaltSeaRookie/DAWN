@@ -329,18 +329,19 @@ function drawSpider(ctx, x, y, o) {
   ctx.restore();
 }
 function drawGolem(ctx, x, y, o) {
-  const f = screenFacing(o.dir), flip = f.sx < 0;
-  ctx.save(); ctx.translate(x, y); ctx.scale(flip ? -1.15 : 1.15, 1.15);
+  const f = screenFacing(o.dir), flip = f.sx < 0, k = 1.15 * (o.scale && o.scale > 1.2 ? o.scale : 1);
+  ctx.save(); ctx.translate(x, y); ctx.scale(flip ? -k : k, k);
+  const B = o.color || '#7a7468';
   const sw = o.moving ? Math.sin(o.walk * 0.7) * 0.35 : 0;
   const atk = o.atk >= 0 ? Math.sin(o.atk * Math.PI) : 0;
   const stone = (px, py, w, h, c) => { ctx.fillStyle = c; ctx.beginPath(); ctx.moveTo(px - w / 2, py); ctx.lineTo(px - w / 2 + 2, py - h); ctx.lineTo(px + w / 2 - 1, py - h + 1); ctx.lineTo(px + w / 2, py); ctx.closePath(); ctx.fill(); };
-  stone(-6 + sw * 8, 0, 9, 16, '#5e5850'); stone(6 - sw * 8, 0, 9, 16, '#6e685e');
-  stone(0, -14, 26, 24, '#7a7468');
+  stone(-6 + sw * 8, 0, 9, 16, shade(B, -0.22)); stone(6 - sw * 8, 0, 9, 16, shade(B, -0.1));
+  stone(0, -14, 26, 24, B);
   ctx.fillStyle = 'rgba(0,0,0,0.25)'; ctx.fillRect(-12, -28, 4, 12);
   ctx.strokeStyle = '#4a4640'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(-6, -36); ctx.lineTo(-2, -26); ctx.lineTo(4, -30); ctx.stroke();
-  stone(-14, -18, 9, 20, '#665f56');
-  ctx.save(); ctx.translate(13, -34); ctx.rotate(-0.3 - atk * 1.2); stone(0, 22, 10, 22, '#6e685e'); ctx.restore();
-  stone(2, -38, 14, 11, '#868074');
+  stone(-14, -18, 9, 20, shade(B, -0.18));
+  ctx.save(); ctx.translate(13, -34); ctx.rotate(-0.3 - atk * 1.2); stone(0, 22, 10, 22, shade(B, -0.1)); ctx.restore();
+  stone(2, -38, 14, 11, shade(B, 0.1));
   ctx.fillStyle = '#ff9a30'; ctx.fillRect(4, -45, 3, 2); ctx.fillRect(-1, -45, 3, 2);
   ctx.fillStyle = 'rgba(255,150,50,0.6)'; ctx.beginPath(); ctx.arc(0, -24, 3, 0, 7); ctx.fill();
   ctx.restore();

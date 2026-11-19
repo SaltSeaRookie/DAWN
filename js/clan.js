@@ -22,7 +22,7 @@ function clanCap() {
   const p = G.player, cha = (p.d.st || p.base).cha;
   return 5 + Math.floor(cha / 2) + (clanLevel() - 1) * 3;
 }
-function clanExpMul() { const L = clanLevel(); return L > 1 ? 1 + (L - 1) * 0.02 : 1; }
+function clanExpMul() { const L = clanLevel(); return (L > 1 ? 1 + (L - 1) * 0.02 : 1) + (ownsCastle() ? 0.1 : 0); }
 function clanCallCount() { return 3 + Math.floor(clanLevel() / 3); }
 function clanCallCooldown() { return Math.max(120, 300 - (clanLevel() - 1) * 20); }
 function clanPerks(L) {
@@ -51,13 +51,17 @@ function createClan(name, emblem) {
 function recruit(v) {
   const p = G.player, c = clanOf();
   if (!c) return '你還沒有血盟。';
-  if (v.clan) return v.name + ' 已經是「' + v.clan + '」的成員了。';
+  if (v.clan === c.name) return v.name + ' 已經是你的血盟成員了。';
+  const poach = !!v.clan;
   if (c.members.length >= clanCap()) return '血盟人數已達上限（' + clanCap() + ' 人）。提升血盟等級或魅力可以增加上限。';
   if (v.refuseT && G.t < v.refuseT) return v.name + ' 不想再談這件事了。';
   const cha = p.d.st.cha;
-  const chance = clamp(0.35 + (cha - 10) * 0.06 + p.level * 0.01 + (clanLevel() - 1) * 0.03 + (ownsCastle() ? 0.1 : 0) + (p.align >= 500 ? 0.1 : p.align < 0 ? -0.25 : 0), 0.05, 0.92);
+  let chance = clamp(0.35 + (cha - 10) * 0.06 + p.level * 0.01 + (clanLevel() - 1) * 0.03 + (ownsCastle() ? 0.1 : 0) + (p.align >= 500 ? 0.1 : p.align < 0 ? -0.25 : 0), 0.05, 0.92);
+  if (poach) chance = clamp(chance * 0.45 + (clanLevel() - 1) * 0.04 + (ownsCastle() ? 0.15 : 0), 0.03, 0.7);
   if (Math.random() < chance) {
+    const old = v.clan;
     v.clan = c.name; v.emblem = c.emblem; v.clanMember = true;
+    if (poach) later(0.8, () => log(v.name + '：我決定離開「' + old + '」，加入你們！', 'chat'));
     c.members.push({ name: v.name, cls: v.cls, level: v.level, look: v.look, rank: 'member', joined: Date.now(), contrib: 0 });
     Names.add(v.name);
     v.speak('好啊！以後請多指教！', 4);
@@ -67,7 +71,7 @@ function recruit(v) {
     return null;
   }
   v.refuseT = G.t + 60;
-  v.speak(pick(['再考慮看看吧…', '我還是喜歡一個人。', '你的血盟有什麼好處？', '等你的血盟再大一點吧。']), 4);
+  v.speak(poach ? pick(['我對「' + v.clan + '」很有感情…', '我的盟主對我很好，抱歉。', '除非你們拿下灰岩城…']) : pick(['再考慮看看吧…', '我還是喜歡一個人。', '你的血盟有什麼好處？', '等你的血盟再大一點吧。']), 4);
   return v.name + ' 拒絕了你的邀請。';
 }
 function memberActors(name) {

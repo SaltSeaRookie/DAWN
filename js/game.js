@@ -180,7 +180,7 @@ function getMap(id) {
   const w = new World(id, 20261115);
   const m = { id, world: w, actors: [], items: [], spawners: [], npcs: [] };
   G.maps[id] = m;
-  if (id === 'overworld') populateOverworld(m); else if (id === 'isle') populateIsle(m); else populateCrypt(m);
+  if (id === 'overworld') populateOverworld(m); else if (id === 'isle') populateIsle(m); else if (id === 'keep') populateKeep(m); else populateCrypt(m);
   return m;
 }
 function setMap(id) {
@@ -268,6 +268,7 @@ function populateField(m) {
   // 灰岩城：傳令官、城門、守護塔
   const C = W.castle;
   m.npcs.push(new NPC(C.herald.x, C.herald.y, '奧德里奇', NPC_TITLES.herald, 'herald', NPC_LOOKS.herald, 'castle'));
+  m.npcs.push(new NPC(C.merchant.x, C.merchant.y, '瑟琳娜', '城堡御用商人', 'castleshop', { body: '#6a1a3a', robe: true, hair: '#2a1a10', longHair: true, skin: '#f0d0b0', trim: '#e0c060' }, 'castle'));
   const gy = C.gate.reduce((s, g) => s + g.y, 0) / C.gate.length;
   m.gate = new Actor({ x: C.x0 + 0.5, y: gy + 0.5, kind: 'struct', faction: 'castle', struct: 'gate', name: '灰岩城門', maxHp: 3500, ac: 10, mr: 100, speed: 0 });
   m.gate.open = true;
@@ -327,6 +328,17 @@ function populateIsle(m) {
   for (const sp of m.spawners) for (let i = 0; i < sp.max; i++) spawnFrom(m, sp);
   m.fighterT = 0;
   for (let i = 0; i < 6; i++) spawnFighter(m, false);
+}
+function populateKeep(m) {
+  const W = m.world;
+  const groups = [['dark_knight', 0, 999, 12, 3], ['gargoyle', 10, 999, 9, 2], ['fire_imp', 0, 999, 9, 3]];
+  for (const [type, dmin, dmax, n, max] of groups)
+    for (let i = 0; i < n; i++) {
+      const p = W.randomFreeTile((x, y) => { const d = dist(x, y, W.entry.x, W.entry.y); return d > Math.max(dmin, 8) && d < dmax && dist(x, y, W.bossRoom.x, W.bossRoom.y) > 8; });
+      if (p) m.spawners.push({ type, x: p.x + 0.5, y: p.y + 0.5, max, alive: 0, timer: 0, respawn: 30 });
+    }
+  m.spawners.push({ type: 'iron_colossus', x: W.bossRoom.x + 0.5, y: W.bossRoom.y + 0.5, max: 1, alive: 0, timer: 0, respawn: MONSTERS.iron_colossus.respawn });
+  for (const sp of m.spawners) for (let i = 0; i < sp.max; i++) spawnFrom(m, sp);
 }
 function populateCrypt(m) {
   const W = m.world;
@@ -591,7 +603,9 @@ function killActor(a, src) {
         if (q.count === Q.count) log('【委託】目標已完成，回晨風村找雷恩回報吧！', 'quest');
       }
     }
-    dropItem(a.x, a.y, 'gold', randi(d.gold[0], d.gold[1]));
+    let gold = randi(d.gold[0], d.gold[1]);
+    if (src && src !== pl && !src.companion && (src.kind === 'fighter' || src.kind === 'ally' || src.kind === 'villager')) gold -= castleTax(gold, 'kill');
+    dropItem(a.x, a.y, 'gold', gold);
     for (const [id, ch, n] of d.loot) if (Math.random() < ch) dropItem(a.x + rand(-0.7, 0.7), a.y + rand(-0.7, 0.7), id, n || 1);
     if (d.boss) { log('★ ' + (byPlayer ? pl.name : '有人') + ' 擊敗了 ' + a.name + '！', 'loot'); shake(10); }
     if (d.captain) log('守城隊長倒下了！', 'level');
@@ -690,6 +704,7 @@ function respawn() {
 }
 function goHome() {
   const p = G.player;
+  if (p.homeTown === 'castle' && ownsCastle()) { const C = getMap('overworld').world.castle; if (G.map.id !== 'overworld') changeMap('overworld', C.cx, C.cy + 2); else teleportTo(C.cx, C.cy + 2); return; }
   if (G.world.towns.length) {
     const t = G.world.towns.find((t) => t.id === p.homeTown) || G.world.towns.slice().sort((a, b) => dist(a.x, a.y, p.x, p.y) - dist(b.x, b.y, p.x, p.y))[0];
     teleportTo(t.x + rand(-1, 1), t.y + 2); return;
@@ -804,7 +819,12 @@ function updatePlayer(dt) {
   p.moveAlong(dt, mul);
 }
 function usePortal(pt) {
+  if (pt.to === 'keep') {
+    if (!ownsCastle()) { log('城門守衛：地下要塞只開放給灰岩城的城主血盟。', 'warn'); SFX.play('error'); return; }
+    const w = getMap('keep').world; changeMap('keep', w.entry.x + 1, w.entry.y); log('你走進了灰岩城的地下要塞。', 'level'); return;
+  }
   if (pt.to === 'crypt') { const w = getMap('crypt').world; changeMap('crypt', w.entry.x + 1, w.entry.y); }
+  else if (pt.from === 'keep') { const C = getMap('overworld').world.castle; changeMap('overworld', C.keepGate.x + 1.5, C.keepGate.y - 1); }
   else { const w = getMap('overworld').world; changeMap('overworld', w.crypt.x + 0.5, w.crypt.y - 2); }
 }
 
@@ -921,6 +941,7 @@ function useItem(inst) {
     case 'red_potion': if (!heal(30, '#ff6060')) return; break;
     case 'orange_potion': if (!heal(70, '#ffa040')) return; break;
     case 'clear_potion': if (!heal(150, '#ffffff')) return; break;
+    case 'royal_potion': p.hp = p.maxHp; p.mp = p.maxMp; SFX.play('potion'); SFX.play('heal'); burst(p.x, p.y, 20, '#ffd040', 24, 2, 1, 3, 4); log('王家秘藥讓你的體力與魔力完全恢復了！', 'level'); break;
     case 'blue_potion':
       if (p.mp >= p.maxMp) { log('魔力已經全滿了。', 'sys'); return; }
       p.mp = Math.min(p.maxMp, p.mp + 30); SFX.play('potion'); burst(p.x, p.y, 20, '#6090ff', 10, 1, 0.6, 2, 3); break;
@@ -1437,7 +1458,7 @@ function updateSiege(dt) {
   }
   // 城主：稅收與敵對血盟突襲
   if (ownsCastle() && G.map.id === 'overworld') {
-    p.castle.taxAcc = (p.castle.taxAcc || 0) + dt * 0.8;
+    castleEconomyTick(dt);
     G.raidT = (G.raidT === undefined ? 600 : G.raidT) - dt;
     if (G.raidT <= 0 && !G.raid) {
       G.raidT = 900;
@@ -1546,6 +1567,7 @@ function frameBody(ts) {
     updateNPCs(dt);
     socialTick(dt);
     clanTick(dt);
+    joinRequestTick(dt);
     updateSpawners(dt);
     updateSiege(dt);
     updateFx(dt);
@@ -1679,7 +1701,7 @@ function enterWorld(saveData) {
   if (p.clan) taken.push(...p.clan.members.map((m) => m.name));
   Names.reset(taken);
   G.day = saveData.day || 0.3;
-  setMap(['crypt', 'isle'].includes(saveData.mapId) ? saveData.mapId : 'overworld');
+  setMap(['crypt', 'isle'].includes(saveData.mapId) || (saveData.mapId === 'keep' && saveData.castle && saveData.castle.owned) ? saveData.mapId : 'overworld');
   recalc(p);
   if (saveData.x && !G.world.blocked(saveData.x, saveData.y)) { p.x = saveData.x; p.y = saveData.y; }
   else { const t = G.world.towns[0] || { x: G.world.entry.x, y: G.world.entry.y - 2 }; const q = G.world.nearestFree(t.x + 1, t.y + 2); p.x = q.x; p.y = q.y; }

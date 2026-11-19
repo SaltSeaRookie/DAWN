@@ -19,7 +19,7 @@ class World {
     this.objs = []; this.decos = []; this.lights = [];
     this.towns = []; this.places = []; this.portals = []; this.npcSpots = []; this.gates = [];
     this.ambient = 0;
-    if (id === 'crypt') this.genCrypt(); else if (id === 'isle') this.genIsle(); else this.genOverworld();
+    if (id === 'crypt') this.genCrypt(); else if (id === 'keep') this.genCrypt(true); else if (id === 'isle') this.genIsle(); else this.genOverworld();
   }
   alloc(w, h) {
     this.w = w; this.h = h; const n = w * h;
@@ -367,6 +367,11 @@ class World {
     this.objGrid[this.idx(kx + 1, ky + 1)] = this.objs.length; this.objs.push(o);
     C.tower = { x: C.x0 + n - 9.5, y: C.cy + 0.5 };
     C.herald = { x: C.x0 - 2.5, y: C.cy - 3.5 };
+    C.merchant = { x: C.x0 + 4.5, y: C.y0 + 5.5 };
+    C.keepGate = { x: C.x0 + 5, y: C.y0 + n - 6 };
+    this.clearArea(C.keepGate.x + 0.5, C.keepGate.y + 0.5, 1.5, TILE.COBBLE);
+    this.addObj({ kind: 'stairs', tx: C.keepGate.x, ty: C.keepGate.y, v: 0 }, false);
+    this.portals.push({ x: C.keepGate.x + 0.5, y: C.keepGate.y + 0.5, to: 'keep', label: '地下要塞（城主專屬）' });
     C.guardSpots = [];
     for (let k = 0; k < 8; k++) C.guardSpots.push({ x: C.x0 + 3 + R() * (n - 8), y: C.y0 + 3 + R() * (n - 6) });
     for (const [lx, ly] of [[3, 3], [3, n - 4], [n - 4, 3], [n - 4, n - 4]]) {
@@ -461,10 +466,10 @@ class World {
   }
 
   // ================= 地下墓穴 =================
-  genCrypt() {
+  genCrypt(keep) {
     this.alloc(90, 90);
-    this.ambient = 0.62;
-    const W = this.w, H = this.h, R = mulberry32(this.seed + 99);
+    this.ambient = keep ? 0.5 : 0.62;
+    const W = this.w, H = this.h, R = mulberry32(this.seed + (keep ? 4242 : 99));
     let g = new Uint8Array(W * H);
     for (let i = 0; i < W * H; i++) g[i] = R() < 0.44 ? 1 : 0;
     const wall = (x, y) => x < 2 || y < 2 || x >= W - 2 || y >= H - 2 || g[y * W + x];
@@ -503,7 +508,7 @@ class World {
     this.entry = { x: px + 0.5, y: py + 0.5 };
     this.clearArea(px + 0.5, py + 0.5, 2.5, TILE.DUNGEON);
     this.addObj({ kind: 'stairsup', tx: px - 1, ty: py, v: 0 }, true);
-    this.portals.push({ x: px - 0.5, y: py + 0.5, to: 'overworld', label: '回到地面' });
+    this.portals.push({ x: px - 0.5, y: py + 0.5, to: 'overworld', from: keep ? 'keep' : 'crypt', label: keep ? '回到灰岩城' : '回到地面' });
     this.lights.push({ x: px + 0.5, y: py + 0.5, r: 220 });
     this.floodReach(px, py);
     // 火把
@@ -518,7 +523,8 @@ class World {
     let best = null, bd = 0;
     for (let y = 3; y < H - 3; y++) for (let x = 3; x < W - 3; x++) if (this.reach[this.idx(x, y)]) { const d = dist(x, y, px, py); if (d > bd) { bd = d; best = { x, y }; } }
     this.bossRoom = best;
-    this.places.push({ name: '領主之間', x: best.x, y: best.y, kind: 'boss', zone: 7 });
+    this.places.push({ name: keep ? '鋼鐵王座' : '領主之間', x: best.x, y: best.y, kind: 'boss', zone: 7 });
+    if (keep) { this.places.push({ name: '地下要塞', x: px + 6, y: py, kind: 'spot', zone: 60 }); for (const o of this.objs) if (o && o.kind === 'cliff') o.style = 1; }
     this.lights.push({ x: best.x + 0.5, y: best.y + 0.5, r: 260 });
   }
 }

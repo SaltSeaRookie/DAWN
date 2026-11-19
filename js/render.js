@@ -372,10 +372,12 @@ function drawEntity(e, S, labels) {
       case 'mummy': H({ kind: 'mummy', body: '#c8b890', skin: '#d8c8a0', legs: '#c0b088', boots: '#a89870', sleeve: '#d0c098', belt: '#8a7a5a' }, 56); break;
       case 'lich': drawShadow(ctx, sx, sy, 16, 6); drawHumanoid(ctx, sx, sy, Object.assign(o, { kind: 'lich', body: '#2a1a3a', robe: true, bone: '#e6e0cc', skin: '#e6e0cc', sleeve: '#3a2a4a', weapon: 'staff', crown: true, scale: 1.35, eye: '#9a4aff' })); top = sy - 82; bb = [sx - 22, sy - 80, sx + 22, sy + 4];
         ctx.fillStyle = 'rgba(140,80,255,0.15)'; ctx.beginPath(); ctx.ellipse(sx, sy, 34, 15, 0, 0, 7); ctx.fill(); break;
-      case 'guard': H({ body: '#8a929c', sleeve: '#6a7480', legs: '#3a3e4a', helm: '#9aa0aa', cape: d.captain ? '#a01a1a' : '#5a1a1a', plate: true, weapon: d.captain ? 'claymore' : 'spear', shield: !d.captain, shieldCol: '#5a1a1a', skin: '#e0b890', scale: d.captain ? 1.2 : 1 }, d.captain ? 66 : 56, 16); break;
+      case 'guard': if (d.dark) { H({ body: '#2a2a34', sleeve: '#1a1a24', legs: '#141418', helm: '#3a3a48', cape: '#4a1a5a', plate: true, weapon: 'claymore', skin: '#8a8aa0', scale: 1.1 }, 60, 16); break; }
+        H({ body: '#8a929c', sleeve: '#6a7480', legs: '#3a3e4a', helm: '#9aa0aa', cape: d.captain ? '#a01a1a' : '#5a1a1a', plate: true, weapon: d.captain ? 'claymore' : 'spear', shield: !d.captain, shieldCol: '#5a1a1a', skin: '#e0b890', scale: d.captain ? 1.2 : 1 }, d.captain ? 66 : 56, 16); break;
       case 'treant': drawShadow(ctx, sx, sy, 20, 7); drawTreant(ctx, sx, sy, o); top = sy - 84; bb = [sx - 24, sy - 80, sx + 24, sy + 4]; break;
       case 'spider': drawShadow(ctx, sx, sy, 18, 6); drawSpider(ctx, sx, sy, o); top = sy - 30; bb = [sx - 22, sy - 28, sx + 22, sy + 4]; break;
-      case 'golem': drawShadow(ctx, sx, sy, 22, 8); drawGolem(ctx, sx, sy, o); top = sy - 66; bb = [sx - 24, sy - 62, sx + 24, sy + 4]; break;
+      case 'golem': { const k = d.big || 1; drawShadow(ctx, sx, sy, 22 * k, 8 * k); drawGolem(ctx, sx, sy, Object.assign(o, { scale: k })); top = sy - 66 * k; bb = [sx - 24 * k, sy - 62 * k, sx + 24 * k, sy + 4]; break; }
+      case 'fireelem': { drawShadow(ctx, sx, sy, 14, 5, 0.25); const h = drawFireElemental(ctx, sx, sy, o); top = sy - h - 52; bb = [sx - 16, sy - h - 50, sx + 16, sy + 4]; break; }
       case 'scorpion': drawShadow(ctx, sx, sy, 20, 7); drawScorpion(ctx, sx, sy, o); top = sy - 44; bb = [sx - 24, sy - 40, sx + 24, sy + 4]; break;
       case 'worm': drawShadow(ctx, sx, sy, 20, 7); drawWorm(ctx, sx, sy, o); top = sy - 70; bb = [sx - 22, sy - 64, sx + 22, sy + 4]; break;
       case 'ghost': { drawShadow(ctx, sx, sy, 12, 4, 0.2); const h = drawGhost(ctx, sx, sy, o); top = sy - h - 54; bb = [sx - 16, sy - h - 52, sx + 16, sy + 4]; break; }
@@ -456,7 +458,7 @@ function drawEntity(e, S, labels) {
       if (em) drawEmblem(ctx, em, sx - w / 2 - 10, yy - 11, 13);
       y = yy - 14;
       if (clan) { ctx.font = '11px sans-serif'; outlineText('[' + clan + ']', sx, y, '#b8e0a8'); y -= 13; }
-      if (e === p && ownsCastle()) { ctx.font = '11px sans-serif'; outlineText('♔ 灰岩城主', sx, y, '#ffd860'); y -= 13; }
+      if (e === p && ownsCastle()) { drawCrown(ctx, sx, y - 6, G.t, 1.1); y -= 20; }
     }
     if (e.say && e.sayT > 0) bubble(e.say, sx, y - 4);
   });

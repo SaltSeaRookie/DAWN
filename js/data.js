@@ -405,3 +405,28 @@ QUESTS.push(
   { target: 'croc', count: 15, gold: 3000, exp: 6000, item: ['clear_potion', 20], text: '銀風港的船員說翡翠群島的鱷魚人襲擊了漁船，搭船過去消滅 15 隻鱷魚人。' },
   { target: 'pirate_captain', count: 1, gold: 9000, exp: 12000, item: ['bew_scroll', 3], text: '海盜灣的海盜船長掠奪商船已久，去翡翠群島討伐他！' },
 );
+
+// ===== 灰岩城地下要塞（城主專屬）=====
+Object.assign(ITEMS, {
+  royal_sword: { name: '王者之劍', type: 'weapon', wclass: 'sword', dmg: [9, 20], dmgB: 2, hit: 2, spd: 0.85, range: 1.4, w: 90, price: 40000, safe: 6, lvl: 20, cls: ['knight', 'ranger'], rare: true, desc: '灰岩城歷代城主的佩劍' },
+  royal_bow:   { name: '王者長弓', type: 'weapon', wclass: 'bow', dmg: [8, 18], hit: 3, spd: 0.9, range: 8, ranged: true, w: 65, price: 40000, safe: 6, lvl: 20, twoHand: true, cls: ['ranger'], rare: true },
+  royal_staff: { name: '王者權杖', type: 'weapon', wclass: 'staff', dmg: [4, 11], sp: 6, mp: 40, mpr: 3, spd: 1.0, range: 1.4, w: 55, price: 40000, safe: 6, lvl: 20, twoHand: true, cls: ['mage', 'cleric'], rare: true },
+  royal_plate: { name: '王者鎧甲', type: 'armor', slot: 'armor', ac: 9, mr: 15, hp: 40, w: 420, price: 45000, safe: 4, lvl: 20, cls: ['knight'], rare: true },
+  royal_robe:  { name: '王者法袍', type: 'armor', slot: 'armor', ac: 4, mr: 25, sp: 3, mpr: 3, mp: 40, w: 50, price: 45000, safe: 4, lvl: 20, cls: ['mage', 'cleric'], rare: true },
+  crown_ring:  { name: '王權戒指', type: 'acc', slot: 'ring', stat: { str: 1, dex: 1, int: 1 }, ac: 1, w: 2, price: 30000, rare: true },
+  royal_potion:{ name: '王家秘藥', type: 'consume', icon: 'potion', w: 2, price: 600, stack: true, desc: '立即恢復全部體力與魔力（城堡御用商人限定）' },
+  iron_core:   { name: '鋼鐵核心', type: 'junk', w: 15, price: 600, stack: true },
+});
+for (const id of ['royal_sword', 'royal_bow', 'royal_staff', 'royal_plate', 'royal_robe', 'crown_ring', 'iron_core']) { const it = ITEMS[id]; it.icon = it.type === 'weapon' ? it.wclass : it.type === 'junk' ? 'junk' : it.slot; }
+POTION_COLORS.royal_potion = '#ffd040';
+Object.assign(MONSTERS, {
+  dark_knight:  { name: '黑暗騎士', lvl: 22, hp: 340, dmg: [12, 24], ac: 14, mr: 20, exp: 280, speed: 2.8, atkSpd: 1.1, range: 1.5, aggro: true, aggroR: 6, sprite: 'guard', dark: true, gold: [50, 120],
+    loot: [['iron_core', 0.3], ['clear_potion', 0.12], ['bew_scroll', 0.02], ['bea_scroll', 0.02], ['royal_sword', 0.006], ['royal_plate', 0.005]] },
+  gargoyle:     { name: '石像鬼', lvl: 23, hp: 380, dmg: [11, 22], ac: 16, mr: 25, exp: 300, speed: 2.4, atkSpd: 1.4, range: 1.6, aggro: true, aggroR: 5, sprite: 'golem', color: '#4a4a5a', gold: [50, 120],
+    loot: [['iron_core', 0.4], ['ea_scroll', 0.08], ['bea_scroll', 0.02], ['crown_ring', 0.004], ['royal_robe', 0.005]] },
+  fire_imp:     { name: '火焰小鬼', lvl: 21, hp: 220, dmg: [10, 20], ac: 9, mr: 30, exp: 240, speed: 3.2, atkSpd: 1.5, range: 5, proj: 'fire', magic: true, aggro: true, aggroR: 7, sprite: 'fireelem', gold: [40, 100],
+    loot: [['blue_potion', 0.2], ['ew_scroll', 0.08], ['bew_scroll', 0.02], ['royal_staff', 0.005], ['royal_bow', 0.005]] },
+  iron_colossus:{ name: '鋼鐵巨像', lvl: 30, hp: 3600, dmg: [18, 36], ac: 20, mr: 50, exp: 4500, speed: 1.8, atkSpd: 1.7, range: 2.2, aggro: true, aggroR: 8, boss: true, sprite: 'golem', color: '#7a7a8a', big: 1.6, gold: [1500, 2500], respawn: 300,
+    loot: [['iron_core', 1], ['bew_scroll', 0.5], ['bea_scroll', 0.5], ['royal_sword', 0.15], ['royal_bow', 0.15], ['royal_staff', 0.15], ['royal_plate', 0.12], ['royal_robe', 0.12], ['crown_ring', 0.15]] },
+});
+SHOPS.castleshop = ['royal_potion', 'clear_potion', 'haste_potion', 'bew_scroll', 'bea_scroll', 'ew_scroll', 'ea_scroll', 'silver_arrow'];
