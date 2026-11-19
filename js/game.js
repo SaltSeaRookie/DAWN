@@ -127,14 +127,14 @@ class Player extends Entity {
 // ---------- 數值計算 ----------
 function recalc(p = G.player) {
   const st = Object.assign({}, p.base);
-  const d = { ac: 0, mr: 0, er: 0, sp: 0, hpB: 0, mpB: 0, hit: 0, dmgB: 0, weightB: 0, res: { earth: 0, water: 0, fire: 0, wind: 0 } };
+  const d = { move: 0, ac: 0, mr: 0, er: 0, sp: 0, hpB: 0, mpB: 0, hit: 0, dmgB: 0, weightB: 0, res: { earth: 0, water: 0, fire: 0, wind: 0 } };
   for (const s of SLOTS) {
     const inst = p.equip[s]; if (!inst) continue;
     const it = ITEMS[inst.id], e = inst.ench || 0;
     if (it.type === 'armor') d.ac += (it.ac || 0) + e;
     else if (it.ac) d.ac += it.ac;
     if (it.type === 'weapon') { d.hit += (it.hit || 0) + Math.floor(e / 2); d.dmgB += (it.dmgB || 0) + e; }
-    d.mr += it.mr || 0; d.er += it.er || 0; d.sp += it.sp || 0; d.hpB += it.hp || 0; d.mpB += it.mp || 0; d.weightB += it.weight || 0;
+    d.mr += it.mr || 0; d.er += it.er || 0; d.sp += it.sp || 0; d.hpB += it.hp || 0; d.mpB += it.mp || 0; d.weightB += it.weight || 0; d.move = (d.move || 0) + (it.move || 0);
     if (it.stat) for (const k in it.stat) st[k] += it.stat[k];
     if (it.res) for (const k in it.res) d.res[k] += it.res[k];
   }
@@ -712,7 +712,7 @@ function updatePlayer(dt) {
   }
   if (changed) { recalc(); UI.refresh(); }
   const wp = weightPct(p);
-  const mul = p.haste * (wp >= 100 ? 0.5 : wp >= 80 ? 0.8 : 1) * (p.gmSpeed || 1);
+  const mul = p.haste * (wp >= 100 ? 0.5 : wp >= 80 ? 0.8 : 1) * (p.gmSpeed || 1) * (1 + (p.d.move || 0));
   const a = p.action;
   if (!a) { p.moveAlong(dt, mul); return; }
   if (a.type === 'move') { if (p.moveAlong(dt, mul)) p.action = null; return; }
@@ -770,6 +770,13 @@ function autoPickup(dt) {
     }
   } else G.idleT = 0;
 }
+// 夥伴加速（加速術、寵物活力藥劑）
+function hasteCompanions(sec) {
+  const p = G.player; let n = 0;
+  for (const a of companions()) if (dist(a.x, a.y, p.x, p.y) < 8) { a.hasteT = G.t + sec; n++; burst(a.x, a.y, 15, '#80ff80', 10, 1.5, 0.6, 2, 2); }
+  if (n) log('你的 ' + n + ' 位夥伴動作變快了。', 'sys');
+  return n;
+}
 function autoNext() {
   const p = G.player;
   let best = null, bd = 9;
@@ -808,6 +815,7 @@ function playerStrike(t, mul = 1) {
     if (arrow) { const ad = ITEMS[arrow.id]; base += ad.dmgB || 0; if (t.undead) base += ad.undeadB || 0; }
     const hitB = (p.d.hit + (w.ranged ? statMod(st.dex) : statMod(st.str)) + (p.buffs.holy ? 2 : 0) + ench * 0.5) * 0.02;
     physHit(p, t, strikeMul * extraMul, { base, hit: hitB, ranged: w.ranged, crit: 0.05 + Math.max(0, statMod(st.dex)) * 0.01 });
+    if (w.slow && !t.dead && Math.random() < w.slow) { t.slowT = 3; burst(t.x, t.y, 24, '#c8f0ff', 8, 1.5, 0.5, 2, 1); }
   };
   if (w.ranged) {
     removeItem(arrow, 1);
@@ -831,6 +839,10 @@ function useItem(inst) {
   const d = ITEMS[inst.id];
   if (d.type === 'weapon' || d.type === 'armor' || d.type === 'acc') { equipItem(inst); return; }
   if (d.type === 'collar') { useCollar(inst); return; }
+  if (inst.id === 'pet_haste') {
+    if (!hasteCompanions(300)) { log('附近沒有夥伴。', 'warn'); return; }
+    SFX.play('potion'); SFX.play('buff'); removeItem(inst, 1); return;
+  }
   if (inst.id === 'tame_jerky') { G.targeting = 'tame'; log('請點擊要馴服的野狼（體力需低於一半）。Esc 取消', 'sys'); return; }
   if (d.type === 'book') {
     const s = SPELLS[d.spell], need = s.learn[p.cls];
@@ -978,7 +990,7 @@ function doCast(id, target) {
     case 'shield': buff('shield', '你的身體被魔法防護包圍。', '#a0d0ff'); break;
     case 'glow': buff('glow', '你的身邊出現了柔和的光芒。', '#fff2b0'); break;
     case 'holy': buff('holy', '在你的武器上附著神聖的氣息。', '#ffe880'); break;
-    case 'haste': buff('haste', '你的動作突然變快。', '#80ff80'); break;
+    case 'haste': buff('haste', '你的動作突然變快。', '#80ff80'); hasteCompanions(300); break;
     case 'earthskin': buff('earthskin', '你的皮膚變得像岩石一樣堅硬。', '#c8a060'); break;
     case 'blessarmor': buff('blessarmor', '你的鎧甲受到了祝福。', '#e0e8ff'); break;
     case 'sanctuary': buff('sanctuary', '神聖光環籠罩著你。', '#fff0a0'); break;
@@ -1102,8 +1114,9 @@ function doCast(id, target) {
   UI.refresh();
 }
 
-function useHotbar(i) {
-  const h = G.player.hotbar[i]; if (!h || !G.player) return;
+function useHotbar(i) { if (G.player) useHotbarEntry(G.player.hotbar[i]); }
+function useHotbarEntry(h) {
+  if (!h || !G.player) return;
   if (h.kind === 'item') {
     const inst = G.player.inv.find((it) => it.id === h.id);
     if (!inst) { log('沒有 ' + ITEMS[h.id].name + '。', 'warn'); return; }
@@ -1138,7 +1151,7 @@ function findTarget(a) {
   return best;
 }
 function actorAttack(a, t) {
-  a.atkCd = a.atkSpd * (a.slowT > 0 ? 1.5 : 1); a.atkAnim = 0; a.face(t.x, t.y);
+  a.atkCd = a.atkSpd * (a.slowT > 0 ? 1.5 : 1) / (a.hasteT > G.t ? 1.33 : 1); a.atkAnim = 0; a.face(t.x, t.y);
   if (a.proj) {
     const kind = a.proj;
     if (kind === 'arrow') SFX.play('bow', a.x, a.y);

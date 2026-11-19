@@ -1,7 +1,7 @@
 'use strict';
 // ===== 繪製 =====
 let darkCanvas = null, darkCtx = null, vignette = null, lowCanvas = null, lowCtx = null, mainCtx = null;
-const Settings = { pixel: true, grade: true, autoPickup: true };
+const Settings = { grade: true, autoPickup: true };
 try { Object.assign(Settings, JSON.parse(localStorage.getItem('dawnlands_settings') || '{}')); } catch (e) { /* */ }
 function saveSettings() { try { localStorage.setItem('dawnlands_settings', JSON.stringify(Settings)); } catch (e) { /* */ } }
 
@@ -9,6 +9,9 @@ const ARMOR_LOOK = {
   leather: { body: '#6a4a2e', sleeve: '#5a3e26' }, studded: { body: '#5a4030', sleeve: '#4a3426', trim: '#b8a070' },
   chainmail: { body: '#8a929c', sleeve: '#6a7480' }, plate: { body: '#c8d0da', sleeve: '#a8b0ba', plate: true },
   robe: { body: '#2a3a7a', robe: true, trim: '#c0a050' }, archmage_robe: { body: '#4a2a7a', robe: true, trim: '#e0c060' },
+  ranger_leather: { body: '#3a5a2a', sleeve: '#2e4a22', trim: '#c8b880' }, scale_mail: { body: '#6a7a6a', sleeve: '#566456', trim: '#a0a890' },
+  battle_robe: { body: '#3a2a5a', robe: true, trim: '#a080e0' }, holy_robe: { body: '#f0ead8', robe: true, trim: '#e0c060' },
+  dragon_plate: { body: '#8a2a1a', sleeve: '#6a2014', plate: true, trim: '#e0a040' },
 };
 const WEAPON_SPRITE = { dagger: 'dagger', sword: 'sword', claymore: 'claymore', axe: 'axe', spear: 'spear', mace: 'mace', staff: 'staff', bow: 'bow' };
 
@@ -36,21 +39,21 @@ function buildMinimapBase() {
 function render() {
   const W = G.world, p = G.player, m = G.map;
   const hud = HUD_H(), viewH = VH - hud;
-  const px = Settings.pixel ? 0.5 : 1;
-  // 世界繪製到低解析度畫布（像素風）
+  const px = 1;
+  // 世界先繪製到離屏畫布，再套用色調
   mainCtx = canvas.getContext('2d');
   const LW = Math.ceil(VW * px), LH = Math.ceil(VH * px);
   if (!lowCanvas || lowCanvas.width !== LW || lowCanvas.height !== LH) { lowCanvas = makeCanvas(LW, LH); lowCtx = lowCanvas.getContext('2d'); }
   ctx = lowCtx;
   ctx.setTransform(px, 0, 0, px, 0, 0);
-  ctx.imageSmoothingEnabled = !Settings.pixel;
+  ctx.imageSmoothingEnabled = true;
   ctx.fillStyle = '#060505'; ctx.fillRect(0, 0, VW, VH);
 
   const ps = toScreen(p.x, p.y);
   G.cam.x = lerp(G.cam.x, ps.x, 0.12); G.cam.y = lerp(G.cam.y, ps.y - 20, 0.12);
   let shx = 0, shy = 0;
   if (G.shake > 0) { shx = rand(-G.shake, G.shake); shy = rand(-G.shake, G.shake); }
-  const snap = Settings.pixel ? 2 : 1;
+  const snap = 1;
   const ox = Math.round((VW / 2 - G.cam.x + shx) / snap) * snap, oy = Math.round((viewH / 2 - G.cam.y + shy) / snap) * snap;
   const S = (x, y) => [(x - y) * HW + ox, (x + y) * HH + oy];
   G._S = S;
@@ -197,7 +200,7 @@ function render() {
   // 低解析度 → 主畫面
   ctx = mainCtx;
   ctx.setTransform(1, 0, 0, 1, 0, 0);
-  ctx.imageSmoothingEnabled = !Settings.pixel;
+  ctx.imageSmoothingEnabled = true;
   if (Settings.grade) ctx.filter = 'saturate(0.86) contrast(1.06) brightness(0.95) sepia(0.1)';
   ctx.drawImage(lowCanvas, 0, 0, LW, LH, 0, 0, VW * DPR, VH * DPR);
   ctx.filter = 'none';
@@ -315,9 +318,9 @@ function playerLook(e) {
   const L = Object.assign({}, c.look);
   const ar = e.equip.armor ? ARMOR_LOOK[e.equip.armor.id] : null;
   Object.assign(L, ar || { body: '#7a6a5a', sleeve: '#6a5a4a' });
-  if (e.equip.helm) { const h = e.equip.helm.id; if (h === 'wizard_hat') L.hood = '#2a2a5a'; else L.helm = h === 'iron_helm' ? '#9aa0aa' : '#6a4a2e'; }
-  if (e.equip.cloak) L.cape = e.equip.cloak.id === 'shadow_cloak' ? '#2a1a3a' : '#5a4a3a';
-  if (e.equip.shield) { L.shield = true; L.shieldCol = e.equip.shield.id === 'tower_shield' ? '#6a7480' : '#6a5a3a'; }
+  if (e.equip.helm) { const h = e.equip.helm.id; const hoods = { wizard_hat: '#2a2a5a', sage_hood: '#4a3a6a', ranger_hood: '#2e4a22' }; if (hoods[h]) L.hood = hoods[h]; else L.helm = h === 'iron_helm' ? '#9aa0aa' : h === 'horned_helm' ? '#b0a890' : '#6a4a2e'; }
+  if (e.equip.cloak) L.cape = { shadow_cloak: '#2a1a3a', magic_cloak: '#2a3a7a', guard_cloak: '#7a6a3a' }[e.equip.cloak.id] || '#5a4a3a';
+  if (e.equip.shield) { L.shield = true; L.shieldCol = { tower_shield: '#6a7480', kite_shield: '#3a4a7a', dragon_shield: '#8a2a1a' }[e.equip.shield.id] || '#6a5a3a'; }
   if (e.equip.boots) L.boots = e.equip.boots.id === 'iron_boots' ? '#8a929c' : '#4a3020';
   const w = e.equip.weapon;
   L.weapon = w ? WEAPON_SPRITE[ITEMS[w.id].wclass] : null;

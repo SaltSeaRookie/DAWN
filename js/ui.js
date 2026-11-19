@@ -88,7 +88,7 @@ const UI = {
     if (!d.moved && Math.hypot(e.clientX - d.sx, e.clientY - d.sy) > 6) {
       d.moved = true;
       d.ghost = el('div', 'drag-ghost');
-      d.ghost.appendChild(d.entry.kind === 'item' ? iconCanvas(d.entry.id, 34) : iconCanvas(d.entry.id, 34, 'spell'));
+      d.ghost.appendChild(d.entry.kind === 'item' ? iconCanvas(d.entry.id, 34) : d.entry.kind === 'auto' ? iconCanvas('auto', 34, 'skill') : iconCanvas(d.entry.id, 34, 'spell'));
       document.body.appendChild(d.ghost);
       this.hideTip();
     }
@@ -303,6 +303,8 @@ const UI = {
     if (d.hp) h += '<div>體力上限 +' + d.hp + '</div>';
     if (d.mp) h += '<div>魔力上限 +' + d.mp + '</div>';
     if (d.weight) h += '<div>負重上限 +' + d.weight + '</div>';
+    if (d.move) h += '<div>移動速度 +' + Math.round(d.move * 100) + '%</div>';
+    if (d.slow) h += '<div>攻擊時 ' + Math.round(d.slow * 100) + '% 機率使敵人減速</div>';
     if (d.stat) h += '<div>' + Object.keys(d.stat).map((k) => STAT_NAMES[k] + ' +' + d.stat[k]).join('　') + '</div>';
     if (d.res) h += '<div>' + Object.keys(d.res).map((k) => ({ earth: '地', water: '水', fire: '火', wind: '風' }[k]) + '屬性抗性 +' + d.res[k] + '%').join('　') + '</div>';
     if (d.type === 'weapon' || d.type === 'armor') h += '<div class="dim">安全強化值 +' + d.safe + '</div>';
@@ -425,6 +427,16 @@ const UI = {
       grid.appendChild(c);
     }
     w.body.appendChild(grid);
+    // 特殊功能：自動狩獵（被覆蓋時可以從這裡拖回快捷列）
+    const sp2 = el('div', 'special');
+    const au = el('div', 'slot' + (G.autoHunt ? ' on' : ''));
+    au.appendChild(iconCanvas('auto', 34, 'skill'));
+    au.title = '自動狩獵：點擊開關，拖曳到快捷列';
+    au.addEventListener('pointerdown', (e) => { if (e.button === 0) this.dragStart(e, { kind: 'auto' }); });
+    au.addEventListener('click', () => { if (this.wasDrag()) return; useHotbarEntry({ kind: 'auto' }); });
+    sp2.appendChild(au);
+    sp2.appendChild(el('div', 'dim small', '自動狩獵（可拖到快捷列，或輸入 /auto 開關）'));
+    w.body.appendChild(sp2);
     const f = el('div', 'spell-foot');
     f.innerHTML = '<span>S.power 魔攻 <b>' + p.d.sp + '</b></span><span>M.resist 魔防 <b>' + p.d.mr + '%</b></span><span>魔法等級 <b>' + p.d.mlevel + '</b></span>';
     w.body.appendChild(f);
@@ -464,7 +476,6 @@ const UI = {
     const opt = (label, on, fn) => { const r = el('label', 'opt'); const cb = el('input'); cb.type = 'checkbox'; cb.checked = on; cb.onchange = () => fn(cb.checked); r.appendChild(cb); r.appendChild(el('span', '', label)); w.body.appendChild(r); };
     opt('背景音樂', Snd.musicOn, (v) => { Snd.unlock(); Snd.setMusic(v); this.syncAudio(); });
     opt('音效', Snd.sfxOn, (v) => { Snd.unlock(); Snd.setSfx(v); this.syncAudio(); });
-    opt('像素風格（低解析度）', Settings.pixel, (v) => { Settings.pixel = v; saveSettings(); });
     opt('昏暗中世紀色調', Settings.grade, (v) => { Settings.grade = v; saveSettings(); });
     opt('自動拾取附近的物品', Settings.autoPickup !== false, (v) => { Settings.autoPickup = v; saveSettings(); });
     const bk = el('div', 'btnrow');
@@ -475,6 +486,8 @@ const UI = {
     w.body.appendChild(bk);
     const row = el('div', 'btnrow');
     const b0 = el('button', 'btn', '遊戲說明'); b0.onclick = () => this.help();
+    const bh = el('button', 'btn', '重設快捷列'); bh.onclick = () => { if (confirm('把快捷列恢復成職業預設（含自動狩獵）？')) { G.player.hotbar = defaultHotbar(G.player.cls); this.buildHotbar(); } };
+    row.appendChild(bh);
     const b1 = el('button', 'btn', '存檔'); b1.onclick = () => saveGame(false);
     const b2 = el('button', 'btn', '選擇角色'); b2.onclick = () => { exitWorld(); this.leaveGame(); Scenes.show('select'); };
     row.appendChild(b0); row.appendChild(b1); row.appendChild(b2);

@@ -251,6 +251,8 @@ body:not(.in-game) #hud, body:not(.in-game) #minimapWrap, body:not(.in-game) #bu
 .res b { color: var(--ink); }
 .cw-doll { display: grid; grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(4, auto); gap: 4px; align-content: start; padding: 6px; background: radial-gradient(ellipse at 50% 45%, rgba(120,100,70,0.25), rgba(0,0,0,0.2)); border: 1px solid #3a3228; border-radius: 4px; }
 .cw-doll .slot { cursor: pointer; }
+.special { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
+.special .slot { width: 44px; cursor: pointer; }
 .spell-foot { display: flex; justify-content: space-between; gap: 6px; margin-top: 8px; padding: 6px; background: rgba(0,0,0,0.3); border: 1px solid #3a3228; border-radius: 3px; font-size: 12px; color: var(--dim); }
 .spell-foot b { color: #bfe0ff; font-family: Georgia, serif; }
 .npc-head { margin-bottom: 6px; }

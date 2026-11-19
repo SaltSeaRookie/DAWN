@@ -195,6 +195,8 @@ function updateCompanion(a, dt) {
   if (a.companion === 'pet' && a.hp < a.maxHp && G.t > (a.regT || 0)) { a.regT = G.t + 3; a.hp = Math.min(a.maxHp, a.hp + Math.max(1, Math.round(a.maxHp * 0.03))); }
   const mode = petMode();
   const dp = dist(a.x, a.y, p.x, p.y);
+  const hm = a.hasteT > G.t ? 1.33 : 1;
+  if (hm > 1 && a.moving && Math.random() < 0.2) G.particles.push({ x: a.x, y: a.y, z: rand(4, 20), vx: 0, vy: 0, vz: 0, life: 0.3, max: 0.3, color: '#a0ffa0', size: 2 });
   // 主人太遠就瞬移過來（待命除外）
   if (!p.dead && dp > 14 && mode !== 'stay') { const q = W.nearestFree(p.x + rand(-1.5, 1.5), p.y + rand(-1.5, 1.5)); a.x = q.x; a.y = q.y; a.path = []; a.target = null; }
   const safeHere = W.isSafe(a.x, a.y) || W.isSafe(p.x, p.y);
@@ -222,7 +224,7 @@ function updateCompanion(a, dt) {
     if (d <= range) { a.path = []; a.moving = false; a.face(t.x, t.y); if (a.atkCd <= 0) actorAttack(a, t); }
     else {
       if (a.thinkT <= 0 || !a.path.length) { a.thinkT = 0.45; a.path = d < 2.5 && !W.blocked(t.x, t.y) ? [{ x: t.x, y: t.y }] : Path.find(W, a.x, a.y, t.x, t.y, 800) || []; }
-      a.moveAlong(dt, 1.1);
+      a.moveAlong(dt, 1.1 * hm);
     }
     return;
   }
@@ -237,5 +239,5 @@ function updateCompanion(a, dt) {
     const tx = anchor.x + (mode === 'stay' ? 0 : Math.cos(ang) * 1.5), ty = anchor.y + (mode === 'stay' ? 0 : Math.sin(ang) * 1.5);
     a.path = Path.find(W, a.x, a.y, tx, ty, 900) || [];
   }
-  if (a.path.length && da > near) a.moveAlong(dt, da > 5 ? 1.4 : 1.05); else { a.moving = false; a.path = []; if (mode !== 'stay') a.face(p.x, p.y); }
+  if (a.path.length && da > near) a.moveAlong(dt, (da > 5 ? 1.4 : 1.05) * hm); else { a.moving = false; a.path = []; if (mode !== 'stay') a.face(p.x, p.y); }
 }

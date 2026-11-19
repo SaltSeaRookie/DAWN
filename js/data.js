@@ -293,3 +293,71 @@ MONSTERS.wyvern.loot.push(['book_blizzard', 0.15]);
 function expForLevel(l) { return Math.floor(24 * Math.pow(l, 2.15)); }
 function alignName(v) { return v >= 500 ? '正義' : v < 0 ? '邪惡' : '中立'; }
 function alignColor(v) { return v >= 500 ? '#7ab8ff' : v < 0 ? '#ff5a4a' : '#e8e8e8'; }
+
+// ===== 追加裝備（v2.4）=====
+Object.assign(ITEMS, {
+  // 武器
+  twin_daggers: { name: '雙刃', type: 'weapon', wclass: 'dagger', dmg: [3, 8], spd: 0.55, range: 1.3, w: 40, price: 1600, safe: 6, lvl: 8, cls: ['knight', 'ranger'], desc: '左右手各一把，攻擊速度極快' },
+  bone_sword:   { name: '骨刃', type: 'weapon', wclass: 'sword', dmg: [3, 10], undeadB: 3, spd: 0.85, range: 1.4, w: 55, price: 900, safe: 6, lvl: 6, cls: ['knight', 'ranger', 'cleric'], desc: '以亡者之骨打磨的劍，對亡靈有效' },
+  halberd:      { name: '斧槍', type: 'weapon', wclass: 'spear', dmg: [6, 16], spd: 1.1, range: 2.0, w: 160, price: 3400, safe: 6, lvl: 12, twoHand: true, cls: ['knight'] },
+  great_hammer: { name: '巨錘', type: 'weapon', wclass: 'mace', dmg: [8, 20], spd: 1.3, range: 1.45, w: 230, price: 4200, safe: 6, lvl: 14, twoHand: true, cls: ['knight', 'cleric'] },
+  moon_mace:    { name: '月光錘', type: 'weapon', wclass: 'mace', dmg: [5, 12], sp: 2, mp: 15, spd: 0.95, range: 1.35, w: 95, price: 3600, safe: 6, lvl: 12, cls: ['cleric'] },
+  flame_sword:  { name: '炎之劍', type: 'weapon', wclass: 'sword', dmg: [6, 15], dmgB: 1, spd: 0.85, range: 1.4, w: 85, price: 12000, safe: 6, lvl: 12, cls: ['knight', 'ranger'], res: { fire: 10 }, rare: true },
+  frost_blade:  { name: '寒霜之刃', type: 'weapon', wclass: 'sword', dmg: [5, 13], hit: 2, slow: 0.25, spd: 0.8, range: 1.4, w: 70, price: 14000, safe: 6, lvl: 14, cls: ['knight', 'ranger'], res: { water: 10 }, rare: true, desc: '攻擊有 25% 機率使敵人減速' },
+  yew_bow:      { name: '紫杉長弓', type: 'weapon', wclass: 'bow', dmg: [5, 12], spd: 1.0, range: 7, ranged: true, w: 60, price: 4000, safe: 6, lvl: 13, twoHand: true, cls: ['ranger'] },
+  storm_bow:    { name: '雷鳴弓', type: 'weapon', wclass: 'bow', dmg: [6, 15], hit: 2, spd: 0.9, range: 7.5, ranged: true, w: 65, price: 15000, safe: 6, lvl: 16, twoHand: true, cls: ['ranger'], res: { wind: 10 }, rare: true },
+  bone_staff:   { name: '骨杖', type: 'weapon', wclass: 'staff', dmg: [2, 6], sp: 2, mp: 10, spd: 1.0, range: 1.4, w: 45, price: 1800, safe: 6, lvl: 7, twoHand: true, cls: ['mage', 'cleric'] },
+  sun_staff:    { name: '烈陽法杖', type: 'weapon', wclass: 'staff', dmg: [3, 9], sp: 4, mp: 30, spd: 1.0, range: 1.4, w: 55, price: 16000, safe: 6, lvl: 16, twoHand: true, cls: ['mage', 'cleric'], res: { fire: 10 }, rare: true },
+  // 頭盔
+  ranger_hood:  { name: '遊俠兜帽', type: 'armor', slot: 'helm', ac: 2, er: 2, w: 12, price: 900, safe: 4, lvl: 6, cls: ['ranger'] },
+  sage_hood:    { name: '賢者兜帽', type: 'armor', slot: 'helm', ac: 1, mr: 8, sp: 1, w: 10, price: 1500, safe: 4, lvl: 8, cls: ['mage', 'cleric'] },
+  horned_helm:  { name: '角盔', type: 'armor', slot: 'helm', ac: 3, w: 60, price: 2200, safe: 4, lvl: 10, cls: ['knight'] },
+  // 盔甲
+  ranger_leather: { name: '遊俠皮甲', type: 'armor', slot: 'armor', ac: 4, er: 3, w: 120, price: 1800, safe: 4, lvl: 8, cls: ['ranger'] },
+  scale_mail:   { name: '鱗甲', type: 'armor', slot: 'armor', ac: 5, w: 320, price: 2600, safe: 4, lvl: 9, cls: ['knight', 'cleric'] },
+  battle_robe:  { name: '戰鬥法袍', type: 'armor', slot: 'armor', ac: 2, mr: 15, sp: 1, w: 50, price: 2400, safe: 4, lvl: 10, cls: ['mage', 'cleric'] },
+  holy_robe:    { name: '聖袍', type: 'armor', slot: 'armor', ac: 3, mr: 20, hp: 30, sp: 1, w: 60, price: 14000, safe: 4, lvl: 14, cls: ['cleric'], rare: true },
+  dragon_plate: { name: '龍鱗鎧甲', type: 'armor', slot: 'armor', ac: 9, w: 480, price: 40000, safe: 4, lvl: 20, cls: ['knight'], res: { fire: 20 }, rare: true },
+  // 斗篷
+  magic_cloak:  { name: '法師斗篷', type: 'armor', slot: 'cloak', ac: 1, mr: 10, w: 15, price: 1600, safe: 4 },
+  guard_cloak:  { name: '守護披風', type: 'armor', slot: 'cloak', ac: 3, w: 35, price: 3000, safe: 4, lvl: 12 },
+  // 盾牌
+  kite_shield:  { name: '鳶盾', type: 'armor', slot: 'shield', ac: 2, w: 110, price: 700, safe: 4, lvl: 5, cls: ['knight', 'cleric', 'ranger'] },
+  dragon_shield:{ name: '龍紋盾', type: 'armor', slot: 'shield', ac: 4, mr: 10, w: 220, price: 18000, safe: 4, lvl: 16, cls: ['knight', 'cleric'], res: { fire: 10 }, rare: true },
+  // 手套
+  archer_gloves:{ name: '射手手套', type: 'armor', slot: 'gloves', ac: 1, stat: { dex: 1 }, w: 10, price: 6000, safe: 4, lvl: 12, rare: true },
+  power_gauntlet:{ name: '力量護手', type: 'armor', slot: 'gloves', ac: 2, stat: { str: 1 }, w: 45, price: 7000, safe: 4, lvl: 12, cls: ['knight', 'cleric'], rare: true },
+  // 長靴
+  swift_boots:  { name: '疾風靴', type: 'armor', slot: 'boots', ac: 1, move: 0.1, w: 15, price: 8000, safe: 4, lvl: 10, rare: true, desc: '移動速度 +10%' },
+  // 腰帶
+  warrior_belt: { name: '戰士腰帶', type: 'acc', slot: 'belt', hp: 30, weight: 400, w: 15, price: 3000 },
+  mana_belt:    { name: '魔力腰帶', type: 'acc', slot: 'belt', mp: 30, weight: 200, w: 10, price: 3000 },
+  // 戒指與項鍊
+  ring_con:     { name: '堅韌戒指', type: 'acc', slot: 'ring', stat: { con: 1 }, w: 2, price: 3000, rare: true },
+  ring_wis:     { name: '冥想戒指', type: 'acc', slot: 'ring', stat: { wis: 1 }, w: 2, price: 3000, rare: true },
+  ring_mana:    { name: '魔力戒指', type: 'acc', slot: 'ring', mp: 20, w: 2, price: 2000 },
+  ring_ice:     { name: '冰紋戒指', type: 'acc', slot: 'ring', res: { water: 20 }, w: 2, price: 1500 },
+  amulet_power: { name: '力量項鍊', type: 'acc', slot: 'amulet', stat: { str: 1 }, hp: 10, w: 5, price: 5000, rare: true },
+  amulet_light: { name: '光明項鍊', type: 'acc', slot: 'amulet', sp: 2, w: 5, price: 6000, rare: true },
+  // 寵物用品
+  pet_haste:    { name: '寵物活力藥劑', type: 'consume', icon: 'potion', w: 2, price: 200, stack: true, desc: '讓附近的夥伴（寵物、召喚獸、迷魅怪物）5 分鐘內移動與攻擊加速' },
+});
+POTION_COLORS.pet_haste = '#c8f040';
+for (const id in ITEMS) {
+  const it = ITEMS[id];
+  if (it.icon) continue;
+  if (it.type === 'weapon') it.icon = it.wclass;
+  else if (it.type === 'armor' || it.type === 'acc') it.icon = it.slot;
+}
+SHOPS.smith.push('twin_daggers', 'bone_sword', 'halberd', 'great_hammer', 'yew_bow', 'horned_helm', 'ranger_hood', 'ranger_leather', 'scale_mail', 'kite_shield', 'guard_cloak');
+SHOPS.magic.splice(4, 0, 'bone_staff', 'moon_mace', 'sage_hood', 'battle_robe', 'magic_cloak');
+SHOPS.jewel.push('warrior_belt', 'mana_belt', 'ring_mana', 'ring_ice');
+SHOPS.pet.splice(1, 0, 'pet_haste');
+const EXTRA_LOOT = {
+  skeleton: [['bone_sword', 0.02]], skeleton_archer: [['bone_staff', 0.02]], ghost: [['bone_staff', 0.03], ['magic_cloak', 0.02]],
+  werewolf: [['ranger_hood', 0.03], ['archer_gloves', 0.004]], lizardman: [['flame_sword', 0.006], ['scale_mail', 0.015]],
+  golem: [['power_gauntlet', 0.006], ['ring_con', 0.004], ['frost_blade', 0.004]], scorpion: [['swift_boots', 0.004], ['ring_ice', 0.01]],
+  mummy: [['sun_staff', 0.005], ['ring_wis', 0.004], ['battle_robe', 0.015]], sandworm: [['storm_bow', 0.006], ['amulet_power', 0.004]],
+  wyvern: [['dragon_plate', 0.1], ['dragon_shield', 0.12], ['flame_sword', 0.2]], lich: [['holy_robe', 0.12], ['amulet_light', 0.15], ['frost_blade', 0.12], ['sun_staff', 0.12]],
+};
+for (const k in EXTRA_LOOT) MONSTERS[k].loot.push(...EXTRA_LOOT[k]);
