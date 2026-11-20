@@ -284,3 +284,41 @@ Object.assign(UI, {
     }
   },
 });
+
+// ===== 血盟倉庫 =====
+// 每個血盟都有自己的倉庫：你的血盟存在血盟資料裡；冒險者的血盟存在世界狀態裡，
+// 他們的成員會把戰利品和金幣存進自己血盟的倉庫，血盟也會用金庫的錢補給與壯大。
+function clanVault(name) {
+  const p = G.player;
+  if (p.clan && p.clan.name === name) { p.clan.vault = p.clan.vault || { items: [], gold: 0 }; return p.clan.vault; }
+  const R = realm(); R.vaults = R.vaults || {};
+  return (R.vaults[name] = R.vaults[name] || { items: [], gold: 0 });
+}
+function clanVaultCap() { return 80 + clanLevel() * 10 + (ownsCastle() ? 50 : 0); }
+function vaultNote(V, text) { V.log = V.log || []; V.log.push(text); if (V.log.length > 20) V.log.shift(); }
+function vaultInfo(name) {
+  const V = (realm().vaults || {})[name];
+  return V && (V.items.length || V.gold) ? '・倉庫 ' + V.items.reduce((s, i) => s + i.qty, 0) + ' 件、' + V.gold.toLocaleString() + ' 金' : '';
+}
+const NPC_VAULT_LOOT = ['wolf_fang', 'bone_shard', 'red_potion', 'orange_potion', 'arrow', 'ew_scroll', 'ea_scroll', 'dragon_scale', 'obsidian', 'sulfur'];
+// 冒險者存倉庫：有血盟的存進血盟倉庫
+function npcVaultDeposit(a, bag) {
+  if (!a.clan || a.clanMember) return;
+  const V = clanVault(a.clan);
+  V.gold += bag * randi(30, 70);
+  const n = Math.min(3, Math.ceil(bag / 3));
+  for (let i = 0; i < n; i++) {
+    const id = pick(NPC_VAULT_LOOT.filter((x) => ITEMS[x])); if (!id) break;
+    const ex = ITEMS[id].stack && V.items.find((x) => x.id === id);
+    if (ex) ex.qty += randi(1, 5); else V.items.push({ id, qty: ITEMS[id].stack ? randi(1, 5) : 1, ench: 0 });
+  }
+  while (V.items.length > 60) V.items.shift();
+  vaultNote(V, a.name + ' 存入了戰利品');
+}
+// 冒險者補給：有血盟的先用血盟金庫的錢
+function npcVaultSpend(a, cost) {
+  if (!a.clan || a.clanMember) return false;
+  const V = clanVault(a.clan);
+  if (V.gold < cost) return false;
+  V.gold -= cost; return true;
+}

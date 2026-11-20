@@ -175,7 +175,7 @@ const UI = {
     $('#alignFill').style.background = p.align < 0 ? 'linear-gradient(#b03020,#601008)' : 'linear-gradient(#3a6ab0,#1a3a70)';
     $('#btnChar').classList.toggle('alert', p.statPoints > 0);
     this.refreshHotbar();
-    for (const k of ['inv', 'char', 'spell', 'clan', 'shop', 'wh', 'vault', 'pet', 'petshop']) if (this.windows[k]) this['render' + k[0].toUpperCase() + k.slice(1)]();
+    for (const k of ['inv', 'char', 'spell', 'clan', 'shop', 'wh', 'pet', 'petshop']) if (this.windows[k]) this['render' + k[0].toUpperCase() + k.slice(1)]();
   },
 
   tick(dt) {
@@ -540,7 +540,6 @@ const UI = {
     else if (role === 'quest') this.openQuest(npc);
     else if (role === 'clan') this.openClanNpc(npc);
     else if (role === 'warehouse') this.openWarehouse(npc);
-    else if (role === 'castlewh') this.openCastleVault(npc);
     else if (role === 'herald') this.openHerald(npc);
     else if (role === 'pet') this.openPetShop(npc);
   },
@@ -718,15 +717,19 @@ const UI = {
   openWarehouse(npc) {
     this.close('wh');
     const w = this.win('wh', npc.title, 16, 60, 330);
-    w.npc = npc;
+    w.npc = npc; w.tab = w.tab || 'me';
     this.renderWh();
     if (!this.windows.inv) this.toggle('inv');
   },
   renderWh() {
     const w = this.windows.wh; if (!w) return;
     const p = G.player;
-    w.body.innerHTML = this.dialogHead(w.npc, '要寄放還是領取物品呢？倉庫在每個村莊都是共通的。（最多 60 格）');
-    w.body.appendChild(el('div', 'dim small', '倉庫（點擊領取）'));
+    w.body.innerHTML = this.dialogHead(w.npc, '要寄放還是領取物品呢？個人倉庫與血盟倉庫在每個村莊都是共通的。');
+    const tabs = el('div', 'tabs');
+    for (const [k, label] of [['me', '個人倉庫'], ['clan', '血盟倉庫']]) { const t = el('button', 'tab' + (w.tab === k ? ' on' : ''), label); t.onclick = () => { w.tab = k; this.renderWh(); }; tabs.appendChild(t); }
+    w.body.appendChild(tabs);
+    if (w.tab === 'clan') { this.renderClanVault(w); return; }
+    w.body.appendChild(el('div', 'dim small', '個人倉庫（點擊領取，最多 60 格）'));
     const g1 = el('div', 'grid');
     for (let i = 0; i < 30; i++) g1.appendChild(this.slotEl(p.wh[i], (inst) => {
       if (!canCarry(inst.id, inst.qty)) { this.log('太重了，無法領取。', 'warn'); return; }

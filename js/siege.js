@@ -46,7 +46,13 @@ function clanFormTick(dt) {
   if (G.formT > 0) return;
   G.formT = rand(240, 480);
   // 現有血盟慢慢成長
-  for (const c of R.clans) { c.power = Math.min(12, (c.power || 1) + (Math.random() < 0.6 ? 1 : 0)); c.members = Math.min(40, (c.members || 3) + randi(0, 2)); }
+  for (const c of R.clans) {
+    c.power = Math.min(12, (c.power || 1) + (Math.random() < 0.6 ? 1 : 0)); c.members = Math.min(40, (c.members || 3) + randi(0, 2));
+    const V = clanVault(c.name);
+    if (V.gold >= 20000 && c.power < 12) { V.gold -= 20000; c.power++; vaultNote(V, '用金庫的錢招兵買馬，戰力提升了'); }
+  }
+  // 冒險者血盟的倉庫會隨著成員狩獵慢慢累積（不在畫面附近的成員）
+  for (const n of worldClanNames()) { const V = clanVault(n); V.gold += randi(200, 900); }
   if (R.clans.length >= MAX_WORLD_CLANS || G.map.id !== 'overworld') return;
   const cands = G.map.actors.filter((a) => a.kind === 'fighter' && !a.dead && !a.clan && !a.clanMember && a.level >= 12);
   if (!cands.length) return;

@@ -107,8 +107,8 @@ function lifeUpdate(a, dt, far) {
         if (L.wait === 0) lifeSay(a, pick(LIFE_LINES[L.task] || ['…']));
         L.wait += dt;
         if (L.wait > 2.5) {
-          if (L.task === 'general' || L.task === 'coral') { const n = randi(10, 16) - L.pots; L.pots += n; castleTax(n * 25, 'trade'); }
-          if (L.task === 'warehouse') { castleTax(L.bag * randi(40, 90), 'trade'); L.bag = 0; }
+          if (L.task === 'general' || L.task === 'coral') { const n = randi(10, 16) - L.pots; L.pots += n; castleTax(n * 25, 'trade'); npcVaultSpend(a, n * 25); }
+          if (L.task === 'warehouse') { castleTax(L.bag * randi(40, 90), 'trade'); npcVaultDeposit(a, L.bag); L.bag = 0; }
           L.task = null;
         }
       }

@@ -271,7 +271,7 @@ function populateField(m) {
   m.npcs.push(new NPC(C.herald.x, C.herald.y, '奧德里奇', NPC_TITLES.herald, 'herald', NPC_LOOKS.herald, 'castle'));
   m.npcs.push(new NPC(C.merchant.x, C.merchant.y, '瑟琳娜', '城堡御用商人', 'castleshop', { body: '#6a1a3a', robe: true, hair: '#2a1a10', longHair: true, skin: '#f0d0b0', trim: '#e0c060' }, 'castle'));
   const vq = W.nearestFree(C.merchant.x + 3, C.merchant.y);
-  m.npcs.push(new NPC(vq.x, vq.y, '哈洛克', '城堡倉庫管理員', 'castlewh', { body: '#4a3a2a', legs: '#2a2a2a', hair: '#6a6a6a', beard: '#8a8a8a', skin: '#e0b890', trim: '#c0a050' }, 'castle'));
+  m.npcs.push(new NPC(vq.x, vq.y, '哈洛克', '倉庫管理員', 'warehouse', { body: '#4a3a2a', legs: '#2a2a2a', hair: '#6a6a6a', beard: '#8a8a8a', skin: '#e0b890', trim: '#c0a050' }, 'castle'));
   const gy = C.gate.reduce((s, g) => s + g.y, 0) / C.gate.length;
   m.gate = new Actor({ x: C.x0 + 0.5, y: gy + 0.5, kind: 'struct', faction: 'castle', struct: 'gate', name: '灰岩城門', maxHp: 3500, ac: 10, mr: 100, speed: 0 });
   m.gate.open = true;
