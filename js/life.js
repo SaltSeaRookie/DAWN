@@ -9,13 +9,6 @@ const LIFE_LINES = {
   leave: ['麻煩送我去練功的地方～', '休息夠了，出發！', '再去打一輪！'],
   scroll: ['（使用了回村卷軸）'],
 };
-const SOCIAL = [
-  ['今天打了好多骷髏，手好痠', '辛苦了！我剛從森林回來'], ['有人要組隊打飛龍嗎？', '我裝備還不夠，下次吧'],
-  ['剛剛衝 +7 成功了！', '恭喜！請客請客'], ['剛剛衝裝爆了…', '節哀…下次會更好'], ['峽谷的蜥蜴人好痛', '多帶點橙水就好'],
-  ['墓穴領主掉了星辰法杖！', '真的假的！好羨慕'], ['聽說灰岩城要攻城了', '我們血盟也想參加'], ['翡翠群島的海盜好兇', '海盜船長我打不過…'],
-  ['你的寵物好可愛', '是雪狐喔，速度很快'], ['紅水又漲價了嗎？', '沒有啦，是你買太多'], ['晚上荒原好可怕', '開照明術就好多了'],
-  ['你幾級了？', '快 20 了，你呢？'], ['要不要一起去沙漠？', '好啊，休息完就走'], ['今天天氣真好', '適合出去練功！'],
-];
 
 function initLife(a) {
   a.life = { state: 'hunt', pots: randi(4, 10), bag: 0, huntT: rand(90, 240), field: { x: a.x, y: a.y }, t: 0, task: null };
@@ -136,16 +129,4 @@ function lifeUpdate(a, dt, far) {
   return true;
 }
 // 篝火旁的閒聊
-function socialTick(dt) {
-  G.socialT = (G.socialT || 6) - dt;
-  if (G.socialT > 0) return;
-  G.socialT = rand(7, 13);
-  const p = G.player;
-  const resting = G.map.actors.filter((a) => a.life && a.life.resting && !a.dead && dist(a.x, a.y, p.x, p.y) < 16);
-  if (!resting.length) return;
-  const A = pick(resting);
-  const others = G.map.actors.filter((b) => b !== A && !b.dead && (b.kind === 'villager' || (b.life && b.life.resting)) && dist(A.x, A.y, b.x, b.y) < 7);
-  const pair = pick(SOCIAL);
-  lifeSay(A, pair[0]);
-  if (others.length) { const B = pick(others); B.face(A.x, A.y); A.face(B.x, B.y); later(1.8, () => { if (!B.dead) lifeSay(B, pair[1]); }); }
-}
+function socialTick(dt) { Talk.tick(dt); }

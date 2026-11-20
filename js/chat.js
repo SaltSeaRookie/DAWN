@@ -46,7 +46,7 @@ const Chat = {
       const role = {
         general: '需要藥水或卷軸嗎？點我就能購買喔。', smith: '要看看武器和防具嗎？', magic: '想學新的魔法嗎？魔法書都在這裡。',
         teleport: '要去哪裡？我可以送你一程。', quest: '村子需要你的幫忙，來看看委託吧。', clan: '想要建立血盟就找我。',
-        warehouse: '東西太重可以寄放在我這裡。', jewel: '戒指和項鍊能讓你更強喔。', pet: '要不要帶一隻可愛的寵物回家？', herald: '有血盟就能向灰岩城宣戰！',
+        warehouse: '東西太重可以寄放在我這裡。', jewel: '戒指和項鍊能讓你更強喔。', pet: '要不要帶一隻可愛的寵物回家？', herald: '有血盟就能向灰岩城宣戰！', merc: '城主可以向我雇用傭兵、訓練守衛。', buffer: '我能為你施放持續 10 分鐘的增益魔法。', castlewh: '', captain: '要出海嗎？',
       }[r.role];
       if (has(/(你好|哈囉|嗨|hi|hello|安安|早安|午安|晚安)/i)) return '你好，' + p.name + '。' + role;
       if (has(/(謝謝|感謝|3q|thx)/i)) return '不客氣，路上小心！';
@@ -54,6 +54,16 @@ const Chat = {
       return role;
     }
     const lv = r.level || 1;
+    // 依照實際狀況回答的問題
+    const mem = r.mem || {};
+    if (has(/(攻城時間|什麼時候攻城|幾點攻城)/)) return siegeTimeText() + '。';
+    if (has(/(城主|誰的城|灰岩城是誰)/)) return ownsCastle() ? '不就是你們「' + p.clan.name + '」嗎？' : '灰岩城現在是「' + castleOwnerName() + '」的。' + (r.clan === castleOwnerName() ? '就是我們家！' : '');
+    if (has(/(消息|新聞|八卦|最近發生)/)) { const n = Talk.news(); return n ? '聽說' + n.text + '！' : '最近很平靜耶，沒什麼大事。'; }
+    if (has(/(在哪練|去哪練|打什麼|剛剛去哪)/)) return mem.mon ? '我剛在' + mem.zone + '打' + mem.mon + '，' + (lv >= p.level ? '你也可以去看看。' : '你去的話應該很輕鬆。') : '我還在找地方耶。你 Lv.' + p.level + ' 的話，' + this.levelTip(p.level);
+    if (has(/(血盟|入盟|加入)/) && p.clan && !r.clan && r.kind === 'fighter') return '你的「' + p.clan.name + '」在招人嗎？點我一下就可以邀請我喔。';
+    if (has(/(倉庫|存東西)/)) return r.clan ? '我們「' + r.clan + '」有血盟倉庫，戰利品都存在那邊。' : '每個村莊的倉庫管理員都可以存東西。';
+    if (has(/(傭兵|守衛|魔法師|增益)/)) return '灰岩城有傭兵隊長和宮廷魔法師，城主血盟的增益魔法是免費的喔。';
+    if (has(/(強化|衝裝)/) && mem.ench) return mem.ench === 'ok' ? '我剛衝成功！手感正好～' : '別提了，我剛衝爆一把…';
     const rules = [
       [/(你好|哈囉|嗨|hi|hello|安安|早安|午安|晚安|yo)/i, ['你好呀～', '嗨！今天也要加油喔', '哈囉，' + p.name + '！', '安安～']],
       [/(你是誰|名字|叫什麼)/, ['我是' + r.name + '，' + (r.cls ? CLASSES[r.cls].name : '冒險者') + '。', '叫我' + r.name + '就好。']],

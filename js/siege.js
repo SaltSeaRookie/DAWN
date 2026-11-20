@@ -63,6 +63,7 @@ function clanFormTick(dt) {
   for (const a of G.map.actors) if (n < 4 && a !== leader && a.kind === 'fighter' && !a.dead && !a.clan && !a.clanMember && dist(a.x, a.y, leader.x, leader.y) < 40 && Math.random() < 0.6) { a.clan = name; a.emblem = emblem; n++; }
   R.clans.push({ name, emblem, leader: leader.name, power: 1, members: n + randi(2, 5), founded: Date.now() });
   worldLog('冒險者 ' + leader.name + ' 創立了血盟「' + name + '」！');
+  addNews('clan', leader.name + ' 創立了血盟「' + name + '」', leader.name);
   if (dist(leader.x, leader.y, G.player.x, G.player.y) < 20) leader.speak('血盟「' + name + '」成立了！有興趣的人歡迎加入！', 5);
 }
 
@@ -98,8 +99,8 @@ function beginSiege(playerAtk) {
   G.siege = { active: true, t: SIEGE_LEN, dur: SIEGE_LEN, playerAtk: !!playerAtk, attackers: [], awayT: 0, defender: castleOwnerName() };
   const gate = m.gate; gate.dead = false; gate.broken = false; gate.open = false; gate.hp = gate.maxHp; setGateBlock(true);
   const tw = m.tower; tw.dead = false; tw.hp = tw.maxHp; tw.ownerColor = ownsCastle() ? '#7ad0ff' : '#ff6a5a';
-  for (const a of m.actors) if (a.faction === 'castle' && !a.struct) { a.dead = true; a.deadT = 9; }
-  // 守城的衛兵屬於目前的城主
+  for (const a of m.actors) if (a.faction === 'castle' && !a.struct && !a.garrison) { a.dead = true; a.deadT = 9; }
+  // 守城的衛兵屬於目前的城主（常備守衛之外再加派）
   const owner = castleOwnerName(), em = ownsCastle() ? p.clan.emblem : realm().owner ? realm().owner.emblem : null;
   const guards = [];
   for (const s of C.guardSpots) { const g = makeMonster('guard', s.x, s.y); g.home = { x: s.x, y: s.y }; guards.push(g); }
@@ -187,7 +188,7 @@ function gateClick(g) {
 function endSiege() {
   const s = G.siege; if (s) s.active = false;
   const m = G.maps.overworld; if (!m) return;
-  for (const a of m.actors) if ((a.faction === 'castle' && !a.struct) || a.siegeAlly || a.kind === 'besieger') { a.dead = true; a.deadT = 9; }
+  for (const a of m.actors) if ((a.faction === 'castle' && !a.struct && !a.garrison) || a.siegeAlly || a.kind === 'besieger') { a.dead = true; a.deadT = 9; }
   m.gate.open = true; m.gate.broken = false; m.gate.dead = false; m.gate.hp = m.gate.maxHp;
   m.tower.dead = false; m.tower.hp = m.tower.maxHp; setGateBlock(false);
   m.tower.ownerColor = ownsCastle() ? '#7ad0ff' : realm().owner ? '#ffb040' : null;
@@ -205,6 +206,7 @@ function npcCapture(name, away) {
   endSiege();
   if (lost) log('守護之塔被摧毀了…' + (away ? '（你不在城裡）' : '') + '血盟「' + name + '」奪走了灰岩城。城堡倉庫的物品會保留，奪回城堡後就能再使用。', 'warn');
   worldLog('血盟「' + name + '」佔領了灰岩城！');
+  addNews('capture', '血盟「' + name + '」佔領了灰岩城', name);
   SFX.play('boom'); saveGame(true);
 }
 function playerCapture() {
@@ -214,6 +216,7 @@ function playerCapture() {
   endSiege();
   later(2, () => log('工匠們連夜修好了灰岩城門，城門重新開啟。', 'sys'));
   log('★★ 血盟「' + p.clan.name + '」佔領了灰岩城！盟主 ' + p.name + ' 成為了城主！', 'loot');
+  addNews('capture', '血盟「' + p.clan.name + '」佔領了灰岩城，城主是 ' + p.name, p.clan.name);
   gainExp(3000); SFX.play('levelup');
   saveGame(true);
 }
@@ -269,9 +272,9 @@ function updateSiege(dt) {
       }
       const held = ownsCastle();
       endSiege();
-      if (held) { log('攻城戰結束，成功守住了灰岩城！', 'level'); gainExp(1500); }
+      if (held) { log('攻城戰結束，成功守住了灰岩城！', 'level'); gainExp(1500); addNews('defend', '「' + p.clan.name + '」守住了灰岩城'); }
       else if (s.playerAtk) log('攻城戰時間結束，未能攻下灰岩城。', 'warn');
-      else worldLog('攻城戰結束，「' + castleOwnerName() + '」守住了灰岩城。');
+      else { worldLog('攻城戰結束，「' + castleOwnerName() + '」守住了灰岩城。'); addNews('defend', '「' + castleOwnerName() + '」守住了灰岩城'); }
       log('灰岩城門已經修復。', 'sys');
     }
   }

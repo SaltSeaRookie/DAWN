@@ -337,6 +337,7 @@ function playerLook(e) {
 function nameColor(e) {
   if (e === G.player) return e.pinkT > 0 ? '#d070ff' : alignColor(e.align);
   if (e.kind === 'remote') return e.pink ? '#d070ff' : alignColor(e.align || 0);
+  if (e.kind === 'merc') return '#8affa0';
   if (e.kind === 'besieger') return ownsCastle() ? '#ff7a4a' : '#ffd0a0';
   if (e.kind === 'pker') return '#ff4a3a';
   if (e.kind === 'fighter') return e.grudge.has(G.player.id) && G.player.pinkT > 0 ? '#ff9a5a' : e.align < 0 ? '#ff4a3a' : '#c8d8ff';
@@ -456,7 +457,7 @@ function drawEntity(e, S, labels) {
       }
     } else if (e.kind !== 'dog') {
       if (e === p) hpBar(sx, top - 2, 36, p.hp / p.maxHp, '#d02a20');
-      else if (e.kind === 'fighter' || e.kind === 'pker' || e.kind === 'ally' || e.kind === 'townguard' || e.kind === 'besieger') { if (e.hp < e.maxHp) hpBar(sx, top - 2, 30, e.hp / e.maxHp, '#d02a20'); }
+      else if (e.kind === 'fighter' || e.kind === 'pker' || e.kind === 'ally' || e.kind === 'townguard' || e.kind === 'besieger' || e.kind === 'merc') { if (e.hp < e.maxHp) hpBar(sx, top - 2, 30, e.hp / e.maxHp, '#d02a20'); }
       else if (e.kind === 'remote' && e.hp < 1) hpBar(sx, top - 2, 30, e.hp, '#d02a20');
       const nm = e.name;
       const clan = e === p ? (p.clan ? p.clan.name : null) : e.clan;

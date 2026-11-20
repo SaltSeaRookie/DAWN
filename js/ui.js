@@ -175,7 +175,7 @@ const UI = {
     $('#alignFill').style.background = p.align < 0 ? 'linear-gradient(#b03020,#601008)' : 'linear-gradient(#3a6ab0,#1a3a70)';
     $('#btnChar').classList.toggle('alert', p.statPoints > 0);
     this.refreshHotbar();
-    for (const k of ['inv', 'char', 'spell', 'clan', 'shop', 'wh', 'pet', 'petshop']) if (this.windows[k]) this['render' + k[0].toUpperCase() + k.slice(1)]();
+    for (const k of ['inv', 'char', 'spell', 'clan', 'shop', 'wh', 'pet', 'petshop', 'merc', 'buffer']) if (this.windows[k]) this['render' + k[0].toUpperCase() + k.slice(1)]();
   },
 
   tick(dt) {
@@ -541,6 +541,8 @@ const UI = {
     else if (role === 'clan') this.openClanNpc(npc);
     else if (role === 'warehouse') this.openWarehouse(npc);
     else if (role === 'herald') this.openHerald(npc);
+    else if (role === 'merc') this.openMercCaptain(npc);
+    else if (role === 'buffer') this.openBuffer(npc);
     else if (role === 'pet') this.openPetShop(npc);
   },
   dialogHead(npc, text) {

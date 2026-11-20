@@ -270,6 +270,10 @@ function populateField(m) {
   const C = W.castle;
   m.npcs.push(new NPC(C.herald.x, C.herald.y, '奧德里奇', NPC_TITLES.herald, 'herald', NPC_LOOKS.herald, 'castle'));
   m.npcs.push(new NPC(C.merchant.x, C.merchant.y, '瑟琳娜', '城堡御用商人', 'castleshop', { body: '#6a1a3a', robe: true, hair: '#2a1a10', longHair: true, skin: '#f0d0b0', trim: '#e0c060' }, 'castle'));
+  const mq = W.nearestFree(C.x0 + 4.5, C.cy + 4.5);
+  m.npcs.push(new NPC(mq.x, mq.y, '葛倫', '傭兵隊長', 'merc', { body: '#5a4030', legs: '#2a2420', helm: '#8a8a90', skin: '#d8a880', cape: '#6a2a1a', trim: '#b09040', weapon: 'sword', shield: true }, 'castle'));
+  const bq = W.nearestFree(C.tower.x - 3.5, C.tower.y - 4);
+  m.npcs.push(new NPC(bq.x, bq.y, '伊薇特', '宮廷魔法師', 'buffer', { body: '#3a2a6a', robe: true, hair: '#e0e0f0', longHair: true, skin: '#f0d8c0', trim: '#c0b0ff', weapon: 'staff' }, 'castle'));
   const vq = W.nearestFree(C.merchant.x + 3, C.merchant.y);
   m.npcs.push(new NPC(vq.x, vq.y, '哈洛克', '倉庫管理員', 'warehouse', { body: '#4a3a2a', legs: '#2a2a2a', hair: '#6a6a6a', beard: '#8a8a8a', skin: '#e0b890', trim: '#c0a050' }, 'castle'));
   const gy = C.gate.reduce((s, g) => s + g.y, 0) / C.gate.length;
@@ -604,12 +608,14 @@ function killActor(a, src) {
   const pl = G.player, m = G.map;
   a.dead = true; a.deadT = 0; a.moving = false; a.target = null;
   if (a.struct) { onStructDestroyed(a, src); return; }
+  if (a.garrison || a.mercId) onGarrisonDeath(a);
   SFX.play(a.sprite === 'skeleton' ? 'bonebreak' : a.boss ? 'boom' : 'die', a.x, a.y);
   if (a.companion) { onCompanionDeath(a); UI.refresh(); return; }
   if (a.spawner) { a.spawner.alive--; a.spawner.timer = a.spawner.respawn * rand(0.8, 1.3); }
   const byComp = src && src.companion;
   const byPlayer = src === pl || (src && src.faction === 'ally') || a.hitByPlayer;
   if (a.kind === 'monster') {
+    noteKill(src, a);
     const d = a.def;
     if (byPlayer && !pl.dead) {
       const lvDiff = d.lvl - pl.level;
@@ -632,7 +638,7 @@ function killActor(a, src) {
     if (src && src !== pl && !src.companion && (src.kind === 'fighter' || src.kind === 'ally' || src.kind === 'villager')) gold -= castleTax(gold, 'kill');
     dropItem(a.x, a.y, 'gold', gold);
     for (const [id, ch, n] of d.loot) if (Math.random() < ch) dropItem(a.x + rand(-0.7, 0.7), a.y + rand(-0.7, 0.7), id, n || 1);
-    if (d.boss) { log('★ ' + (byPlayer ? pl.name : '有人') + ' 擊敗了 ' + a.name + '！', 'loot'); shake(10); }
+    if (d.boss) { log('★ ' + (byPlayer ? pl.name : '有人') + ' 擊敗了 ' + a.name + '！', 'loot'); shake(10); addNews('boss', (byPlayer ? pl.name : (src && src.name) || '有人') + '打倒了' + a.name, byPlayer ? pl.name : src && src.name); }
     if (d.captain) log('守城隊長倒下了！', 'level');
   } else if (a.kind === 'fighter' || a.kind === 'pker') {
     dropItem(a.x, a.y, 'gold', randi(10, 30) * a.level);
@@ -650,6 +656,8 @@ function killActor(a, src) {
       }
     }
     if (src && src.kind === 'pker') log(a.name + ' 被 ' + src.name + ' 殺死了！', 'warn');
+  } else if (a.kind === 'merc') {
+    // 傭兵陣亡（訊息由 onGarrisonDeath 顯示）
   } else if (a.kind === 'besieger') {
     dropItem(a.x, a.y, 'gold', randi(20, 40) * a.level);
     if (Math.random() < 0.25) dropItem(a.x + rand(-0.5, 0.5), a.y + rand(-0.5, 0.5), pick(['clear_potion', 'orange_potion', 'ew_scroll', 'ea_scroll']), 1);
@@ -1326,10 +1334,10 @@ function updateActor(a, dt) {
   if (a.kind === 'villager' || a.kind === 'dog') return updateVillager(a, dt, dp);
   if (a.companion) return updateCompanion(a, dt);
   if (a.life && lifeUpdate(a, dt, dp > 36)) return;
-  if (dp > 36 && !a.target && a.kind !== 'ally' && a.kind !== 'besieger' && !(a.faction === 'castle' && siegeOn())) return;
+  if (dp > 36 && !a.target && a.kind !== 'ally' && a.kind !== 'besieger' && !((a.faction === 'castle' || a.kind === 'merc') && siegeOn())) return;
   const spMul = a.slowT > 0 ? 0.5 : 1;
   // 冒險者喝水
-  if ((a.kind === 'fighter' || a.kind === 'pker' || a.kind === 'ally' || a.kind === 'besieger') && a.hp < a.maxHp * 0.35 && G.t > a.potT && (!a.life || a.life.pots > 0)) {
+  if ((a.kind === 'fighter' || a.kind === 'pker' || a.kind === 'ally' || a.kind === 'besieger' || a.kind === 'merc') && a.hp < a.maxHp * 0.35 && G.t > a.potT && (!a.life || a.life.pots > 0)) {
     a.potT = G.t + 6; if (a.life) a.life.pots--; a.hp = Math.min(a.maxHp, a.hp + Math.round(a.maxHp * 0.3)); burst(a.x, a.y, 20, '#ff8080', 8, 1, 0.5, 2, 2);
   }
   // 盟友時效
@@ -1396,7 +1404,7 @@ function updateActor(a, dt) {
         const avoid = a.kind !== 'townguard';
         if (!W.blocked(tx, ty) && !(avoid && W.isSafe(tx, ty))) a.path = Path.find(W, a.x, a.y, tx, ty, 300, avoid) || [];
       }
-      if (a.kind === 'fighter' && Math.random() < 0.0008 && dp < 14) { const l = pick(CHAT_LINES); a.speak(l, 4); log(a.name + '：' + l, 'chat'); }
+      if (a.kind === 'fighter' && Math.random() < 0.0008 && dp < 14 && !(a.talkUntil > G.t)) { const l = Talk.mutter(a); a.speak(l, 4); log(a.name + '：' + l, 'chat'); }
     }
   }
 }
@@ -1429,10 +1437,10 @@ function updateVillager(o, dt, dp) {
     }
   }
   if (o.lineT <= 0) {
-    o.lineT = rand(20, 50);
-    if (dp > 14) return;
+    o.lineT = rand(40, 90);
+    if (dp > 14 || o.talkUntil > G.t) return;
     if (o.kind === 'dog') { o.speak('汪！汪！', 2.5); SFX.play('bark', o.x, o.y); log(o.name + '：汪！汪！', 'chat'); }
-    else { const l = pick(CHAT_LINES); o.speak(l, 5); log(o.name + '：' + l, 'chat'); }
+    else { const l = Talk.villagerLine(o); o.speak(l, 5); log(o.name + '：' + l, 'chat'); }
   }
 }
 
@@ -1516,6 +1524,8 @@ const NPC_LINES = {
   captain: ['要出海嗎？', '海上的風很舒服啊', '翡翠群島可是個好地方'],
   pet: ['可愛的寵物在等你喔～', '寵物倒下了就帶回來給我吧', '馴獸肉乾可以馴服野狼'],
   herald: ['灰岩城等待著真正的主人', '有血盟就能向灰岩城宣戰！'],
+  merc: ['需要可靠的劍嗎？', '守衛們，打起精神來！', '傭兵只認金幣和城主。'],
+  buffer: ['魔力在流動…', '需要祝福嗎？', '城主血盟的魔法免費喔。'],
 };
 function updateNPCs(dt) {
   for (const n of G.map.npcs) {
@@ -1553,6 +1563,7 @@ function frameBody(ts) {
     joinRequestTick(dt);
     updateSpawners(dt);
     updateSiege(dt);
+    garrisonTick(dt);
     updateFx(dt);
     updateHazards(dt); autoBuffTick(dt); if (typeof Online !== "undefined") Online.tick(dt);
     volcanoTick(dt);
