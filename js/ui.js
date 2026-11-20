@@ -309,7 +309,7 @@ const UI = {
   showTip(inst, e) {
     const d = ITEMS[inst.id], p = G.player;
     let h = '<b class="' + (d.rare ? 'rare' : '') + '">' + esc(itemName(inst)) + '</b>';
-    if (inst.pet) { const pd = inst.pet, st = petStats(pd); h += '<div>' + esc(pd.name) + '（' + PETS[pd.kind].name + '）Lv.' + pd.level + '</div><div>體力 ' + (pd.dead ? '<span class="bad">已倒下</span>' : st.maxHp) + '　攻擊 ' + st.dmg[0] + '-' + st.dmg[1] + '</div><div class="dim">' + PETS[pd.kind].desc + '</div><div class="dim">點擊召喚／收回</div>'; }
+    if (inst.pet) { const pd = inst.pet, st = petStats(pd); h += '<div>' + esc(pd.name) + '（' + PETS[pd.kind].name + '）Lv.' + pd.level + '・經驗 ' + Math.floor(100 * pd.exp / petExpNeed(pd.level)) + '%</div><div>體力 ' + (pd.dead ? '<span class="bad">已倒下</span>' : st.maxHp) + '　攻擊 ' + st.dmg[0] + '-' + st.dmg[1] + '</div><div class="dim">' + PETS[pd.kind].desc + '</div><div class="dim">點擊召喚／收回</div>'; }
     if (d.type === 'weapon') {
       h += '<div>攻擊力 ' + (d.dmg[0] + (inst.ench || 0)) + '-' + (d.dmg[1] + (inst.ench || 0)) + (d.dmgB ? '　額外傷害 +' + d.dmgB : '') + (d.hit ? '　命中 +' + d.hit : '') + '</div>';
       h += '<div>' + (d.ranged ? '遠程（射程 ' + d.range + '，需要箭）' : '近戰') + (d.twoHand ? '・雙手' : '・單手') + '　攻速 ' + d.spd + '</div>';
@@ -828,8 +828,9 @@ Object.assign(UI, {
       const row = el('div', 'li');
       const kind = a.companion === 'pet' ? '寵物' : a.companion === 'summon' ? '召喚獸' : '迷魅';
       const left = a.expire ? Math.max(0, Math.ceil((a.expire - G.t) / 60)) + ' 分' : '';
-      row.appendChild(el('div', 'li-n', '<b>' + esc(a.name) + ' <span class="dim">Lv.' + a.level + '</span></b><span class="dim">' + kind + (left ? '・剩 ' + left : '') +
-        '</span><div class="hpmini"><div style="width:' + Math.round(100 * a.hp / a.maxHp) + '%"></div></div>'));
+      const expBar = a.pet ? '<div class="expmini" title="經驗值"><div style="width:' + Math.min(100, Math.round(100 * a.pet.exp / petExpNeed(a.pet.level))) + '%"></div></div>' : '';
+      row.appendChild(el('div', 'li-n', '<b>' + esc(a.name) + ' <span class="dim">Lv.' + a.level + (a.pet ? '・經驗 ' + Math.floor(100 * a.pet.exp / petExpNeed(a.pet.level)) + '%' : '') + '</span></b><span class="dim">' + kind + (left ? '・剩 ' + left : '') +
+        '</span><div class="hpmini"><div style="width:' + Math.round(100 * a.hp / a.maxHp) + '%"></div></div>' + expBar));
       if (a.companion === 'pet') {
         const b1 = el('button', 'btn sm', '改名'); b1.onclick = () => { const n = prompt('幫 ' + a.name + ' 取個新名字（1～8 字）：', a.name); if (n && n.trim()) { a.name = a.pet.name = n.trim().slice(0, 8); this.refresh(); } };
         const b2 = el('button', 'btn sm', '收回'); b2.onclick = () => { recallPet(a); this.refresh(); };

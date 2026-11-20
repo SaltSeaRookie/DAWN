@@ -129,11 +129,12 @@ function useCollar(inst) {
   if (out) recallPet(out); else spawnPet(inst);
   UI.refresh();
 }
+function petExpNeed(l) { return Math.max(10, Math.floor(expForLevel(l) * 0.35)); }
 function petGainExp(a, n) {
   const pd = a.pet; if (!pd || pd.dead) return;
   pd.exp += n;
   let up = false;
-  while (pd.exp >= Math.floor(expForLevel(pd.level) * 0.5) && pd.level < 60) { pd.exp -= Math.floor(expForLevel(pd.level) * 0.5); pd.level++; up = true; }
+  while (pd.exp >= petExpNeed(pd.level) && pd.level < 60) { pd.exp -= petExpNeed(pd.level); pd.level++; up = true; }
   if (up) {
     const st = petStats(pd);
     Object.assign(a, { level: pd.level, maxHp: st.maxHp, ac: st.ac, mr: st.mr, dmg: st.dmg });

@@ -594,6 +594,8 @@ function killActor(a, src) {
       // 夥伴擊殺：經驗值一半給主人、一半給夥伴自己
       if (byComp) { gainExp(Math.max(1, Math.floor(full / 2))); if (src.pet) petGainExp(src, Math.floor(full / 2)); }
       else gainExp(src === pl || a.hitByPlayer ? full : Math.floor(full / 2));
+      // 一起戰鬥的寵物：主人或其他夥伴打倒敵人時也會得到經驗（不扣主人的經驗）
+      for (const c of companions('pet')) if (c !== src && dist(c.x, c.y, a.x, a.y) < 12) petGainExp(c, Math.max(1, Math.floor(full / 2)));
       if (pl.align < 32767) pl.align = Math.min(32767, pl.align + Math.max(1, d.lvl) * (pl.align < 0 ? 4 : 1));
       pl.kills++;
       const q = pl.quest, Q = QUESTS[q.idx];
@@ -1432,6 +1434,7 @@ function onStructDestroyed(s, src) {
       for (const a of m.actors) if (a.siegeAlly) a.expire = G.t + 30;
       s.dead = false; s.hp = s.maxHp; s.ownerColor = '#7ad0ff';
       m.gate.open = true; m.gate.broken = false; m.gate.hp = m.gate.maxHp; m.gate.dead = false; setGateBlock(false);
+      later(2, () => log('工匠們連夜修好了灰岩城門，城門重新開啟。', 'sys'));
       log('★★ 血盟「' + p.clan.name + '」佔領了灰岩城！盟主 ' + p.name + ' 成為了城主！', 'loot');
       gainExp(3000); SFX.play('levelup');
       saveGame(true);
@@ -1453,6 +1456,7 @@ function updateSiege(dt) {
       const m = G.maps.overworld;
       for (const a of m.actors) if ((a.faction === 'castle' && !a.struct) || a.siegeAlly) { a.dead = true; a.deadT = 9; }
       m.gate.open = true; m.gate.broken = false; m.gate.dead = false; m.gate.hp = m.gate.maxHp; m.tower.hp = m.tower.maxHp; m.tower.ownerColor = null; setGateBlock(false);
+      log('灰岩城門已經修復。', 'sys');
       log('攻城戰時間結束，未能攻下灰岩城。', 'warn');
     }
   }

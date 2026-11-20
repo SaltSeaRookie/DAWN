@@ -409,13 +409,31 @@ function drawGate(ctx, sx, sy, g) {
   // sx,sy：城門中段地面中心
   const hpF = g.hp / g.maxHp;
   ctx.save();
+  // 拱門（開著或關著都畫）
+  const Q = (dx, dy, z) => [sx + (dx - dy) * HW, sy + (dx + dy) * HH - z];
+  const poly2 = (pts, fill, stroke) => { ctx.beginPath(); ctx.moveTo(...pts[0]); for (const p of pts) ctx.lineTo(...p); ctx.closePath(); ctx.fillStyle = fill; ctx.fill(); if (stroke) { ctx.strokeStyle = stroke; ctx.lineWidth = 1; ctx.stroke(); } };
+  const arch = () => {
+    poly2([Q(-0.5, -1.6, 58), Q(-0.5, 1.6, 58), Q(-0.5, 1.6, 74), Q(-0.5, -1.6, 74)], '#6a6660', 'rgba(20,18,16,0.6)');
+    poly2([Q(-0.5, -1.6, 74), Q(-0.5, 1.6, 74), Q(0.5, 1.6, 74), Q(0.5, -1.6, 74)], '#7e7a72');
+    ctx.fillStyle = '#c0a050'; const c = Q(-0.5, 0, 66); ctx.beginPath(); ctx.arc(c[0], c[1], 4, 0, 7); ctx.fill();
+  };
   if (g.open) {
-    ctx.fillStyle = 'rgba(0,0,0,0.35)'; ctx.beginPath(); ctx.ellipse(sx, sy, 34, 12, 0, 0, 7); ctx.fill();
+    // 開啟的城門：兩扇門板向內打開、鐵柵升起
+    ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.beginPath(); ctx.ellipse(sx, sy, 34, 12, 0, 0, 7); ctx.fill();
+    for (const side of [-1.5, 1.5]) {
+      poly2([Q(0, side, 0), Q(1.3, side, 0), Q(1.3, side, 56), Q(0, side, 56)], '#5a3a1e', '#2a1a0a');
+      ctx.strokeStyle = '#6a6a70'; ctx.lineWidth = 2.5;
+      for (const z of [12, 30, 46]) { ctx.beginPath(); ctx.moveTo(...Q(0, side, z)); ctx.lineTo(...Q(1.3, side, z)); ctx.stroke(); }
+    }
+    ctx.strokeStyle = '#3a3a40'; ctx.lineWidth = 2;
+    for (let k = -1.4; k <= 1.41; k += 0.35) { ctx.beginPath(); ctx.moveTo(...Q(-0.5, k, 62)); ctx.lineTo(...Q(-0.5, k, 74)); ctx.stroke(); }
+    arch();
     ctx.restore(); return;
   }
   if (g.broken) {
     ctx.fillStyle = '#3a2a1a';
     for (let i = 0; i < 6; i++) { ctx.save(); ctx.translate(sx - 20 + i * 8, sy - 2 + (i % 2) * 4); ctx.rotate(i * 0.7); ctx.fillRect(-10, -2, 20, 4); ctx.restore(); }
+    arch();
     ctx.restore(); return;
   }
   // 城門板（沿 y 方向的牆面，朝 -x）
@@ -428,6 +446,7 @@ function drawGate(ctx, sx, sy, g) {
   for (const z of [12, 30, 48]) { ctx.beginPath(); ctx.moveTo(...P(-1.5, z)); ctx.lineTo(...P(1.5, z)); ctx.stroke(); }
   if (hpF < 0.6) { ctx.strokeStyle = '#1a0e04'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(...P(-0.4, 50)); ctx.lineTo(...P(0.2, 30)); ctx.lineTo(...P(-0.2, 12)); ctx.stroke(); }
   if (hpF < 0.3) { ctx.beginPath(); ctx.moveTo(...P(0.8, 40)); ctx.lineTo(...P(0.4, 20)); ctx.stroke(); }
+  arch();
   ctx.restore();
 }
 function drawTower(ctx, sx, sy, tw, t) {

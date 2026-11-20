@@ -369,3 +369,6 @@ body:not(.in-game) #hud, body:not(.in-game) #minimapWrap, body:not(.in-game) #bu
 #askBox { position: fixed; left: 50%; top: 90px; transform: translateX(-50%); z-index: 100003; display: flex; align-items: center; gap: 8px; max-width: calc(100vw - 20px);
   padding: 10px 12px; background: linear-gradient(#2a3a2a, #18221a); border: 1px solid #8ef0a0; border-radius: 4px; box-shadow: 0 6px 20px rgba(0,0,0,0.6); font-size: 13px; }
 #askBox .btn { margin: 0; }
+
+.expmini { height: 3px; background: #0c0b0a; border-radius: 2px; overflow: hidden; margin-top: 2px; }
+.expmini div { height: 100%; background: linear-gradient(#ffd060, #a06010); }
