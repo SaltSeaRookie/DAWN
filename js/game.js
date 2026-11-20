@@ -715,6 +715,26 @@ function goHome() {
   const t = ow.towns.find((t) => t.id === p.homeTown) || ow.towns[0];
   changeMap('overworld', t.x, t.y + 2);
 }
+// 回村卷軸：傳送到最近的村莊（城主也包含灰岩城）；地下城則回到入口附近最近的村莊
+function goNearestTown() {
+  const p = G.player;
+  if (G.world.towns.length) {
+    const opts = G.world.towns.map((t) => ({ x: t.x, y: t.y + 2, name: t.name, d: dist(t.x, t.y, p.x, p.y) }));
+    if (G.map.id === 'overworld' && ownsCastle()) { const C = G.world.castle; opts.push({ x: C.cx, y: C.cy + 2, name: '灰岩城', d: dist(C.cx, C.cy, p.x, p.y) }); }
+    const t = opts.sort((a, b) => a.d - b.d)[0];
+    teleportTo(t.x + rand(-1, 1), t.y);
+    log('你回到了' + t.name + '。', 'sys');
+    return;
+  }
+  // 地下城：以入口在大陸上的位置找最近的村莊
+  const ow = getMap('overworld').world;
+  const ent = G.map.id === 'keep' ? { x: ow.castle.cx, y: ow.castle.cy } : ow.crypt;
+  const opts = ow.towns.map((t) => ({ x: t.x, y: t.y + 2, name: t.name, d: dist(t.x, t.y, ent.x, ent.y) }));
+  if (ownsCastle()) opts.push({ x: ow.castle.cx, y: ow.castle.cy + 2, name: '灰岩城', d: G.map.id === 'keep' ? 0 : dist(ow.castle.cx, ow.castle.cy, ent.x, ent.y) });
+  const t = opts.sort((a, b) => a.d - b.d)[0];
+  changeMap('overworld', t.x, t.y);
+  log('你回到了' + t.name + '。', 'sys');
+}
 // 搭船往返銀風港與翡翠群島
 function sail(to) {
   const p = G.player, cost = 500;
@@ -951,7 +971,7 @@ function useItem(inst) {
       p.buffs.haste = Math.max(p.buffs.haste || 0, 300); SFX.play('potion'); SFX.play('buff'); burst(p.x, p.y, 20, '#80ff80', 16, 2, 0.8, 2, 3);
       log('你的動作突然變快。', 'sys'); break;
     case 'return_scroll':
-      log('你使用了回村卷軸。', 'sys'); goHome(); break;
+      log('你使用了回村卷軸。', 'sys'); goNearestTown(); break;
     case 'teleport_scroll': {
       const t = G.world.randomFreeTile(null);
       if (t) { teleportTo(t.x + 0.5, t.y + 0.5); log('你被傳送到了未知的地方。', 'sys'); }

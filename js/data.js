@@ -110,7 +110,7 @@ const ITEMS = {
   clear_potion:  { name: '清澈藥水', type: 'consume', w: 2, price: 220, stack: true, desc: '恢復 150 點體力' },
   blue_potion:   { name: '藍色藥水', type: 'consume', w: 2, price: 90, stack: true, desc: '恢復 30 點魔力' },
   haste_potion:  { name: '綠色藥水', type: 'consume', w: 2, price: 160, stack: true, desc: '5 分鐘內移動與攻擊速度提升' },
-  return_scroll: { name: '回村卷軸', type: 'consume', w: 1, price: 40, stack: true, desc: '傳送到最近一次記錄的村莊' },
+  return_scroll: { name: '回村卷軸', type: 'consume', w: 1, price: 40, stack: true, desc: '傳送到距離最近的村莊' },
   teleport_scroll:{ name: '瞬間移動卷軸', type: 'consume', w: 1, price: 60, stack: true, desc: '隨機傳送到目前地圖的某處' },
   ew_scroll:     { name: '武器強化卷軸', type: 'consume', w: 1, price: 600, stack: true, desc: '強化武器 +1。超過安全值可能失敗並使武器消失' },
   ea_scroll:     { name: '防具強化卷軸', type: 'consume', w: 1, price: 500, stack: true, desc: '強化防具 +1。超過安全值可能失敗並使防具消失' },

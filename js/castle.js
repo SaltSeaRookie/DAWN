@@ -126,8 +126,8 @@ Object.assign(UI, {
       rates.appendChild(el('span', 'dim small', '調整稅率：'));
       for (const r of TAX_RATES) { const rb = el('button', 'btn sm' + (c.rate === r ? ' on' : ''), Math.round(r * 100) + '%'); rb.onclick = () => { c.rate = r; this.log('稅率調整為 ' + Math.round(r * 100) + '%。', 'sys'); this.openHerald(npc); }; rates.appendChild(rb); }
       w.body.appendChild(rates);
-      const home = el('button', 'btn', p.homeTown === 'castle' ? '✓ 復活點：灰岩城' : '把復活點設在灰岩城');
-      home.onclick = () => { p.homeTown = p.homeTown === 'castle' ? 'dawn' : 'castle'; this.log(p.homeTown === 'castle' ? '復活點與回村卷軸的目的地改為灰岩城。' : '復活點改回晨風村。', 'sys'); this.openHerald(npc); };
+      const home = el('button', 'btn', p.homeTown === 'castle' ? '✓ 復活點：灰岩城' : '把復活點設在灰岩城（回村卷軸也能回城）');
+      home.onclick = () => { p.homeTown = p.homeTown === 'castle' ? 'dawn' : 'castle'; this.log(p.homeTown === 'castle' ? '復活點改為灰岩城。' : '復活點改回晨風村。', 'sys'); this.openHerald(npc); };
       w.body.appendChild(home);
       w.body.appendChild(el('div', 'dim small', '城主血盟專屬：城內的地下要塞練功副本、城堡御用商人（祝福卷軸、王家秘藥）、狩獵經驗 +10%、城門守衛保護。稅收來自所有勇者（包含電腦冒險者）打怪掉落的金幣與商店交易。'));
       return;

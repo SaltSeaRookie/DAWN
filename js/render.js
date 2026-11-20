@@ -201,9 +201,12 @@ function render() {
   ctx = mainCtx;
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.imageSmoothingEnabled = true;
-  if (Settings.grade) ctx.filter = 'saturate(0.86) contrast(1.06) brightness(0.95) sepia(0.1)';
   ctx.drawImage(lowCanvas, 0, 0, LW, LH, 0, 0, VW * DPR, VH * DPR);
-  ctx.filter = 'none';
+  if (Settings.grade) {
+    ctx.globalCompositeOperation = 'saturation'; ctx.fillStyle = 'rgba(128,128,128,0.16)'; ctx.fillRect(0, 0, VW * DPR, VH * DPR);
+    ctx.globalCompositeOperation = 'multiply'; ctx.fillStyle = 'rgb(242,232,214)'; ctx.fillRect(0, 0, VW * DPR, VH * DPR);
+    ctx.globalCompositeOperation = 'source-over';
+  }
   ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
   ctx.imageSmoothingEnabled = true;
 
@@ -355,8 +358,7 @@ function drawEntity(e, S, labels) {
     ctx.globalAlpha = fade;
     const o = { dir: e.dir, moving: e.moving, walk: e.walk, t: G.t + e.id, atk: e.atkAnim, color: d.color, scale: e.scale };
     if (e.dead) { ctx.save(); ctx.translate(sx, sy); ctx.scale(1, 0.55); ctx.rotate(Math.PI / 2 * 0.9); ctx.translate(-sx, -sy); }
-    if (e.hurtT > 0 && !e.dead) ctx.filter = 'brightness(1.8)';
-    else if (e.slowT > 0) ctx.filter = 'hue-rotate(160deg) saturate(1.5)';
+    if (e.slowT > 0 && !e.dead) frostUnder(sx, sy);
     if (e.companion === 'charm') glowUnder(sx, sy, 26 + Math.sin(G.t * 4) * 3, 'rgba(255,110,200,0.45)');
     const H = (opts, h, w = 14) => { drawShadow(ctx, sx, sy, 11, 4); drawHumanoid(ctx, sx, sy, Object.assign(o, opts)); top = sy - h; bb = [sx - w, sy - h + 2, sx + w, sy + 4]; };
     switch (d.sprite) {
@@ -383,7 +385,7 @@ function drawEntity(e, S, labels) {
       case 'ghost': { drawShadow(ctx, sx, sy, 12, 4, 0.2); const h = drawGhost(ctx, sx, sy, o); top = sy - h - 54; bb = [sx - 16, sy - h - 52, sx + 16, sy + 4]; break; }
       case 'wyvern': { const h = drawWyvern(ctx, sx, sy, o); top = sy - h - 100; bb = [sx - 60, sy - h - 90, sx + 60, sy + 10]; break; }
     }
-    ctx.filter = 'none';
+    if (e.hurtT > 0 && !e.dead) hitFlash(sx, (sy + top) / 2 + 6, Math.min(40, (sy - top) * 0.45), e.hurtT / 0.2);
     if (e.dead) ctx.restore();
     ctx.globalAlpha = 1;
     e._bb = e.dead ? null : { x0: bb[0], y0: bb[1], x1: bb[2], y1: bb[3] };
@@ -421,7 +423,6 @@ function drawEntity(e, S, labels) {
     drawShadow(ctx, sx, sy, 11, 4.5);
     const look = isP ? playerLook(e) : e.look;
     const atk = e.atkAnim !== undefined ? e.atkAnim : -1;
-    if (e.hurtT > 0) ctx.filter = 'brightness(1.6) saturate(0.6)';
     if (isP && (p.buffs.shield || p.buffs.blessarmor || p.buffs.earthskin)) {
       const col = p.buffs.blessarmor ? '220,230,255' : p.buffs.earthskin ? '200,160,90' : '150,200,255';
       ctx.strokeStyle = 'rgba(' + col + ',' + (0.25 + Math.sin(G.t * 4) * 0.1) + ')'; ctx.lineWidth = 2; ctx.beginPath(); ctx.ellipse(sx, sy - 24, 18, 30, 0, 0, 7); ctx.stroke();
@@ -429,7 +430,7 @@ function drawEntity(e, S, labels) {
     if (isP && p.buffs.sanctuary) { ctx.fillStyle = 'rgba(255,240,170,' + (0.15 + Math.sin(G.t * 3) * 0.05) + ')'; ctx.beginPath(); ctx.ellipse(sx, sy, 30, 14, 0, 0, 7); ctx.fill(); }
     if (e.dead && !isP) { ctx.translate(sx, sy); ctx.scale(1, 0.55); ctx.rotate(Math.PI / 2 * 0.9); ctx.translate(-sx, -sy); }
     drawHumanoid(ctx, sx, sy, Object.assign({}, look, { dir: e.dir, moving: e.moving, walk: e.walk, t: G.t + e.id, atk, draw: atk >= 0 && atk < 0.6 }));
-    ctx.filter = 'none';
+    if (e.hurtT > 0) hitFlash(sx, sy - 26, 20, e.hurtT / 0.25, isP ? '255,120,120' : null);
     ctx.restore();
     if (isP && p.buffs.haste && e.moving && Math.random() < 0.3) G.particles.push({ x: e.x, y: e.y, z: rand(5, 30), vx: 0, vy: 0, vz: 0, life: 0.3, max: 0.3, color: '#a0ffa0', size: 2 });
     e._bb = e.dead ? null : { x0: sx - 14, y0: sy - 54, x1: sx + 14, y1: sy + 4 };
@@ -637,7 +638,6 @@ function glowUnder(x, y, r, col) {
 function drawCompanionEntity(e, sx, sy, labels) {
   const fade = e.dead ? clamp(1 - e.deadT / 0.8, 0, 1) : 1;
   ctx.save(); ctx.globalAlpha = fade;
-  if (e.hurtT > 0) ctx.filter = 'brightness(1.7)';
   const o = { dir: e.dir, moving: e.moving, walk: e.walk, t: G.t + e.id, atk: e.atkAnim, color: e.look ? e.look.color : null, scale: 1 };
   let top = sy - 40, bb = [sx - 18, sy - 36, sx + 18, sy + 4];
   switch (e.sprite) {
@@ -657,6 +657,7 @@ function drawCompanionEntity(e, sx, sy, labels) {
     case 'boar': drawShadow(ctx, sx, sy, 15, 5); drawBoar(ctx, sx, sy, o); top = sy - 34; bb = [sx - 20, sy - 30, sx + 20, sy + 4]; break;
   }
   ctx.restore();
+  if (e.hurtT > 0 && !e.dead) hitFlash(sx, (sy + top) / 2 + 6, 20, e.hurtT / 0.2);
   e._bb = e.dead ? null : { x0: bb[0], y0: bb[1], x1: bb[2], y1: bb[3] };
   if (e.dead) return;
   labels.push(() => {
@@ -666,4 +667,19 @@ function drawCompanionEntity(e, sx, sy, labels) {
     hpBar(sx, top - 4, 32, e.hp / e.maxHp, '#40c060');
     if (e.say && e.sayT > 0) bubble(e.say, sx, top - 22);
   });
+}
+
+// 受擊閃光與減速霜環（取代逐角色的 CSS 濾鏡，效能好很多）
+function hitFlash(x, y, r, k, col) {
+  const a = clamp(k, 0, 1) * 0.55;
+  ctx.save(); ctx.globalCompositeOperation = 'lighter';
+  const gr = ctx.createRadialGradient(x, y, 0, x, y, r);
+  gr.addColorStop(0, 'rgba(' + (col || '255,255,240') + ',' + a + ')'); gr.addColorStop(1, 'rgba(' + (col || '255,255,240') + ',0)');
+  ctx.fillStyle = gr; ctx.beginPath(); ctx.arc(x, y, r, 0, 7); ctx.fill();
+  ctx.restore();
+}
+function frostUnder(x, y) {
+  ctx.fillStyle = 'rgba(150,210,255,0.28)'; ctx.beginPath(); ctx.ellipse(x, y, 18, 8, 0, 0, 7); ctx.fill();
+  ctx.strokeStyle = 'rgba(220,240,255,0.7)'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.ellipse(x, y, 18, 8, 0, 0, 7); ctx.stroke();
+  for (let i = 0; i < 4; i++) { const a = G.t * 2 + i * 1.57; ctx.fillStyle = '#e8f6ff'; ctx.fillRect(x + Math.cos(a) * 16 - 1, y + Math.sin(a) * 7 - 1, 2, 2); }
 }
