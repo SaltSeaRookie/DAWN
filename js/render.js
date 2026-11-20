@@ -22,12 +22,13 @@ function buildMinimapBase() {
   const col = {
     [TILE.GRASS]: [104, 136, 62], [TILE.DARKGRASS]: [70, 100, 46], [TILE.DIRT]: [140, 115, 82], [TILE.COBBLE]: [150, 140, 125],
     [TILE.SOIL]: [76, 62, 48], [TILE.WATER]: [40, 90, 130], [TILE.SAND]: [186, 166, 125], [TILE.CANYON]: [128, 106, 82],
-    [TILE.LAVA]: [230, 80, 20], [TILE.ASH]: [70, 60, 56], [TILE.DESERT]: [200, 168, 110], [TILE.BRIDGE]: [120, 84, 46], [TILE.DUNGEON]: [70, 68, 64], [TILE.SEA]: [26, 58, 90], [TILE.SNOW]: [220, 224, 232], 255: [8, 8, 8],
+    [TILE.LAVA]: [230, 80, 20], [TILE.ASH]: [70, 60, 56], [TILE.DESERT]: [200, 168, 110], [TILE.BRIDGE]: [120, 84, 46], [TILE.DUNGEON]: [70, 68, 64], [TILE.SEA]: [26, 58, 90], [TILE.SNOW]: [220, 224, 232], [TILE.ICE]: [168, 204, 224], 255: [8, 8, 8],
   };
   for (let i = 0; i < W.w * W.h; i++) {
     let c2 = col[W.tiles[i]] || [0, 0, 0];
     const o = W.objGrid[i] >= 0 ? W.objs[W.objGrid[i]] : null;
     if (o && o.kind === 'tree') c2 = [36, 62, 30];
+    if (o && o.kind === 'pine') c2 = [40, 74, 62];
     else if (o && (o.kind === 'cliff' || o.kind === 'wall')) c2 = o.style === 3 ? [150, 156, 168] : o.kind === 'wall' ? [110, 106, 100] : [58, 50, 42];
     else if (o && o.kind === 'house') c2 = [150, 70, 50];
     img.data[i * 4] = c2[0]; img.data[i * 4 + 1] = c2[1]; img.data[i * 4 + 2] = c2[2]; img.data[i * 4 + 3] = 255;
@@ -286,13 +287,14 @@ function drawObj(o, S) {
     case 'torch': s = SPR.torch0; break;
     case 'crate': s = SPR.crate0; break;
     case 'snowrock': s = SPR.snowrock0; break;
+    case 'pine': s = SPR['pine' + o.v]; break;
     case 'palm': s = SPR['palm' + o.v]; break;
     case 'cave': s = SPR.cave0; break;
   }
   if (!s) return;
   if (sx < -s.c.width || sx > VW + s.c.width || sy < -40 || sy > VH + s.c.height) return;
   let alpha = 1;
-  if ((o.kind === 'tree' || o.kind === 'house' || o.kind === 'deadtree' || o.kind === 'wall' || o.kind === 'cliff') && G.player) {
+  if ((o.kind === 'tree' || o.kind === 'pine' || o.kind === 'house' || o.kind === 'deadtree' || o.kind === 'wall' || o.kind === 'cliff') && G.player) {
     const p = G.player;
     if (o.tx + o.ty + 1 > p.x + p.y) {
       const ps = S(p.x, p.y);
@@ -378,6 +380,8 @@ function drawEntity(e, S, labels) {
       case 'pirate': H(d.captainLook
         ? { body: '#2a2a4a', legs: '#1a1a2a', hair: '#1a1010', cape: '#8a1a1a', trim: '#e0c060', belt: '#5a3a1a', weapon: 'claymore', skin: '#c89070', scale: 1.3 }
         : { body: '#e8e0d0', sleeve: '#a02a2a', legs: '#2a2a3a', hood: '#a02a2a', belt: '#5a3a1a', weapon: 'sword', skin: '#c89070' }, d.captainLook ? 70 : 56, 16); break;
+      case 'yeti': H({ kind: 'werewolf', body: '#e8eef4', skin: '#dfe7ee', legs: '#c8d4de', boots: '#a8b4c0', sleeve: '#e8eef4', scale: 1.35 }, 74, 20); break;
+      case 'troll': { const k = d.big || 1; H({ kind: 'ghoul', body: '#4a6a8a', skin: '#8ab0c8', legs: '#3a4a5a', boots: '#2a3a4a', sleeve: '#8ab0c8', belt: '#5a4a3a', weapon: 'club', crown: d.frostKing, scale: 1.4 * k, eye: d.frostKing ? '#80e0ff' : null }, 66 * k, 18 * k); if (d.frostKing) glowUnder(sx, sy, 50, 'rgba(140,210,255,0.3)'); break; }
       case 'werewolf': H({ kind: 'werewolf', body: '#5a4a3a', skin: '#6a5a48', legs: '#4a3a2a', boots: '#3a2a1a', sleeve: '#6a5a48', scale: 1.15 }, 64, 18); break;
       case 'mummy': H({ kind: 'mummy', body: '#c8b890', skin: '#d8c8a0', legs: '#c0b088', boots: '#a89870', sleeve: '#d0c098', belt: '#8a7a5a' }, 56); break;
       case 'lich': drawShadow(ctx, sx, sy, 16, 6); drawHumanoid(ctx, sx, sy, Object.assign(o, { kind: 'lich', body: '#2a1a3a', robe: true, bone: '#e6e0cc', skin: '#e6e0cc', sleeve: '#3a2a4a', weapon: 'staff', crown: true, scale: 1.35, eye: '#9a4aff' })); top = sy - 82; bb = [sx - 22, sy - 80, sx + 22, sy + 4];
@@ -596,6 +600,9 @@ function drawWorldMap(cv, mapId = 'overworld') {
     else if (t === TILE.WATER) c = 'rgba(60,100,140,0.8)';
     else if (o && (o.kind === 'cliff')) c = 'rgba(110,80,50,0.55)';
     else if (o && o.kind === 'tree') c = 'rgba(70,100,50,0.45)';
+    else if (o && o.kind === 'pine') c = 'rgba(40,80,70,0.55)';
+    else if (o && o.kind === 'wall') c = 'rgba(90,80,70,0.8)';
+    else if (t === TILE.ICE) c = 'rgba(130,190,230,0.55)';
     else if (t === TILE.SNOW) c = 'rgba(250,250,250,0.55)';
     else if (t === TILE.DESERT) c = 'rgba(220,180,110,0.35)';
     else if (t === TILE.SOIL) c = 'rgba(90,70,50,0.3)';
@@ -651,6 +658,7 @@ function drawCompanionEntity(e, sx, sy, labels) {
   ctx.save(); ctx.globalAlpha = fade;
   const o = { dir: e.dir, moving: e.moving, walk: e.walk, t: G.t + e.id, atk: e.atkAnim, color: e.look ? e.look.color : null, scale: 1 };
   let top = sy - 40, bb = [sx - 18, sy - 36, sx + 18, sy + 4];
+  if (e.petMagic && !e.dead) glowUnder(sx, sy, 22 + Math.sin(G.t * 3) * 2, e.petMagic);
   switch (e.sprite) {
     case 'spiritwolf':
       glowUnder(sx, sy - 6, 30, 'rgba(120,180,255,0.45)');
@@ -660,12 +668,13 @@ function drawCompanionEntity(e, sx, sy, labels) {
       glowUnder(sx, sy, 34, 'rgba(120,200,255,0.35)');
       drawShadow(ctx, sx, sy, 22, 8); drawGolem(ctx, sx, sy, o); top = sy - 66; bb = [sx - 24, sy - 62, sx + 24, sy + 4]; break;
     case 'fireelem': { drawShadow(ctx, sx, sy, 14, 5, 0.25); const h = drawFireElemental(ctx, sx, sy, o); top = sy - h - 52; bb = [sx - 16, sy - h - 50, sx + 16, sy + 4]; break; }
-    case 'pwolf': drawShadow(ctx, sx, sy, 15, 5); drawWolf(ctx, sx, sy, Object.assign(o, { color: '#8a8a90', eye: '#80d0ff', scale: 0.92 })); top = sy - 32;
+    case 'pwolf': drawShadow(ctx, sx, sy, 15, 5); drawWolf(ctx, sx, sy, Object.assign(o, { color: o.color || '#8a8a90', eye: '#80d0ff', scale: 0.92 })); top = sy - 32;
       ctx.fillStyle = '#c03030'; break;
     case 'fox': drawShadow(ctx, sx, sy, 12, 4); drawFox(ctx, sx, sy, o); top = sy - 30; bb = [sx - 18, sy - 28, sx + 18, sy + 4]; break;
     case 'bear': drawShadow(ctx, sx, sy, 20, 7); drawBear(ctx, sx, sy, o); top = sy - 42; bb = [sx - 24, sy - 40, sx + 24, sy + 4]; break;
     case 'owl': { const h = drawOwl(ctx, sx, sy, o); top = sy - h - 24; bb = [sx - 14, sy - h - 22, sx + 14, sy + 4]; break; }
     case 'boar': drawShadow(ctx, sx, sy, 15, 5); drawBoar(ctx, sx, sy, o); top = sy - 34; bb = [sx - 20, sy - 30, sx + 20, sy + 4]; break;
+    case 'wisp': { const h = drawWisp(ctx, sx, sy, o); top = sy - h - 16; bb = [sx - 14, sy - h - 16, sx + 14, sy + 4]; break; }
   }
   ctx.restore();
   if (e.hurtT > 0 && !e.dead) hitFlash(sx, (sy + top) / 2 + 6, 20, e.hurtT / 0.2);

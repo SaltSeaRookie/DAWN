@@ -640,10 +640,11 @@ function petFlip(o) { return screenFacing(o.dir).sx < 0; }
 function drawFox(ctx, x, y, o) {
   ctx.save(); ctx.translate(x, y); ctx.scale(petFlip(o) ? -0.9 : 0.9, 0.9);
   const sw = o.moving ? Math.sin(o.walk * 1.6) * 0.6 : 0;
-  const c = '#eef2f6', dk = '#b8c4d0';
-  // 大尾巴
+  const c = o.color || '#eef2f6', dk = o.color ? shade(o.color, -0.25) : '#b8c4d0';
+  // 大尾巴（焰狐的尾巴尖端是火焰）
   ctx.fillStyle = c; ctx.beginPath(); ctx.moveTo(-10, -12); ctx.quadraticCurveTo(-28, -26 + sw * 4, -24, -10); ctx.quadraticCurveTo(-20, -4, -10, -9); ctx.fill();
-  ctx.fillStyle = '#ffffff'; ctx.beginPath(); ctx.arc(-25, -20 + sw * 3, 3.5, 0, 7); ctx.fill();
+  if (o.color) { const fl = 1 + Math.sin((o.t || 0) * 14) * 0.25; ctx.fillStyle = '#ffd060'; ctx.beginPath(); ctx.ellipse(-25, -22 + sw * 3, 4 * fl, 6 * fl, 0.3, 0, 7); ctx.fill(); ctx.fillStyle = '#fff6c0'; ctx.beginPath(); ctx.arc(-25, -21 + sw * 3, 2, 0, 7); ctx.fill(); }
+  else { ctx.fillStyle = '#ffffff'; ctx.beginPath(); ctx.arc(-25, -20 + sw * 3, 3.5, 0, 7); ctx.fill(); }
   for (const [lx, a, col] of [[-7, sw, dk], [6, -sw, dk], [-5, -sw, c], [8, sw, c]]) limb(ctx, lx, -9, 9, 2.6, a, col);
   ctx.fillStyle = c; ctx.beginPath(); ctx.ellipse(0, -12, 11, 5, 0, 0, 7); ctx.fill();
   ctx.beginPath(); ctx.ellipse(11, -17, 5, 4.5, -0.2, 0, 7); ctx.fill();
@@ -675,12 +676,13 @@ function drawOwl(ctx, x, y, o) {
   drawShadow(ctx, x, y, 8, 3, 0.25);
   ctx.save(); ctx.translate(x, y - hover); ctx.scale(petFlip(o) ? -1 : 1, 1);
   const flap = Math.sin(o.t * 12);
-  ctx.fillStyle = '#4a3a5a';
+  const oc = o.color, wing = oc ? shade(oc, -0.35) : '#4a3a5a', body = oc ? shade(oc, -0.1) : '#6a5a7a', belly = oc ? shade(oc, 0.35) : '#c8b8d8';
+  ctx.fillStyle = wing;
   ctx.beginPath(); ctx.moveTo(-2, -8); ctx.lineTo(-16, -14 - flap * 8); ctx.lineTo(-10, -2); ctx.fill();
   ctx.beginPath(); ctx.moveTo(2, -8); ctx.lineTo(14, -16 - flap * 8); ctx.lineTo(9, -2); ctx.fill();
-  ctx.fillStyle = '#6a5a7a'; ctx.beginPath(); ctx.ellipse(0, -6, 7, 9, 0, 0, 7); ctx.fill();
-  ctx.fillStyle = '#c8b8d8'; ctx.beginPath(); ctx.ellipse(1, -3, 4, 5, 0, 0, 7); ctx.fill();
-  ctx.fillStyle = '#6a5a7a'; ctx.beginPath(); ctx.moveTo(-5, -14); ctx.lineTo(-6, -19); ctx.lineTo(-2, -15); ctx.fill(); ctx.beginPath(); ctx.moveTo(4, -15); ctx.lineTo(7, -19); ctx.lineTo(6, -13); ctx.fill();
+  ctx.fillStyle = body; ctx.beginPath(); ctx.ellipse(0, -6, 7, 9, 0, 0, 7); ctx.fill();
+  ctx.fillStyle = belly; ctx.beginPath(); ctx.ellipse(1, -3, 4, 5, 0, 0, 7); ctx.fill();
+  ctx.fillStyle = body; ctx.beginPath(); ctx.moveTo(-5, -14); ctx.lineTo(-6, -19); ctx.lineTo(-2, -15); ctx.fill(); ctx.beginPath(); ctx.moveTo(4, -15); ctx.lineTo(7, -19); ctx.lineTo(6, -13); ctx.fill();
   ctx.fillStyle = '#ffd040'; ctx.beginPath(); ctx.arc(-1, -11, 2.2, 0, 7); ctx.arc(4, -11, 2.2, 0, 7); ctx.fill();
   ctx.fillStyle = '#111'; ctx.fillRect(-1.5, -11.5, 1.2, 1.2); ctx.fillRect(3.5, -11.5, 1.2, 1.2);
   ctx.fillStyle = '#e0a030'; ctx.beginPath(); ctx.moveTo(1, -9); ctx.lineTo(3, -9); ctx.lineTo(2, -6.5); ctx.fill();
@@ -801,4 +803,21 @@ function drawFireDragon(ctx, x, y, o) {
   ctx.strokeStyle = '#2a0804'; ctx.lineWidth = 1.5;
   ctx.beginPath(); ctx.moveTo(4, -34); ctx.lineTo(-4, -82 - flap * 16); ctx.lineTo(-46, -92 - flap * 18); ctx.moveTo(-4, -82 - flap * 16); ctx.lineTo(-54, -58 - flap * 8); ctx.moveTo(-4, -82 - flap * 16); ctx.lineTo(-30, -38); ctx.stroke();
   ctx.restore();
+}
+
+// 光之精靈：發光的小光球與透明的翅膀
+function drawWisp(ctx, x, y, o) {
+  const hover = 24 + Math.sin(o.t * 3.4) * 4;
+  drawShadow(ctx, x, y, 7, 3, 0.2);
+  ctx.save(); ctx.translate(x, y - hover);
+  const gl = ctx.createRadialGradient(0, 0, 1, 0, 0, 18);
+  gl.addColorStop(0, 'rgba(255,250,210,0.95)'); gl.addColorStop(0.35, 'rgba(255,236,150,0.6)'); gl.addColorStop(1, 'rgba(255,220,120,0)');
+  ctx.fillStyle = gl; ctx.beginPath(); ctx.arc(0, 0, 18, 0, 7); ctx.fill();
+  const flap = Math.sin(o.t * 16) * 0.5;
+  ctx.fillStyle = 'rgba(220,240,255,0.55)';
+  for (const s of [-1, 1]) { ctx.save(); ctx.scale(s, 1); ctx.rotate(-0.4 + flap * 0.4); ctx.beginPath(); ctx.ellipse(8, -4, 8, 3.5, -0.5, 0, 7); ctx.fill(); ctx.restore(); }
+  ctx.fillStyle = '#fffbe8'; ctx.beginPath(); ctx.arc(0, 0, 5, 0, 7); ctx.fill();
+  ctx.fillStyle = '#6a5a3a'; ctx.fillRect(-2.5, -1.5, 1.5, 1.5); ctx.fillRect(1, -1.5, 1.5, 1.5);
+  ctx.restore();
+  return hover;
 }

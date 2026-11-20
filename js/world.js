@@ -1,12 +1,13 @@
 'use strict';
 // ===== 世界：地圖生成（原創大陸＋地下城）=====
 const TW = 64, TH = 32, HW = 32, HH = 16;
-const TILE = { GRASS: 0, DARKGRASS: 1, DIRT: 2, COBBLE: 3, SOIL: 4, WATER: 5, SAND: 6, CANYON: 7, DESERT: 8, BRIDGE: 9, DUNGEON: 10, SEA: 11, SNOW: 12, LAVA: 13, ASH: 14 };
-const BIOME = { TOWN: 0, MEADOW: 1, FOREST: 2, BONE: 3, CANYON: 4, DESERT: 5, COAST: 6, CASTLE: 7, HIGHLAND: 8, PLAIN: 9, CRYPT: 10, JUNGLE: 11, BEACH: 12, COVE: 13, VOLCANO: 14, LAIR: 15 };
+const TILE = { GRASS: 0, DARKGRASS: 1, DIRT: 2, COBBLE: 3, SOIL: 4, WATER: 5, SAND: 6, CANYON: 7, DESERT: 8, BRIDGE: 9, DUNGEON: 10, SEA: 11, SNOW: 12, LAVA: 13, ASH: 14, ICE: 15 };
+const BIOME = { TOWN: 0, MEADOW: 1, FOREST: 2, BONE: 3, CANYON: 4, DESERT: 5, COAST: 6, CASTLE: 7, HIGHLAND: 8, PLAIN: 9, CRYPT: 10, JUNGLE: 11, BEACH: 12, COVE: 13, VOLCANO: 14, LAIR: 15, SNOWFIELD: 16, FROSTWOOD: 17, GLACIER: 18 };
 const BIOME_INFO = [
   { name: '村莊' }, { name: '碧波草原' }, { name: '幽影森林' }, { name: '骸骨荒原' }, { name: '赤岩峽谷' },
   { name: '灰燼沙漠' }, { name: '銀砂海岸' }, { name: '灰岩城' }, { name: '霜嶺高地' }, { name: '灰岩平原' }, { name: '地下墓穴' },
   { name: '翡翠叢林' }, { name: '珊瑚海灘' }, { name: '海盜灣' }, { name: '熾焰火山' }, { name: '炎皇巢穴' },
+  { name: '北境雪原' }, { name: '霜松林' }, { name: '冰河峽谷' },
 ];
 const WATER_TILES = new Set([TILE.WATER, TILE.SEA, TILE.LAVA]);   // 不能走的液體地形
 
@@ -19,7 +20,7 @@ class World {
     this.objs = []; this.decos = []; this.lights = [];
     this.towns = []; this.places = []; this.portals = []; this.npcSpots = []; this.gates = [];
     this.ambient = 0;
-    if (id === 'crypt') this.genCrypt(); else if (id === 'keep') this.genCrypt(true); else if (id === 'isle') this.genIsle(); else if (id === 'volcano') this.genVolcano(); else this.genOverworld();
+    if (id === 'crypt') this.genCrypt(); else if (id === 'keep') this.genCrypt(true); else if (id === 'isle') this.genIsle(); else if (id === 'volcano') this.genVolcano(); else if (id === 'oren') this.genOren(); else this.genOverworld();
   }
   alloc(w, h) {
     this.w = w; this.h = h; const n = w * h;
@@ -296,6 +297,21 @@ class World {
       if (d < gd) { gd = d; gate = { x, y }; }
     }
     this.volcanoGate = gate;
+    // 北境山道（霜嶺高地往北境歐瑞城）
+    let ng = null, nd = 1e9;
+    for (let y = 8; y < H - 8; y++) for (let x = 8; x < W - 8; x++) {
+      if (this.biome[y * W + x] !== BIOME.HIGHLAND || this.blockArr[y * W + x] || !this.road) continue;
+      const d = dist(x, y, 30, 22);
+      if (d < nd) { nd = d; ng = { x, y }; }
+    }
+    if (ng) {
+      this.northPass = ng;
+      this.clearArea(ng.x + 0.5, ng.y + 0.5, 3, TILE.SNOW);
+      this.addObj({ kind: 'cave', tx: ng.x, ty: ng.y, v: 0 }, false);
+      this.portals.push({ x: ng.x + 0.5, y: ng.y + 0.5, to: 'oren', label: '北境山道（往歐瑞城）' });
+      this.places.push({ name: '北境山道', x: ng.x, y: ng.y, kind: 'dungeon' });
+      this.lights.push({ x: ng.x + 0.5, y: ng.y + 0.5, r: 180 });
+    }
     this.clearArea(gate.x + 0.5, gate.y + 0.5, 3, TILE.CANYON);
     this.carveRoad(gate.x, gate.y, best.x, best.y, R);
     this.addObj({ kind: 'cave', tx: gate.x, ty: gate.y, v: 0 }, false);
@@ -476,6 +492,110 @@ class World {
     this.places.push({ name: '蛇礁', x: this.reef.x, y: this.reef.y, kind: 'boss', zone: 8 });
     this.places.push({ name: '翡翠叢林', x: 52, y: 82, kind: 'spot' });
     this.places.push({ name: '西方小島', x: 30, y: 40, kind: 'spot' });
+    this.floodReach(cx, cy + 2);
+  }
+
+  // ================= 北境：歐瑞城 =================
+  genOren() {
+    this.alloc(150, 150);
+    const S = this.seed + 900, W = this.w, H = this.h, R = mulberry32(S);
+    const cx = 78, cy = 72;
+    const lake = { x: 40, y: 112, r: 15 }, glacier = { x: 122, y: 28 };
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+      const i = y * W + x;
+      let t = TILE.SNOW, b = BIOME.SNOWFIELD;
+      if (fbm(x * 0.06, y * 0.06, S + 3) > 0.57) b = BIOME.FROSTWOOD;
+      if (dist(x, y, glacier.x, glacier.y) < 34) { b = BIOME.GLACIER; if (fbm(x * 0.08, y * 0.08, S + 7) > 0.52) t = TILE.ICE; }
+      const ld = dist(x, y, lake.x, lake.y) + (fbm(x * 0.1, y * 0.1, S + 11) - 0.5) * 8;
+      if (ld < lake.r) t = TILE.ICE;
+      this.tiles[i] = t; this.biome[i] = b;
+      this.variant[i] = clamp(Math.floor(fbm(x * 0.12, y * 0.12, S + 77) * 6 + (R() - 0.5) * 1.6), 0, 5);
+    }
+    // 外圍山脈
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+      const e = Math.min(x, y, W - 1 - x, H - 1 - y);
+      if (e < 3 || (e < 6 && fbm(x * 0.2, y * 0.2, S + 21) > 0.55)) this.addObj({ kind: 'cliff', tx: x, ty: y, v: (R() * 4) | 0, style: 3 });
+    }
+    // 歐瑞城：石牆圍起來的城市
+    const half = 15;
+    const t = { id: 'oren', name: '歐瑞城', x: cx + 0.5, y: cy + 0.5, r: 12, houses: 8,
+      npcs: ['general', 'smith', 'magic', 'jewel', 'warehouse', 'pet', 'teleport', 'clan', 'guard', 'guard'],
+      names: { general: '艾莉卡', smith: '伯恩', magic: '菲歐娜', jewel: '娜塔莎', warehouse: '奧拉夫', pet: '斯諾', teleport: '英格麗', clan: '雷納德' } };
+    this.towns.push(t); this.city = { x: cx + 0.5, y: cy + 0.5 };
+    for (let y = cy - half; y <= cy + half; y++) for (let x = cx - half; x <= cx + half; x++) {
+      const k = this.idx(x, y); this.removeObjAt(x, y);
+      this.safe[k] = 1; this.biome[k] = BIOME.TOWN; this.blockArr[k] = 0;
+      this.tiles[k] = dist(x, y, cx, cy) < 11 ? TILE.COBBLE : TILE.SNOW;
+    }
+    const gates = [];
+    for (let i = -half; i <= half; i++) {
+      for (const [x, y, side] of [[cx + i, cy - half, 'n'], [cx + i, cy + half, 's'], [cx - half, cy + i, 'w'], [cx + half, cy + i, 'e']]) {
+        if (Math.abs(i) <= 1) { if (i === 0) gates.push({ x, y, side }); continue; }
+        this.addObj({ kind: 'wall', tx: x, ty: y, v: (R() * 2) | 0 });
+      }
+    }
+    for (const g of gates) for (const s of [-2, 2]) {
+      const tx = g.side === 'n' || g.side === 's' ? g.x + s : g.x, ty = g.side === 'n' || g.side === 's' ? g.y : g.y + s;
+      this.addObj({ kind: 'torch', tx, ty, v: 0 }); this.lights.push({ x: tx + 0.5, y: ty + 0.5, r: 160 });
+    }
+    // 道路：城門往外
+    const road = (x0, y0, x1, y1) => {
+      const n = Math.ceil(Math.hypot(x1 - x0, y1 - y0));
+      let wob = 0;
+      for (let k = 0; k <= n; k++) {
+        wob += (R() - 0.5) * 0.6; wob = clamp(wob, -3, 3);
+        const f = k / n, x = Math.round(lerp(x0, x1, f) + (Math.abs(y1 - y0) > Math.abs(x1 - x0) ? wob : 0)), y = Math.round(lerp(y0, y1, f) + (Math.abs(y1 - y0) > Math.abs(x1 - x0) ? 0 : wob));
+        for (let oy = -1; oy <= 0; oy++) for (let ox = -1; ox <= 0; ox++) {
+          const tx = x + ox, ty = y + oy; if (!this.inBounds(tx, ty)) continue;
+          const j = this.idx(tx, ty);
+          if (this.safe[j]) continue;
+          this.removeObjAt(tx, ty); this.blockArr[j] = 0; this.road[j] = 1;
+          if (this.tiles[j] !== TILE.ICE) this.tiles[j] = TILE.DIRT;
+        }
+      }
+    };
+    const entry = { x: 9, y: cy };
+    road(cx - half, cy, entry.x + 2, entry.y);
+    road(cx, cy + half, lake.x + 10, lake.y - 8);
+    road(cx + half, cy, glacier.x - 10, glacier.y + 12);
+    road(cx, cy - half, cx - 10, 14);
+    // 自然物件
+    for (let y = 3; y < H - 3; y++) for (let x = 3; x < W - 3; x++) {
+      const i = y * W + x;
+      if (this.blockArr[i] || this.safe[i] || this.road[i] || this.objGrid[i] >= 0) continue;
+      const b = this.biome[i], r = R(), ice = this.tiles[i] === TILE.ICE;
+      if (ice) { if (r < 0.015) this.addObj({ kind: 'snowrock', tx: x, ty: y, v: 0 }); continue; }
+      if (b === BIOME.FROSTWOOD) {
+        if (r < 0.22) this.addObj({ kind: 'pine', tx: x, ty: y, v: (R() * 3) | 0 });
+        else if (r < 0.26) this.addDeco(x, y, 'pebble', 0);
+      } else if (b === BIOME.SNOWFIELD) {
+        if (r < 0.03) this.addObj({ kind: 'pine', tx: x, ty: y, v: (R() * 3) | 0 });
+        else if (r < 0.04) this.addObj({ kind: 'snowrock', tx: x, ty: y, v: 0 });
+        else if (r < 0.045) this.addObj({ kind: 'deadtree', tx: x, ty: y, v: (R() * 3) | 0 });
+        else if (r < 0.07) this.addDeco(x, y, 'pebble', 0);
+      } else if (b === BIOME.GLACIER) {
+        const ridge = Math.abs(fbm(x * 0.07, y * 0.07, S + 55) - 0.5);
+        if (ridge < 0.025) this.addObj({ kind: 'cliff', tx: x, ty: y, v: (R() * 4) | 0, style: 3 });
+        else if (r < 0.04) this.addObj({ kind: 'snowrock', tx: x, ty: y, v: 0 });
+        else if (r < 0.06) this.addDeco(x, y, 'bones', (R() * 3) | 0);
+      }
+    }
+    this.buildTown(t, R);
+    // 入口（往霜嶺高地）
+    this.entry = { x: entry.x + 2.5, y: entry.y + 0.5 };
+    this.clearArea(entry.x + 0.5, entry.y + 0.5, 3, TILE.SNOW);
+    this.addObj({ kind: 'cave', tx: entry.x - 2, ty: entry.y, v: 0 }, true);
+    this.portals.push({ x: entry.x - 1, y: entry.y + 0.5, to: 'overworld', from: 'oren', label: '北境山道（回霜嶺高地）' });
+    this.lights.push({ x: entry.x + 0.5, y: entry.y + 0.5, r: 200 });
+    // 冰河峽谷深處：霜冠巨人王
+    this.lair = { x: glacier.x + 0.5, y: glacier.y + 0.5 };
+    this.clearArea(glacier.x + 0.5, glacier.y + 0.5, 6, TILE.ICE);
+    for (const [dx, dy] of [[-6, 0], [6, 0], [0, -6], [0, 6]]) { const tx = glacier.x + dx, ty = glacier.y + dy; if (!this.blocked(tx, ty)) { this.addObj({ kind: 'brazier', tx, ty, v: 0 }); this.lights.push({ x: tx + 0.5, y: ty + 0.5, r: 200 }); } }
+    this.places.push({ name: '歐瑞城', x: cx, y: cy, kind: 'town' });
+    this.places.push({ name: '冰封湖', x: lake.x, y: lake.y, kind: 'spot', zone: 14 });
+    this.places.push({ name: '巨人王的冰座', x: glacier.x, y: glacier.y, kind: 'boss', zone: 9 });
+    this.places.push({ name: '北境山道', x: entry.x, y: entry.y, kind: 'spot', zone: 7 });
+    this.places.push({ name: '霜松林', x: 40, y: 45, kind: 'spot' });
     this.floodReach(cx, cy + 2);
   }
 

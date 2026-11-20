@@ -122,3 +122,44 @@ function volcanoTick(dt) {
   if (!G.heatWarned) { G.heatWarned = true; log('岩漿的熱氣灼燒著你！火屬性抗性 60% 以上就能完全抵擋。', 'warn'); }
   if (dmg > 0) dealDamage(null, p, dmg);
 }
+
+// ===== 霜冠巨人王（北境・冰河峽谷）=====
+// 技能：震地（周圍範圍傷害）、冰錐風暴（體力 60% 以下）、召喚雪怪（70%、35%）、狂暴（35% 以下）
+function frostKingThink(a, dt) {
+  const t = a.target; if (!t || t.dead) return false;
+  a.slamCd = (a.slamCd === undefined ? 5 : a.slamCd) - dt;
+  a.stormCd = (a.stormCd === undefined ? 9 : a.stormCd) - dt;
+  const hpF = a.hp / a.maxHp;
+  const call = (n, line) => { dragonRoar(a, line); for (let i = 0; i < n; i++) { const q = G.world.nearestFree(a.x + rand(-3, 3), a.y + rand(-3, 3)); const y = makeMonster('yeti', q.x, q.y); y.summoned = true; y.target = a.target; y.state = 'chase'; y.home = { x: a.home.x, y: a.home.y }; G.map.actors.push(y); burst(y.x, y.y, 30, '#d8f0ff', 20, 2.5, 0.7, 3, 3); } };
+  if (!a.sum70 && hpF < 0.7) { a.sum70 = true; call(2, '北境的子民們，守護王座！'); }
+  if (!a.sum35 && hpF < 0.35) { a.sum35 = true; a.atkSpd *= 0.7; a.speed *= 1.2; call(3, '嗚喔——！冰原之怒！'); }
+  if (a.slamming > 0) {
+    a.slamming -= dt; a.path = []; a.moving = false;
+    if (!a.slamHit && a.slamming < 0.2) {
+      a.slamHit = true; shake(8); SFX.play('boom', a.x, a.y);
+      burst(a.x, a.y, 10, '#e0f4ff', 40, 4, 0.8, 3, 4);
+      for (const v of dragonVictims(a)) if (dist(a.x, a.y, v.x, v.y) < 3.4) { magicHit(a, v, Math.round(randi(a.dmg[0], a.dmg[1]) * 1.2), { element: 'water' }); if (v !== G.player) v.slowT = 3; }
+    }
+    return true;
+  }
+  if (a.slamCd <= 0 && dist(a.x, a.y, t.x, t.y) < 3) {
+    a.slamCd = a.sum35 ? 6 : 8; a.slamming = 0.9; a.slamHit = false; a.atkAnim = 0;
+    G.rings = G.rings || []; G.rings.push({ x: a.x, y: a.y, t: 0, r: 3.4, col: '170,220,255' });
+    a.speak('💢', 1);
+    return true;
+  }
+  if (hpF < 0.6 && a.stormCd <= 0) {
+    a.stormCd = a.sum35 ? 10 : 14;
+    dragonRoar(a, '冰錐，貫穿他們！');
+    const vs = dragonVictims(a);
+    for (let k = 0; k < 6; k++) {
+      const v = pick(vs) || t, x = v.x + rand(-1.4, 1.4), y = v.y + rand(-1.4, 1.4);
+      G.rings = G.rings || []; G.rings.push({ x, y, t: 0, r: 1.4, col: '150,210,255' });
+      later(1.0 + k * 0.15, () => {
+        burst(x, y, 40, '#c8ecff', 18, 3, 0.6, 3, 3); SFX.play('ice', x, y);
+        for (const w of dragonVictims(a)) if (dist(w.x, w.y, x, y) < 1.4) magicHit(a, w, randi(20, 32), { element: 'water' });
+      });
+    }
+  }
+  return false;
+}

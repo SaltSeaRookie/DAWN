@@ -58,11 +58,12 @@ function syncGuardLabels(m) {
   for (const a of m.actors) if (a.garrison === 'guard' && !a.dead) { a.clan = owner; a.emblem = em; }
 }
 function garrisonTick(dt) {
-  if (G.map.id !== 'overworld') return;
-  const m = G.map, W = m.world, C = W.castle;
   G.garT = (G.garT || 0) - dt;
   if (G.garT > 0) return;
   G.garT = 2;
+  mercFollowTick();
+  if (G.map.id !== 'overworld') return;
+  const m = G.map, W = m.world, C = W.castle;
   // 守衛
   const lv = guardLevel(), want = GUARD_TRAIN[lv].n;
   const posts = guardPosts(C);
@@ -113,9 +114,12 @@ function mercTick(m) {
   c.mercs = c.mercs.filter((e) => Date.now() <= e.until);
   const C = m.world.castle;
   for (const e of c.mercs) {
-    if (m.actors.some((a) => a.mercId === e.id && !a.dead)) continue;
-    const T = MERC_TYPES[e.type], st = mercStats(e.type, e.lvl);
-    const post = m.world.nearestFree(C.cx - 3 + rand(-3, 3), C.cy + rand(-4, 4));
+    if (e.follow || m.actors.some((a) => a.mercId === e.id && !a.dead)) continue;
+    spawnMercActor(m, e, m.world.nearestFree(C.cx - 3 + rand(-3, 3), C.cy + rand(-4, 4)));
+  }
+}
+function spawnMercActor(m, e, post) {
+  const T = MERC_TYPES[e.type], st = mercStats(e.type, e.lvl);
     const a = new Actor({
       x: post.x, y: post.y, kind: 'merc', faction: 'ally', name: e.name, cls: T.cls, level: e.lvl, look: e.look,
       maxHp: st.maxHp, ac: st.ac, mr: e.lvl, er: 4, dmg: st.dmg, atkSpd: T.cls === 'mage' ? 1.4 : 1.0,
@@ -123,8 +127,41 @@ function mercTick(m) {
       aggro: true, aggroR: 8, speed: 3.1, clan: G.player.clan.name, emblem: G.player.clan.emblem, align: 1000,
     });
     a.mercId = e.id; a.mercType = e.type; a.home = { x: post.x, y: post.y }; a.leash = 16;
+    if (e.follow) { a.follow = true; a.leash = 99; }
+    if (e.hp) a.hp = Math.min(a.maxHp, e.hp);
     m.actors.push(a);
+    return a;
+}
+// 跟隨玩家的傭兵：跟著玩家換地圖；駐守的傭兵留在灰岩城
+function mercFollowTick() {
+  const c = castleInfo(), p = G.player; if (!p) return;
+  if (c && c.mercs) {
+    const gone = c.mercs.filter((e) => Date.now() > e.until);
+    for (const e of gone) log('傭兵 ' + e.name + ' 的合約到期，離開了。', 'sys');
+    if (gone.length) c.mercs = c.mercs.filter((e) => Date.now() <= e.until);
   }
+  const list = c && c.mercs ? c.mercs : [];
+  for (const id in G.maps) {
+    const m = G.maps[id];
+    m.actors = m.actors.filter((a) => {
+      if (!a.mercId || a.dead) return true;
+      const e = list.find((x) => x.id === a.mercId);
+      if (e) e.hp = Math.ceil(a.hp);
+      // 跟隨的傭兵在別的地圖、駐守的傭兵不在灰岩城、合約已結束：移除（之後會在正確的地方出現）
+      return !(!e || (e.follow && m !== G.map) || (!e.follow && (id !== 'overworld' || a.follow)));
+    });
+  }
+  if (p.dead) return;
+  for (const e of list) {
+    if (!e.follow || G.map.actors.some((a) => a.mercId === e.id && !a.dead)) continue;
+    spawnMercActor(G.map, e, G.world.nearestFree(p.x + rand(-2, 2), p.y + rand(-2, 2)));
+  }
+}
+function setMercFollow(id, follow) {
+  const c = castleInfo(); if (!c || !c.mercs) return;
+  for (const e of c.mercs) if (id === 'all' || e.id === id) e.follow = follow;
+  G.garT = 0;
+  log(follow ? '傭兵開始跟隨你。（傭兵會跟著你到各地，戰鬥經驗歸你）' : '傭兵回到灰岩城駐守。', 'sys');
 }
 function hireMerc(type) {
   const p = G.player, c = castleInfo(), T = MERC_TYPES[type];
@@ -217,10 +254,20 @@ Object.assign(UI, {
       const row = el('div', 'mercrow', '<span><b>' + esc(e.name) + '</b> ' + T.name + ' Lv.' + e.lvl + '</span><span class="dim small">剩 ' + Math.floor(left / 3600000) + ' 小時 ' + Math.floor(left % 3600000 / 60000) + ' 分</span>');
       const r = el('button', 'btn sm', '續約 ' + Math.round(T.cost * 0.8).toLocaleString());
       r.onclick = () => { const er = renewMerc(e.id); if (er) { this.log(er, 'warn'); SFX.play('error'); } this.renderMerc(); this.refresh(); };
+      const f = el('button', 'btn sm' + (e.follow ? ' on' : ''), e.follow ? '跟隨中' : '駐守中');
+      f.title = '切換：跟隨你／在灰岩城駐守';
+      f.onclick = () => { setMercFollow(e.id, !e.follow); this.renderMerc(); };
+      row.appendChild(f);
       const d = el('button', 'btn sm', '解約');
       d.onclick = () => { dismissMerc(e.id); this.log(e.name + ' 離開了灰岩城。', 'sys'); this.renderMerc(); };
       row.appendChild(r); row.appendChild(d);
       w.body.appendChild(row);
+    }
+    if (c.mercs.length) {
+      const all = el('div', 'btnrow');
+      const b1 = el('button', 'btn sm', '全部跟隨我'); b1.onclick = () => { setMercFollow('all', true); this.renderMerc(); };
+      const b2 = el('button', 'btn sm', '全部回城駐守'); b2.onclick = () => { setMercFollow('all', false); this.renderMerc(); };
+      all.appendChild(b1); all.appendChild(b2); w.body.appendChild(all);
     }
     const hire = el('div', 'merchire');
     for (const t in MERC_TYPES) {

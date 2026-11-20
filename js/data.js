@@ -492,3 +492,49 @@ Object.assign(MONSTERS, {
       ['dragon_helm', 0.2], ['dragonwing_cloak', 0.2], ['dragon_aegis', 0.15], ['dragonclaw_gloves', 0.15], ['cinder_boots', 0.2], ['dragonheart', 0.12], ['dragoneye_ring', 0.15]] },
 });
 QUESTS.push({ target: 'flame_dragon', count: 1, gold: 20000, exp: 30000, item: ['exp_scroll', 3], text: '赤岩峽谷深處的火山隘口後，沉睡著炎皇火龍。牠一旦甦醒，整片大陸都將化為焦土。帶上抗火藥水，去討伐牠吧！' });
+
+// ===== 北境歐瑞城、魔法寵物、城內商人（v2.12）=====
+Object.assign(ITEMS, {
+  // 北境裝備
+  frost_blade:    { name: '霜刃', type: 'weapon', wclass: 'sword', dmg: [9, 19], hit: 2, spd: 0.9, range: 1.35, w: 120, price: 32000, safe: 6, lvl: 20, cls: ['knight', 'ranger'], res: { water: 15 }, desc: '刀身永遠結著一層薄霜' },
+  glacier_bow:    { name: '冰河長弓', type: 'weapon', wclass: 'bow', dmg: [7, 16], hit: 2, spd: 0.85, range: 7.5, ranged: true, w: 70, price: 30000, safe: 6, lvl: 20, twoHand: true, cls: ['ranger'], res: { water: 10 } },
+  frost_staff:    { name: '寒霜法杖', type: 'weapon', wclass: 'staff', dmg: [4, 11], sp: 5, mp: 40, mpr: 2, spd: 1.0, range: 1.4, w: 55, price: 32000, safe: 6, lvl: 20, twoHand: true, cls: ['mage', 'cleric'], res: { water: 15 } },
+  frost_mail:     { name: '寒鐵鎧甲', type: 'armor', slot: 'armor', ac: 8, mr: 8, w: 380, price: 30000, safe: 4, lvl: 20, cls: ['knight', 'cleric'], res: { water: 20 } },
+  yeti_cloak:     { name: '雪怪毛皮斗篷', type: 'armor', slot: 'cloak', ac: 2, mr: 6, hp: 30, w: 40, price: 9000, safe: 4, lvl: 15, res: { water: 20 } },
+  snow_boots:     { name: '雪地長靴', type: 'armor', slot: 'boots', ac: 2, move: 0.06, w: 30, price: 7000, safe: 4, lvl: 15 },
+  frost_ring:     { name: '冰晶戒指', type: 'acc', slot: 'ring', mr: 5, mp: 20, res: { water: 25 }, w: 2, price: 8000 },
+  frost_crown:    { name: '霜冠', type: 'armor', slot: 'helm', ac: 5, mr: 15, sp: 2, hp: 40, w: 60, price: 80000, safe: 4, lvl: 26, res: { water: 30 }, rare: true, desc: '霜冠巨人王頭上的冰之王冠' },
+  // 消耗品
+  oren_scroll:    { name: '歐瑞城傳送卷軸', type: 'consume', icon: 'scroll', w: 1, price: 800, stack: true, desc: '傳送到北境的歐瑞城' },
+  hot_cocoa:      { name: '熱可可', type: 'consume', icon: 'potion', w: 2, price: 120, stack: true, desc: '恢復 60 點體力與 20 點魔力，北境的冒險者最愛' },
+  pet_feast:      { name: '寵物大餐', type: 'consume', icon: 'potion', w: 3, price: 800, stack: true, desc: '讓出戰中的寵物恢復全部體力' },
+  // 素材
+  ice_crystal:    { name: '冰晶', type: 'junk', w: 3, price: 600, stack: true },
+  yeti_fur:       { name: '雪怪毛皮', type: 'junk', w: 8, price: 350, stack: true },
+});
+Object.assign(POTION_COLORS, { hot_cocoa: '#7a4a2a', pet_feast: '#e0a040' });
+Object.assign(MONSTERS, {
+  snow_wolf:   { name: '雪原狼', lvl: 16, hp: 150, dmg: [6, 14], ac: 9, mr: 15, exp: 140, speed: 3.6, atkSpd: 0.9, range: 1.3, aggro: true, aggroR: 7, sprite: 'wolf', color: '#e6ecf2', eye: '#60c0ff', gold: [20, 45], loot: [['wolf_fang', 0.4], ['hot_cocoa', 0.15], ['frost_ring', 0.004]] },
+  frost_wraith:{ name: '霜魂', lvl: 19, hp: 160, dmg: [9, 17], ac: 8, mr: 40, exp: 190, speed: 2.8, atkSpd: 1.5, range: 5.5, proj: 'ice', magic: true, element: 'water', aggro: true, aggroR: 7, sprite: 'ghost', undead: true, gold: [25, 55], loot: [['ice_crystal', 0.3], ['blue_potion', 0.15], ['frost_staff', 0.006]] },
+  yeti:        { name: '雪怪', lvl: 22, hp: 320, dmg: [12, 24], ac: 12, mr: 20, exp: 280, speed: 2.7, atkSpd: 1.3, range: 1.5, aggro: true, aggroR: 6, sprite: 'yeti', gold: [35, 70], loot: [['yeti_fur', 0.5], ['yeti_cloak', 0.01], ['snow_boots', 0.01]] },
+  ice_golem:   { name: '冰晶巨像', lvl: 24, hp: 520, dmg: [14, 26], ac: 18, mr: 30, exp: 360, speed: 2.2, atkSpd: 1.6, range: 1.6, aggro: true, aggroR: 5, sprite: 'golem', color: '#9cc8e8', gold: [40, 80], loot: [['ice_crystal', 0.6], ['frost_mail', 0.008], ['frost_blade', 0.006]] },
+  frost_troll: { name: '霜巨魔', lvl: 26, hp: 600, dmg: [16, 30], ac: 15, mr: 25, exp: 420, speed: 2.6, atkSpd: 1.4, range: 1.6, aggro: true, aggroR: 6, sprite: 'troll', gold: [50, 100], loot: [['yeti_fur', 0.4], ['ice_crystal', 0.3], ['glacier_bow', 0.006], ['bew_scroll', 0.01]] },
+  frost_king:  { name: '霜冠巨人王', lvl: 32, hp: 6000, dmg: [24, 42], ac: 22, mr: 50, exp: 10000, speed: 2.3, atkSpd: 1.7, range: 2.2, aggro: true, aggroR: 9, boss: true, frostKing: true, sprite: 'troll', big: 2, gold: [2500, 5000], respawn: 400,
+    loot: [['ice_crystal', 1], ['ice_crystal', 1], ['exp_scroll', 0.4], ['bew_scroll', 0.5], ['bea_scroll', 0.5], ['frost_crown', 0.3], ['frost_blade', 0.2], ['glacier_bow', 0.2], ['frost_staff', 0.2], ['frost_mail', 0.2], ['yeti_cloak', 0.3], ['frost_ring', 0.3]] },
+});
+// 魔法寵物：會施放魔法攻擊（歐瑞城的寵物商人出售，各地寵物商人也買得到）
+Object.assign(PETS, {
+  firefox:   { name: '焰狐', sprite: 'fox', color: '#ff8a3a', hp: 34, hpLv: 7, dmg: [4, 9], dmgLv: 1.1, ac: 1, speed: 4.0, atkSpd: 1.3, range: 5, proj: 'fire', magic: true, element: 'fire', price: 9000, desc: '尾巴燃著火焰的狐狸，會吐出火球攻擊（魔法）' },
+  frostwolf: { name: '霜牙狼', sprite: 'pwolf', color: '#a8d8f0', hp: 46, hpLv: 9, dmg: [4, 8], dmgLv: 0.9, ac: 3, speed: 3.7, atkSpd: 1.4, range: 5, proj: 'ice', magic: true, element: 'water', frost: true, price: 10000, desc: '北境的狼，吐出冰錐並讓敵人減速（魔法）' },
+  stormhawk: { name: '雷鷹', sprite: 'owl', color: '#e8c840', hp: 30, hpLv: 6, dmg: [5, 11], dmgLv: 1.2, ac: 1, speed: 4.0, atkSpd: 1.6, range: 6, bolt: true, magic: true, element: 'wind', price: 12000, desc: '召喚雷電轟擊敵人，偶爾會連鎖到附近的敵人（魔法）' },
+  wisp:      { name: '光之精靈', sprite: 'wisp', color: '#fff2a0', hp: 26, hpLv: 6, dmg: [3, 7], dmgLv: 0.9, ac: 2, speed: 3.9, atkSpd: 1.4, range: 5.5, proj: 'magic', magic: true, healer: true, price: 15000, desc: '發射聖光攻擊，主人受傷時會為主人治療（魔法）' },
+});
+SHOPS.pet.push('pet_feast');
+// 城內商人：雜貨商人的所有品項＋城堡專屬商品
+SHOPS.castleshop = [...new Set([...SHOPS.general, ...SHOPS.castleshop, 'hot_cocoa', 'pet_feast', 'oren_scroll', 'fireres_potion', 'volcano_scroll', 'pet_haste', 'tame_jerky', 'bless_scroll', 'teleport_scroll', 'yeti_cloak', 'frost_ring', 'magma_ring'])].filter((id) => ITEMS[id]);
+SHOPS.general.push('hot_cocoa', 'oren_scroll');
+// 歐瑞城專屬的商品
+SHOPS.oren_general = [...SHOPS.general, 'pet_feast'];
+SHOPS.oren_smith = ['frost_blade', 'glacier_bow', 'frost_staff', 'frost_mail', 'snow_boots', 'yeti_cloak', ...SHOPS.smith.slice(0, 8)];
+SHOPS.oren_jewel = ['frost_ring', ...SHOPS.jewel];
+QUESTS.push({ target: 'frost_king', count: 1, gold: 16000, exp: 24000, item: ['bew_scroll', 2], text: '北境歐瑞城外的冰河峽谷，霜冠巨人王正帶著雪怪群逼近城牆。去冰河峽谷深處討伐牠吧！' });

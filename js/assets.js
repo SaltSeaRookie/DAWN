@@ -21,6 +21,7 @@ function buildTileTextures() {
     [TILE.LAVA]: { base: ['#d8400a', '#e04a0c', '#e8540e', '#f05e10', '#e04a0c', '#d8400a'], lava: true },
     [TILE.ASH]: { base: ['#3a3230', '#3d3532', '#403834', '#433a36', '#463d38', '#49403a'], fleck: ['#2a2422', '#5a4e48', '#6a3a2a', '#1a1614'], pebbles: true },
     [TILE.SNOW]: { base: ['#d8dce4', '#dadee6', '#dce0e8', '#dee2ea', '#e0e4ec', '#e2e6ee'], fleck: ['#c0c8d4', '#f0f4fa', '#b0b8c4'] },
+    [TILE.ICE]: { base: ['#a8cce0', '#accfe2', '#b0d2e4', '#b4d5e6', '#b8d8e8', '#bcdbea'], fleck: ['#e8f6ff', '#8ab8d4', '#ffffff', '#9cc4dc'] },
   };
   for (const k in defs) {
     const d = defs[k]; TEX[k] = [];
@@ -449,6 +450,21 @@ function buildExtraSprites() {
     g.fillStyle = '#6a4a28'; g.beginPath(); g.moveTo(40, 22); g.lineTo(25, 30); g.lineTo(25, 44); g.lineTo(40, 36); g.fill();
     g.fillStyle = '#a08050'; g.beginPath(); g.moveTo(10, 22); g.lineTo(25, 14); g.lineTo(40, 22); g.lineTo(25, 30); g.fill();
     g.strokeStyle = '#3a2814'; g.lineWidth = 1; g.beginPath(); g.moveTo(10, 22); g.lineTo(25, 30); g.lineTo(40, 22); g.moveTo(25, 30); g.lineTo(25, 44); g.stroke();
+  });
+  // 雪松（北境）
+  for (let v = 0; v < 3; v++) spr('pine' + v, 90, 150, 45, 138, (g) => {
+    const R = mulberry32(900 + v), hgt = 100 + v * 12;
+    g.fillStyle = 'rgba(0,0,0,0.25)'; g.beginPath(); g.ellipse(50, 140, 26, 9, 0, 0, 7); g.fill();
+    g.fillStyle = '#4a3424'; g.fillRect(41, 112, 8, 28);
+    const layers = 4;
+    for (let k = 0; k < layers; k++) {
+      const y0 = 140 - 22 - k * (hgt / layers) * 0.85, wdt = 38 - k * 7, top = y0 - hgt / layers * 1.15;
+      g.fillStyle = ['#1f3f34', '#24493b', '#2a5242'][v]; g.beginPath(); g.moveTo(45 - wdt, y0); g.lineTo(45, top); g.lineTo(45 + wdt, y0); g.closePath(); g.fill();
+      g.fillStyle = '#16302a'; g.beginPath(); g.moveTo(45, top); g.lineTo(45 + wdt, y0); g.lineTo(45 + wdt * 0.2, y0); g.closePath(); g.fill();
+      // 積雪
+      g.fillStyle = '#eef4fa'; g.beginPath(); g.moveTo(45 - wdt * 0.55, top + (y0 - top) * 0.55); g.lineTo(45, top); g.lineTo(45 + wdt * 0.5, top + (y0 - top) * 0.5); g.quadraticCurveTo(45, top + (y0 - top) * 0.7 + R() * 4, 45 - wdt * 0.55, top + (y0 - top) * 0.55); g.fill();
+      g.fillStyle = 'rgba(255,255,255,0.8)'; g.fillRect(45 - wdt + 3, y0 - 3, wdt * 0.6, 2);
+    }
   });
   // 冰岩（高地）
   spr('snowrock0', 90, 70, 45, 52, (g) => {

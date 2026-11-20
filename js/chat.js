@@ -91,8 +91,9 @@ const Chat = {
     if (l < 6) return '新手可以去碧波草原打野狼和哥布林。';
     if (l < 10) return '試試幽影森林的蜘蛛，或骸骨荒原的骷髏。';
     if (l < 14) return '狼人和峽谷的蜥蜴人經驗不錯。';
-    if (l < 19) return '灰燼沙漠和霜嶺高地適合你這個等級。';
-    return '你可以挑戰地下墓穴或赤鱗飛龍了！';
+    if (l < 19) return '灰燼沙漠、霜嶺高地，或是北境歐瑞城外的雪原都適合你這個等級。';
+    if (l < 24) return '你可以挑戰地下墓穴、赤鱗飛龍，或歐瑞城外的霜松林了！';
+    return '去北境的冰河峽谷或熾焰火山吧，那裡的經驗最好！';
   },
 
   // ---------- 指令 ----------
@@ -103,7 +104,7 @@ const Chat = {
     if (GM.handle(cmd, args)) return;
     switch (cmd) {
       case 'help': case '說明':
-        say('指令：/who 線上與附近的人・/all 訊息 全頻・/r 訊息 回覆悄悄話・/pos 座標・/time 時間・/save 存檔・/w 名字 訊息 悄悄話・/c 訊息 盟頻・/roll 擲骰・/auto 自動狩獵開關・/pickup 自動拾取開關・/mode 攻擊|自由|待命|跟隨・/pet 夥伴視窗・/stuck 卡住時回村・/clear 清除訊息・/backup 匯出存檔');
+        say('指令：/who 線上與附近的人・/all 訊息 全頻・/r 訊息 回覆悄悄話・/pos 座標・/time 時間・/save 存檔・/w 名字 訊息 悄悄話・/c 訊息 盟頻・/roll 擲骰・/auto 自動狩獵開關・/pickup 自動拾取開關・/mode 攻擊|自由|待命|跟隨・/pet 夥伴視窗・/merc follow|stay 傭兵跟隨或回城・/stuck 卡住時回村・/clear 清除訊息・/backup 匯出存檔');
         break;
       case 'all': case 's': case '全頻': { const msg = args.join(' '); if (!msg) { say('用法：/all 訊息', 'warn'); break; } Online.world(msg); break; }
       case 'r': {
@@ -116,7 +117,7 @@ const Chat = {
         if (Online.active) {
           Online.who().then((list) => {
             if (!list) return;
-            const MAPN = { overworld: '晨曦大陸', isle: '翡翠群島', crypt: '地下墓穴', keep: '地下要塞', volcano: '熾焰火山' };
+            const MAPN = { overworld: '晨曦大陸', isle: '翡翠群島', crypt: '地下墓穴', keep: '地下要塞', volcano: '熾焰火山', oren: '歐瑞城' };
             say('線上玩家（' + list.length + '）：' + list.map((x) => x.name + ' Lv.' + x.level + (x.clan ? '[' + x.clan + ']' : '') + '・' + (MAPN[x.map] || x.map)).join('、'));
           });
         }
@@ -152,6 +153,7 @@ const Chat = {
         setPetMode(m); break;
       }
       case 'pet': UI.toggle('pet'); break;
+      case 'merc': if (!ownsCastle()) { say('只有城主血盟可以指揮傭兵。', 'warn'); break; } setMercFollow('all', args[0] !== 'stay' && args[0] !== '駐守'); break;
       case 'c': case 'clan': { const msg = args.join(' '); if (!msg) { say('用法：/c 訊息', 'warn'); break; } clanChat(msg); Online.clan(msg); break; }
       case 'auto': useHotbarEntry({ kind: 'auto' }); break;
       case 'stuck': if (p.dead) break; say('你被傳送回村莊。'); goHome(); break;
@@ -244,6 +246,7 @@ const GM = {
       if (!a.length) return say('用法：/tp 地點名稱｜x y｜crypt｜overworld', 'warn');
       if (a[0] === 'crypt' || a[0] === '地下墓穴內') { const w = getMap('crypt').world; changeMap('crypt', w.entry.x + 1, w.entry.y); return; }
       if (a[0] === 'overworld') { changeMap('overworld', 100, 103); return; }
+      if (a[0] === 'oren' || a[0] === '歐瑞城') { const w = getMap('oren').world; changeMap('oren', w.city.x, w.city.y + 3); return; }
       if (a[0] === 'volcano' || a[0] === '熾焰火山') { const w = getMap('volcano').world; changeMap('volcano', w.entry.x + 1, w.entry.y); return; }
       if (a[0] === 'isle' || a[0] === '翡翠群島') { const w = getMap('isle').world; changeMap('isle', w.dock.x + 1, w.dock.y); return; }
       const x = parseFloat(a[0]), y = parseFloat(a[1]);

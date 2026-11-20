@@ -111,6 +111,11 @@ function spawnPet(inst) {
     dmg: st.dmg, atkSpd: d.atkSpd, range: d.range, proj: d.proj || null, speed: d.speed, sprite: d.sprite, aggro: true, aggroR: 7, scale: 1, look: { color: d.color },
   });
   a.pet = pd; a.hp = pd.hp ? Math.min(pd.hp, st.maxHp) : st.maxHp;
+  // 魔法寵物
+  if (d.magic) {
+    Object.assign(a, { magic: true, element: d.element, frost: !!d.frost, bolt: !!d.bolt, healer: !!d.healer });
+    a.petMagic = { fire: 'rgba(255,140,60,0.35)', water: 'rgba(140,210,255,0.35)', wind: 'rgba(255,230,90,0.35)' }[d.element] || 'rgba(255,245,180,0.4)';
+  }
   pd.out = true;
   G.map.actors.push(a);
   burst(a.x, a.y, 20, '#ffe0a0', 16, 2, 0.6, 2.5, 2);
@@ -194,6 +199,14 @@ function updateCompanion(a, dt) {
   a.atkCd -= dt; a.thinkT -= dt; a.hurtT -= dt; a.sayT -= dt; if (a.slowT > 0) a.slowT -= dt;
   if (a.expire && G.t > a.expire) { dismissCompanion(a, a.companion === 'summon' ? '召喚時間到了，' + a.name + ' 消散了。' : null); return; }
   if (a.companion === 'pet' && a.hp < a.maxHp && G.t > (a.regT || 0)) { a.regT = G.t + 3; a.hp = Math.min(a.maxHp, a.hp + Math.max(1, Math.round(a.maxHp * 0.03))); }
+  // 光之精靈：主人受傷時治療主人
+  if (a.healer && !p.dead && G.t > (a.healT || 0) && p.hp < p.maxHp * 0.7 && dist(a.x, a.y, p.x, p.y) < 8) {
+    a.healT = G.t + 7;
+    const n = 12 + a.level * 4;
+    p.hp = Math.min(p.maxHp, p.hp + n); floatText(p.x, p.y, '+' + n, '#60ff80', 60);
+    for (let i = 0; i < 14; i++) G.particles.push({ x: p.x + rand(-0.4, 0.4), y: p.y + rand(-0.4, 0.4), z: rand(0, 20), vx: 0, vy: 0, vz: rand(30, 60), life: 1, max: 1, color: '#fff2a0', size: 2.5 });
+    SFX.play('heal'); a.speak('✧', 1.2);
+  }
   const mode = petMode();
   const dp = dist(a.x, a.y, p.x, p.y);
   const hm = a.hasteT > G.t ? 1.33 : 1;

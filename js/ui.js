@@ -267,17 +267,17 @@ const UI = {
     if (id === 'map') {
       const w = Math.min(860, W - 20), h = Math.min(540, window.innerHeight - HUD_H() - 110);
       const win = this.win('map', '世界地圖', (W - w) / 2, 40, w);
-      win.mapId = G.map.id === 'isle' ? 'isle' : 'overworld';
+      win.mapId = ['isle', 'volcano', 'oren'].includes(G.map.id) ? G.map.id : 'overworld';
       const tabs = el('div', 'tabs');
       const cv = makeCanvas(w - 22, h - 34); cv.className = 'mapcv';
       const note = el('div', 'dim small');
       const show = (id) => {
         win.mapId = id;
         tabs.querySelectorAll('.tab').forEach((b) => b.classList.toggle('on', b.dataset.id === id));
-        note.textContent = G.map.id === id ? '紅點為你的位置。' : G.map.id === 'crypt' ? '你目前在地下墓穴中。' : (id === 'isle' ? '在銀風港找船長搭船前往翡翠群島。' : id === 'volcano' ? '從赤岩峽谷深處的火山隘口進入，傳送師也能送你到隘口。' : '在珊瑚鎮找船長搭船回到大陸。');
+        note.textContent = G.map.id === id ? '紅點為你的位置。' : G.map.id === 'crypt' ? '你目前在地下墓穴中。' : (id === 'isle' ? '在銀風港找船長搭船前往翡翠群島。' : id === 'oren' ? '從霜嶺高地北方的北境山道進入，傳送師也能直接送你到歐瑞城。' : id === 'volcano' ? '從赤岩峽谷深處的火山隘口進入，傳送師也能送你到隘口。' : '在珊瑚鎮找船長搭船回到大陸。');
         drawWorldMap(cv, id);
       };
-      for (const [id, nm] of [['overworld', '晨曦大陸'], ['isle', '翡翠群島'], ['volcano', '熾焰火山']]) { const b = el('button', 'tab', nm); b.dataset.id = id; b.onclick = () => show(id); tabs.appendChild(b); }
+      for (const [id, nm] of [['overworld', '晨曦大陸'], ['isle', '翡翠群島'], ['volcano', '熾焰火山'], ['oren', '北境・歐瑞城']]) { const b = el('button', 'tab', nm); b.dataset.id = id; b.onclick = () => show(id); tabs.appendChild(b); }
       win.body.appendChild(tabs); win.body.appendChild(cv); win.body.appendChild(note); win.cv = cv;
       show(win.mapId);
     }
@@ -569,7 +569,7 @@ const UI = {
     w.body.appendChild(tabs);
     const list = el('div', 'list');
     if (w.tab === 'buy') {
-      for (const id of SHOPS[npc.role]) {
+      for (const id of (npc.town === 'oren' && SHOPS['oren_' + npc.role]) || SHOPS[npc.role]) {
         const d = ITEMS[id];
         let sub = d.type === 'weapon' ? '攻擊 ' + d.dmg[0] + '-' + d.dmg[1] + (d.ranged ? ' 遠程' : '') : d.ac ? 'AC ' + d.ac : d.desc || '';
         let bad = false;
@@ -646,6 +646,8 @@ const UI = {
     dests.push({ name: '霜嶺高地', sub: '建議 Lv 15+', cost: 400, x: 36, y: 38 });
     dests.push({ name: '赤岩峽谷', sub: '建議 Lv 12+', cost: 380, x: 118, y: 44 });
     dests.push({ name: '火山隘口', sub: '熾焰火山・建議 Lv 23+', cost: 600, x: W.volcanoGate.x + 1, y: W.volcanoGate.y + 2 });
+    if (G.map.id !== 'overworld') for (const d of dests) { d.map = 'overworld'; d.cost = Math.max(d.cost, 800); }
+    if (npc.town !== 'oren') { const O = getMap('oren').world; dests.push({ name: '歐瑞城', sub: '北境・建議 Lv 16+', cost: 1000, x: O.city.x, y: O.city.y + 3, map: 'oren' }); }
     w.body.innerHTML = this.dialogHead(npc, '要去哪裡呢？我可以用魔法送你一程。');
     const list = el('div', 'list');
     for (const d of dests) {
@@ -657,7 +659,7 @@ const UI = {
         const p = G.player;
         if (p.gold < d.cost) { this.log('金幣不足。', 'warn'); SFX.play('error'); return; }
         p.gold -= d.cost; this.close('tp');
-        teleportTo(d.x, d.y);
+        if (d.map && d.map !== G.map.id) changeMap(d.map, d.x, d.y); else teleportTo(d.x, d.y);
         this.log(npc.name + '：祝你一路順風！', 'npc');
         this.refresh();
       };
@@ -843,6 +845,15 @@ Object.assign(UI, {
     w.body.appendChild(el('div', 'dim small', '攻擊我的目標：協助攻擊你正在打的敵人與攻擊你的敵人。自由攻擊：主動攻擊附近敵人。待命：留在原地。跟隨：只跟著你不戰鬥。安全區域內不會戰鬥。'));
     const list = el('div', 'list');
     const all = companions();
+    const mc = ownsCastle() && p.castle.mercs && p.castle.mercs.length ? p.castle.mercs : null;
+    if (mc) {
+      const fol = mc.filter((e) => e.follow).length;
+      const r = el('div', 'btnrow');
+      r.appendChild(el('span', 'small', '傭兵：' + fol + ' 名跟隨中、' + (mc.length - fol) + ' 名在灰岩城駐守　'));
+      const b1 = el('button', 'btn sm', '全部跟隨'); b1.onclick = () => { setMercFollow('all', true); this.renderPet(); };
+      const b2 = el('button', 'btn sm', '全部回城'); b2.onclick = () => { setMercFollow('all', false); this.renderPet(); };
+      r.appendChild(b1); r.appendChild(b2); w.body.appendChild(r);
+    }
     if (!all.length) list.appendChild(el('div', 'dim', '目前沒有夥伴。'));
     for (const a of all) {
       const row = el('div', 'li');
@@ -887,7 +898,7 @@ Object.assign(UI, {
       const row = el('div', 'li');
       const cv = makeCanvas(56, 48); const g = cv.getContext('2d'); g.translate(28, 42);
       const o = { dir: 0.4, moving: false, walk: 0, t: G.t, atk: -1, color: d.color, scale: 0.9 };
-      ({ pwolf: () => drawWolf(g, 0, 0, Object.assign(o, { scale: 0.7 })), fox: () => drawFox(g, 0, 0, o), bear: () => drawBear(g, 0, 4, o), owl: () => drawOwl(g, 0, 10, o), boar: () => drawBoar(g, 0, 0, o) })[d.sprite]();
+      ({ pwolf: () => drawWolf(g, 0, 0, Object.assign(o, { scale: 0.7 })), fox: () => drawFox(g, 0, 0, o), bear: () => drawBear(g, 0, 4, o), owl: () => drawOwl(g, 0, 10, o), boar: () => drawBoar(g, 0, 0, o), wisp: () => drawWisp(g, 0, 6, o) })[d.sprite]();
       cv.style.width = '42px'; cv.style.height = '36px';
       row.appendChild(cv);
       row.appendChild(el('div', 'li-n', '<b>' + d.name + '</b><span class="dim">' + d.desc + '</span>'));

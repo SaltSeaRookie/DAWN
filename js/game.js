@@ -181,7 +181,7 @@ function getMap(id) {
   const w = new World(id, 20261115);
   const m = { id, world: w, actors: [], items: [], spawners: [], npcs: [] };
   G.maps[id] = m;
-  if (id === 'overworld') populateOverworld(m); else if (id === 'isle') populateIsle(m); else if (id === 'keep') populateKeep(m); else if (id === 'volcano') populateVolcano(m); else populateCrypt(m);
+  if (id === 'overworld') populateOverworld(m); else if (id === 'isle') populateIsle(m); else if (id === 'keep') populateKeep(m); else if (id === 'volcano') populateVolcano(m); else if (id === 'oren') populateOren(m); else populateCrypt(m);
   return m;
 }
 function setMap(id) {
@@ -244,7 +244,7 @@ function populateTowns(m) {
         g.leash = 12; m.actors.push(g); return;
       }
       const names = NPC_NAMES[role]; used[role] = (used[role] || 0) + 1;
-      const nm = names[(W.towns.indexOf(t) + used[role] - 1) % names.length];
+      const nm = (t.names && t.names[role]) || names[(W.towns.indexOf(t) + used[role] - 1) % names.length];
       m.npcs.push(new NPC(sp.x, sp.y, nm, NPC_TITLES[role], role, NPC_LOOKS[role], t.id));
     });
     // 村民（可招募）
@@ -347,6 +347,22 @@ function populateVolcano(m) {
   m.spawners.push({ type: 'flame_dragon', x: W.lair.x, y: W.lair.y, max: 1, alive: 0, timer: 0, respawn: MONSTERS.flame_dragon.respawn });
   for (const sp of m.spawners) for (let i = 0; i < sp.max; i++) spawnFrom(m, sp);
 }
+function populateOren(m) {
+  const W = m.world;
+  populateTowns(m);
+  // [怪物, 生物群系, 最近距離城市, 數量, 每點上限]
+  const table = [['snow_wolf', BIOME.SNOWFIELD, 18, 14, 3], ['frost_wraith', BIOME.FROSTWOOD, 18, 10, 2], ['yeti', BIOME.FROSTWOOD, 25, 10, 2], ['snow_wolf', BIOME.FROSTWOOD, 18, 6, 3],
+    ['ice_golem', BIOME.GLACIER, 10, 9, 2], ['frost_troll', BIOME.GLACIER, 10, 9, 2], ['yeti', BIOME.SNOWFIELD, 35, 6, 2]];
+  for (const [type, b, dmin, n, max] of table)
+    for (let i = 0; i < n; i++) {
+      const p = W.randomFreeTile((x, y) => W.biomeAt(x, y) === b && dist(x, y, W.city.x, W.city.y) > dmin && dist(x, y, W.entry.x, W.entry.y) > 8 && dist(x, y, W.lair.x, W.lair.y) > 9);
+      if (p) m.spawners.push({ type, x: p.x + 0.5, y: p.y + 0.5, max, alive: 0, timer: 0, respawn: 30 });
+    }
+  m.spawners.push({ type: 'frost_king', x: W.lair.x, y: W.lair.y, max: 1, alive: 0, timer: 0, respawn: MONSTERS.frost_king.respawn });
+  for (const sp of m.spawners) for (let i = 0; i < sp.max; i++) spawnFrom(m, sp);
+  m.fighterT = 0;
+  for (let i = 0; i < 7; i++) spawnFighter(m, false);
+}
 function populateKeep(m) {
   const W = m.world;
   const groups = [['dark_knight', 0, 999, 12, 3], ['gargoyle', 10, 999, 9, 2], ['fire_imp', 0, 999, 9, 3]];
@@ -380,7 +396,7 @@ function spawnFrom(m, sp) {
   }
   return null;
 }
-const FIELD_LEVELS = { [BIOME.MEADOW]: [2, 8], [BIOME.PLAIN]: [6, 16], [BIOME.FOREST]: [5, 16], [BIOME.BONE]: [8, 20], [BIOME.CANYON]: [12, 25], [BIOME.HIGHLAND]: [14, 26], [BIOME.DESERT]: [12, 26], [BIOME.JUNGLE]: [16, 28], [BIOME.BEACH]: [14, 24] };
+const FIELD_LEVELS = { [BIOME.MEADOW]: [2, 8], [BIOME.PLAIN]: [6, 16], [BIOME.FOREST]: [5, 16], [BIOME.BONE]: [8, 20], [BIOME.CANYON]: [12, 25], [BIOME.HIGHLAND]: [14, 26], [BIOME.DESERT]: [12, 26], [BIOME.JUNGLE]: [16, 28], [BIOME.BEACH]: [14, 24], [BIOME.SNOWFIELD]: [15, 24], [BIOME.FROSTWOOD]: [17, 27], [BIOME.GLACIER]: [21, 32] };
 function spawnFighter(m, evil) {
   const W = m.world;
   const p = W.randomFreeTile((x, y) => {
@@ -881,6 +897,8 @@ function usePortal(pt) {
     const w = getMap('keep').world; changeMap('keep', w.entry.x + 1, w.entry.y); log('你走進了灰岩城的地下要塞。', 'level'); return;
   }
   if (pt.to === 'volcano') { const w = getMap('volcano').world; changeMap('volcano', w.entry.x + 1, w.entry.y); log('一股熱浪撲面而來…你進入了熾焰火山。', 'level'); return; }
+  if (pt.to === 'oren') { const w = getMap('oren').world; changeMap('oren', w.entry.x + 1, w.entry.y); log('穿過積雪的山道，你來到了北境。遠方是歐瑞城的城牆。', 'level'); return; }
+  if (pt.from === 'oren') { const g = getMap('overworld').world.northPass; changeMap('overworld', g.x + 1.5, g.y + 2); return; }
   if (pt.from === 'volcano') { const g = getMap('overworld').world.volcanoGate; changeMap('overworld', g.x + 1.5, g.y + 2); return; }
   if (pt.to === 'crypt') { const w = getMap('crypt').world; changeMap('crypt', w.entry.x + 1, w.entry.y); }
   else if (pt.from === 'keep') { const C = getMap('overworld').world.castle; changeMap('overworld', C.keepGate.x + 1.5, C.keepGate.y - 1); }
@@ -1003,6 +1021,9 @@ function useItem(inst) {
     case 'fireres_potion': p.buffs.fireres = 300; recalc(); SFX.play('potion'); burst(p.x, p.y, 20, '#ff8a30', 16, 2, 0.8, 2, 3); log('你的身體被一層抗火的力量包覆。（火屬性抗性 +30%，5 分鐘）', 'sys'); break;
     case 'dragonblood': if (p.hp >= p.maxHp && p.mp >= p.maxMp) { log('體力與魔力已經全滿了。', 'sys'); return; } p.hp = Math.min(p.maxHp, p.hp + 300); p.mp = Math.min(p.maxMp, p.mp + 60); SFX.play('potion'); floatText(p.x, p.y, '+300', '#60ff80', 60); burst(p.x, p.y, 20, '#c01020', 16, 1.5, 0.7, 2, 3); break;
     case 'exp_scroll': p.buffs.expboost = 600; SFX.play('buff'); burst(p.x, p.y, 30, '#a0ff80', 24, 2, 1, 3, 4); log('經驗祝福降臨！10 分鐘內狩獵經驗值 +50%。', 'level'); break;
+    case 'oren_scroll': { const w = getMap('oren').world; if (G.map.id === 'oren') teleportTo(w.city.x, w.city.y + 3); else changeMap('oren', w.city.x, w.city.y + 3); log('你被傳送到北境的歐瑞城。', 'sys'); break; }
+    case 'hot_cocoa': p.hp = Math.min(p.maxHp, p.hp + 60); p.mp = Math.min(p.maxMp, p.mp + 20); SFX.play('potion'); floatText(p.x, p.y, '+60', '#60ff80', 60); log('暖暖的熱可可讓你恢復了精神。', 'sys'); break;
+    case 'pet_feast': { const pets = companions('pet'); if (!pets.length) { log('沒有出戰中的寵物。', 'warn'); return; } for (const a of pets) { a.hp = a.maxHp; floatText(a.x, a.y, 'FULL', '#60ff80', 50); burst(a.x, a.y, 20, '#ffe080', 16, 2, 0.6); } SFX.play('heal'); log('寵物大口吃完大餐，體力全滿了！', 'sys'); break; }
     case 'volcano_scroll': { const w = getMap('volcano').world; if (G.map.id === 'volcano') teleportTo(w.entry.x + 1, w.entry.y); else changeMap('volcano', w.entry.x + 1, w.entry.y); log('你被傳送到熾焰火山的入口。', 'sys'); break; }
     case 'royal_potion': p.hp = p.maxHp; p.mp = p.maxMp; SFX.play('potion'); SFX.play('heal'); burst(p.x, p.y, 20, '#ffd040', 24, 2, 1, 3, 4); log('王家秘藥讓你的體力與魔力完全恢復了！', 'level'); break;
     case 'blue_potion':
@@ -1290,7 +1311,7 @@ function useHotbarEntry(h) {
 // ---------- AI ----------
 function findTarget(a) {
   const pl = G.player;
-  const R = a.kind === 'ally' ? 9 : a.faction === 'castle' ? (a.aggroR || 6) : a.aggro ? a.aggroR : 0;
+  const R = a.kind === 'ally' || a.follow ? 9 : a.faction === 'castle' ? (a.aggroR || 6) : a.aggro ? a.aggroR : 0;
   let best = null, bd = R;
   const consider = (b) => {
     const d = dist(a.x, a.y, b.x, b.y);
@@ -1299,7 +1320,7 @@ function findTarget(a) {
   if (!pl.dead) consider(pl);
   for (const b of G.map.actors) if (b !== a && !b.dead) consider(b);
   // 盟友優先攻擊玩家的目標
-  if (a.kind === 'ally') {
+  if (a.kind === 'ally' || a.follow) {
     const pt = pl.action && pl.action.target;
     if (pt && !pt.dead && isHostile(a, pt)) return pt;
     if (!best && siegeHostile()) { const gt = G.map.gate; best = gt && !gt.dead && !gt.open ? gt : G.map.tower && !G.map.tower.dead ? G.map.tower : null; }
@@ -1310,11 +1331,22 @@ function findTarget(a) {
 }
 function actorAttack(a, t) {
   a.atkCd = a.atkSpd * (a.slowT > 0 ? 1.5 : 1) / (a.hasteT > G.t ? 1.33 : 1); a.atkAnim = 0; a.face(t.x, t.y);
+  if (a.bolt) {
+    // 雷鷹：落雷，有機會連鎖到附近另一個敵人
+    SFX.play('thunder', t.x, t.y);
+    G.bolts = G.bolts || []; G.bolts.push({ x: t.x, y: t.y, t: 0 });
+    later(0.08, () => { if (!t.dead) magicHit(a, t, randi(a.dmg[0], a.dmg[1]), { element: a.element }); });
+    if (Math.random() < 0.35) {
+      const t2 = G.map.actors.find((b) => b !== t && !b.dead && isHostile(a, b) && dist(b.x, b.y, t.x, t.y) < 4);
+      if (t2) later(0.25, () => { if (t2.dead) return; G.bolts.push({ x: t2.x, y: t2.y, t: 0 }); magicHit(a, t2, Math.round(randi(a.dmg[0], a.dmg[1]) * 0.7), { element: a.element }); });
+    }
+    return;
+  }
   if (a.proj) {
     const kind = a.proj;
     if (kind === 'arrow') SFX.play('bow', a.x, a.y);
     G.projectiles.push({ kind, x: a.x, y: a.y, z: a.boss ? 60 : 26, target: t, speed: kind === 'arrow' ? 13 : 9, from: a,
-      onHit: () => { if (a.magic) magicHit(a, t, randi(a.dmg[0], a.dmg[1]), { element: (a.def && a.def.element) || (kind === 'fire' ? 'fire' : undefined) }); else physHit(a, t, 1, { ranged: true }); } });
+      onHit: () => { if (a.magic) { magicHit(a, t, randi(a.dmg[0], a.dmg[1]), { element: (a.def && a.def.element) || a.element || (kind === 'fire' ? 'fire' : undefined) }); if (a.frost && t !== G.player && !t.dead) t.slowT = 3; } else physHit(a, t, 1, { ranged: true }); } });
   } else {
     const range = a.range;
     later(0.22, () => { if (!a.dead && !t.dead && dist(a.x, a.y, t.x, t.y) <= range + 0.8 + (t.struct ? 1 : 0)) physHit(a, t, 1); });
@@ -1334,7 +1366,7 @@ function updateActor(a, dt) {
   if (a.kind === 'villager' || a.kind === 'dog') return updateVillager(a, dt, dp);
   if (a.companion) return updateCompanion(a, dt);
   if (a.life && lifeUpdate(a, dt, dp > 36)) return;
-  if (dp > 36 && !a.target && a.kind !== 'ally' && a.kind !== 'besieger' && !((a.faction === 'castle' || a.kind === 'merc') && siegeOn())) return;
+  if (dp > 36 && !a.target && a.kind !== 'ally' && !a.follow && a.kind !== 'besieger' && !((a.faction === 'castle' || a.kind === 'merc') && siegeOn())) return;
   const spMul = a.slowT > 0 ? 0.5 : 1;
   // 冒險者喝水
   if ((a.kind === 'fighter' || a.kind === 'pker' || a.kind === 'ally' || a.kind === 'besieger' || a.kind === 'merc') && a.hp < a.maxHp * 0.35 && G.t > a.potT && (!a.life || a.life.pots > 0)) {
@@ -1358,6 +1390,7 @@ function updateActor(a, dt) {
     const dt2 = dist(a.x, a.y, t.x, t.y);
     // 特殊能力
     if (a.def && a.def.dragon && dragonThink(a, dt)) return;
+  if (a.def && a.def.frostKing && frostKingThink(a, dt)) return;
     if (a.def && a.def.breath && dt2 < 6 && dt2 > 2.5 && a.atkCd <= 0 && Math.random() < 0.02) {
       a.face(t.x, t.y); a.atkAnim = 0; a.atkCd = a.atkSpd * 1.6; a.path = [];
       SFX.play('fire', a.x, a.y);
@@ -1387,7 +1420,7 @@ function updateActor(a, dt) {
     if (dist(a.x, a.y, a.home.x, a.home.y) < 1.5 || !a.path.length) { a.state = 'idle'; a.path = []; if (a.kind === 'monster') a.hp = a.maxHp; a.grudge.clear(); }
   } else {
     // 閒置行為
-    if (a.kind === 'ally') {
+    if (a.kind === 'ally' || a.follow) {
       if (dp > 3 && (a.thinkT <= 0 || !a.path.length)) { a.thinkT = 0.6; a.path = Path.find(W, a.x, a.y, pl.x + rand(-1.5, 1.5), pl.y + rand(-1.5, 1.5), 900) || []; }
       if (dp > 12 && !pl.dead) { const q = W.nearestFree(pl.x + 1, pl.y + 1); a.x = q.x; a.y = q.y; a.path = []; }
       if (a.path.length) a.moveAlong(dt, 1.1); else a.moving = false;
@@ -1453,12 +1486,12 @@ function updateSpawners(dt) {
     }
   }
   // 冒險者補充
-  if (m.id === 'overworld' || m.id === 'isle') {
+  if (m.id === 'overworld' || m.id === 'isle' || m.id === 'oren') {
     m.fighterT -= dt;
     if (m.fighterT <= 0) {
       m.fighterT = 20;
       const nF = m.actors.filter((a) => a.kind === 'fighter' && !a.dead).length, nP = m.actors.filter((a) => a.kind === 'pker' && !a.dead && !a.raider).length;
-      if (nF < (m.id === 'isle' ? 6 : 20)) spawnFighter(m, false);
+      if (nF < (m.id === 'isle' ? 6 : m.id === 'oren' ? 7 : 20)) spawnFighter(m, false);
       if (m.id === 'overworld' && nP < 5) spawnFighter(m, true);
     }
   }
@@ -1700,7 +1733,7 @@ function enterWorld(saveData) {
   if (p.clan) taken.push(...p.clan.members.map((m) => m.name));
   Names.reset(taken);
   G.day = saveData.day || 0.3;
-  setMap(['crypt', 'isle', 'volcano'].includes(saveData.mapId) || (saveData.mapId === 'keep' && saveData.castle && saveData.castle.owned) ? saveData.mapId : 'overworld');
+  setMap(['crypt', 'isle', 'volcano', 'oren'].includes(saveData.mapId) || (saveData.mapId === 'keep' && saveData.castle && saveData.castle.owned) ? saveData.mapId : 'overworld');
   recalc(p);
   if (saveData.x && !G.world.blocked(saveData.x, saveData.y)) { p.x = saveData.x; p.y = saveData.y; }
   else { const t = G.world.towns[0] || { x: G.world.entry.x, y: G.world.entry.y - 2 }; const q = G.world.nearestFree(t.x + 1, t.y + 2); p.x = q.x; p.y = q.y; }
