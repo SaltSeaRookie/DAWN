@@ -175,7 +175,7 @@ const UI = {
     $('#alignFill').style.background = p.align < 0 ? 'linear-gradient(#b03020,#601008)' : 'linear-gradient(#3a6ab0,#1a3a70)';
     $('#btnChar').classList.toggle('alert', p.statPoints > 0);
     this.refreshHotbar();
-    for (const k of ['inv', 'char', 'spell', 'clan', 'shop', 'wh', 'pet', 'petshop']) if (this.windows[k]) this['render' + k[0].toUpperCase() + k.slice(1)]();
+    for (const k of ['inv', 'char', 'spell', 'clan', 'shop', 'wh', 'vault', 'pet', 'petshop']) if (this.windows[k]) this['render' + k[0].toUpperCase() + k.slice(1)]();
   },
 
   tick(dt) {
@@ -210,16 +210,8 @@ const UI = {
       this.refreshHotbar();
       // 攻城戰／突襲狀態
       const st = $('#siegeBar');
-      const s = G.siege;
-      if (s && s.active) {
-        const m = G.maps.overworld;
-        st.style.display = 'block';
-        st.innerHTML = '⚔ 攻城戰 ' + Math.floor(s.t / 60) + ':' + String(Math.floor(s.t % 60)).padStart(2, '0') +
-          '　城門 ' + (m.gate.broken ? '已攻破' : Math.ceil(100 * m.gate.hp / m.gate.maxHp) + '%') + '　守護之塔 ' + Math.ceil(100 * m.tower.hp / m.tower.maxHp) + '%';
-      } else if (G.raid) {
-        const m = G.maps.overworld;
-        st.style.display = 'block'; st.innerHTML = '⚠ ' + ENEMY_CLAN + ' 突襲中！守護之塔 ' + Math.ceil(100 * m.tower.hp / m.tower.maxHp) + '%';
-      } else st.style.display = 'none';
+      const sb = siegeBarHtml();
+      if (sb) { st.style.display = 'block'; st.innerHTML = esc(sb); } else st.style.display = 'none';
       if (this.windows.map) drawWorldMap(this.windows.map.cv, this.windows.map.mapId);
     }
   },
@@ -548,6 +540,7 @@ const UI = {
     else if (role === 'quest') this.openQuest(npc);
     else if (role === 'clan') this.openClanNpc(npc);
     else if (role === 'warehouse') this.openWarehouse(npc);
+    else if (role === 'castlewh') this.openCastleVault(npc);
     else if (role === 'herald') this.openHerald(npc);
     else if (role === 'pet') this.openPetShop(npc);
   },

@@ -41,7 +41,7 @@ function createClan(name, emblem) {
   if (p.level < 5) return '需要等級 5 才能建立血盟。';
   if (p.gold < 3000) return '建立血盟需要 3000 金幣。';
   if (!name || name.length < 2 || name.length > 8) return '血盟名稱需為 2～8 個字。';
-  if (NPC_CLANS.includes(name) || name === ENEMY_CLAN || name === '灰岩騎士團') return '這個名稱已經被使用了。';
+  if (worldClanNames().includes(name) || name === ENEMY_CLAN || name === '灰岩騎士團') return '這個名稱已經被使用了。';
   p.gold -= 3000;
   p.clan = normalizeClan({ name, emblem, members: [], founded: Date.now() });
   log('血盟「' + name + '」成立了！你是血盟的盟主。', 'level'); SFX.play('quest');

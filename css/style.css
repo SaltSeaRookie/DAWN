@@ -381,3 +381,8 @@ body:not(.in-game) #hud, body:not(.in-game) #minimapWrap, body:not(.in-game) #bu
 .netstatus { margin-top: 10px; font-size: 12px; color: var(--dim); text-align: center; }
 .netstatus.on { color: #8ef0a0; }
 .netstatus a { color: #c9a55a; cursor: pointer; text-decoration: underline; margin-left: 6px; }
+
+/* 城堡倉庫 */
+.vaultgrid { max-height: 230px; overflow-y: auto; }
+input.vaultamt { width: 90px; padding: 3px 5px; background: #12100d; color: #eee; border: 1px solid #4a4030; border-radius: 3px; }
+.btn.off { opacity: 0.55; }

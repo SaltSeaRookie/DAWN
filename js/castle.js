@@ -111,7 +111,7 @@ Object.assign(UI, {
     const c = castleData();
     if (c) {
       const s = c.stats;
-      w.body.innerHTML = this.dialogHead(npc, '城主大人，灰岩城一切安好。小心' + ENEMY_CLAN + '隨時可能來犯！') +
+      w.body.innerHTML = this.dialogHead(npc, '城主大人，灰岩城一切安好。') +
         '<div class="taxbox"><div class="row"><span>目前稅率</span><b>' + Math.round(c.rate * 100) + '%</b></div>' +
         '<div class="row"><span>勇者打怪的金幣</span><b>' + s.kill.toLocaleString() + '</b></div>' +
         '<div class="row"><span>商店交易</span><b>' + s.trade.toLocaleString() + '</b></div>' +
@@ -129,18 +129,76 @@ Object.assign(UI, {
       const home = el('button', 'btn', p.homeTown === 'castle' ? '✓ 復活點：灰岩城' : '把復活點設在灰岩城（回村卷軸也能回城）');
       home.onclick = () => { p.homeTown = p.homeTown === 'castle' ? 'dawn' : 'castle'; this.log(p.homeTown === 'castle' ? '復活點改為灰岩城。' : '復活點改回晨風村。', 'sys'); this.openHerald(npc); };
       w.body.appendChild(home);
-      w.body.appendChild(el('div', 'dim small', '城主血盟專屬：城內的地下要塞練功副本、城堡御用商人（祝福卷軸、王家秘藥）、狩獵經驗 +10%、城門守衛保護。稅收來自所有勇者（包含電腦冒險者）打怪掉落的金幣與商店交易。'));
+      w.body.appendChild(el('div', 'dim small', '城主血盟專屬：城內的地下要塞練功副本、城堡御用商人（祝福卷軸、王家秘藥）、城堡倉庫（倉庫管理員哈洛克）、狩獵經驗 +10%、城門守衛保護。稅收來自所有勇者（包含電腦冒險者）打怪掉落的金幣與商店交易。'));
+      w.body.appendChild(el('div', 'npc-text', '🏰 ' + siegeTimeText() + '<br>攻城時間內，其他血盟可能會向灰岩城宣戰，請準備守城！不在城裡時，守軍會替你防守，但有可能失守。'));
+      w.body.appendChild(this.clanPowers());
       return;
     }
-    let text;
-    if (G.siege && G.siege.active) text = '攻城戰正在進行中！擊破城門，摧毀城內的守護之塔！';
-    else {
-      text = '灰岩城目前由<b>灰岩騎士團</b>駐守。<br>擁有血盟、等級 10 以上的勇者，可以向灰岩城宣戰。<br>攻城戰持續 10 分鐘，摧毀<b>守護之塔</b>即可佔領城堡。<br>城主可以向各地的狩獵與交易收稅，並使用城內的地下要塞。';
-      const b = el('button', 'btn', '⚔ 宣戰');
+    const s = G.siege, sc = siegeSchedule();
+    let text = '灰岩城目前由<b>' + esc(castleOwnerName()) + '</b>佔領。<br>🏰 ' + siegeTimeText() + '<br>';
+    if (s && s.active) text += '<b>攻城戰正在進行中！</b>進攻方：' + esc(s.attackers.join('、')) + '。' + (s.playerAtk ? '擊破城門，摧毀城內的守護之塔！' : '你的血盟也可以加入攻城。');
+    else text += '擁有血盟、等級 10 以上的勇者，可以在攻城時間內宣戰。攻城戰持續 10 分鐘，摧毀<b>守護之塔</b>即可佔領城堡。<br>城主可以向各地的狩獵與交易收稅，並使用城內的地下要塞與城堡倉庫。';
+    if (!(s && s.active && s.playerAtk)) {
+      const b = el('button', 'btn' + (sc.open ? '' : ' off'), sc.open ? (s && s.active ? '⚔ 加入攻城' : '⚔ 宣戰') : '⚔ 宣戰（' + hhmm(sc.next) + ' 開放）');
       b.onclick = () => { const e = declareSiege(); if (e) { this.log(e, 'warn'); SFX.play('error'); } else this.close('herald'); };
       row.appendChild(b);
     }
     w.body.innerHTML = this.dialogHead(npc, text);
     w.body.appendChild(row);
+    w.body.appendChild(this.clanPowers());
+  },
+  // 大陸上的血盟勢力
+  clanPowers() {
+    const R = realm(), box = el('div', 'taxbox');
+    box.appendChild(el('div', 'dim small', '大陸上的血盟勢力'));
+    const own = castleOwnerName();
+    const rows = [...R.clans.map((c) => ({ name: c.name, info: '盟主 ' + c.leader + '・約 ' + (c.members || 3) + ' 人・戰力 ' + '★'.repeat(Math.max(1, Math.ceil((c.power || 1) / 3))) })), ...NPC_CLANS.map((n) => ({ name: n, info: '老牌血盟' })), { name: ENEMY_CLAN, info: '邪惡血盟' }];
+    for (const r of rows) box.appendChild(el('div', 'row', '<span>' + (r.name === own ? '👑 ' : '') + esc(r.name) + '</span><b class="dim" style="font-weight:normal">' + esc(r.info) + '</b>'));
+    return box;
+  },
+  // ===== 城堡倉庫（城主血盟專屬）=====
+  openCastleVault(npc) {
+    if (!ownsCastle()) { npc.speak('城堡倉庫只開放給灰岩城的城主血盟。', 3); this.log(npc.name + '：城堡倉庫只開放給灰岩城的城主血盟。', 'npc'); return; }
+    this.close('vault');
+    const w = this.win('vault', npc.title, 16, 60, 360);
+    w.npc = npc;
+    this.renderVault();
+    if (!this.windows.inv) this.toggle('inv');
+  },
+  vault() { const c = G.player.clan; c.vault = c.vault || { items: [], gold: 0 }; return c.vault; },
+  renderVault() {
+    const w = this.windows.vault; if (!w) return;
+    if (!ownsCastle()) { this.close('vault'); return; }
+    const p = G.player, V = this.vault(), CAP = 150;
+    w.body.innerHTML = this.dialogHead(w.npc, '這是血盟「' + esc(p.clan.name) + '」的城堡倉庫，可以存放 ' + CAP + ' 格物品與金幣，不收保管費。失去城堡時物品會保留，奪回城堡後就能領取。');
+    w.body.appendChild(el('div', 'dim small', '城堡倉庫（' + V.items.length + ' / ' + CAP + '，點擊領取）'));
+    const g1 = el('div', 'grid vaultgrid');
+    const n = Math.max(30, Math.ceil((V.items.length + 1) / 6) * 6);
+    for (let i = 0; i < n; i++) g1.appendChild(this.slotEl(V.items[i], (inst) => {
+      if (!canCarry(inst.id, inst.qty)) { this.log('太重了，無法領取。', 'warn'); return; }
+      V.items.splice(V.items.indexOf(inst), 1); addItem(inst.id, inst.qty, inst.ench, true); this.refresh();
+    }));
+    w.body.appendChild(g1);
+    // 金庫
+    const gr = el('div', 'btnrow');
+    gr.appendChild(el('span', 'small', '金庫：<b>' + V.gold.toLocaleString() + '</b> 金幣　'));
+    const amt = el('input', 'vaultamt'); amt.type = 'number'; amt.min = 1; amt.placeholder = '金額';
+    amt.addEventListener('keydown', (e) => e.stopPropagation());
+    const dep = el('button', 'btn sm', '存入'), wd = el('button', 'btn sm', '領出');
+    const val = (max) => { const v = Math.floor(+amt.value || 0); return v > 0 ? Math.min(v, max) : max; };
+    dep.onclick = () => { const v = val(p.gold); if (!v) return; p.gold -= v; V.gold += v; SFX.play('coin'); this.log('存入 ' + v.toLocaleString() + ' 金幣到城堡金庫。', 'loot'); this.refresh(); };
+    wd.onclick = () => { const v = val(V.gold); if (!v) return; V.gold -= v; p.gold += v; SFX.play('coin'); this.log('從城堡金庫領出 ' + v.toLocaleString() + ' 金幣。', 'loot'); this.refresh(); };
+    gr.appendChild(amt); gr.appendChild(dep); gr.appendChild(wd);
+    w.body.appendChild(gr);
+    w.body.appendChild(el('div', 'dim small', '背包（點擊存放；空白金額＝全部）'));
+    const g2 = el('div', 'grid');
+    for (let i = 0; i < 48; i++) g2.appendChild(this.slotEl(p.inv[i], (inst) => {
+      if (inst.pet) { this.log('寵物項圈不能放進倉庫。', 'warn'); return; }
+      const ex = ITEMS[inst.id].stack && V.items.find((x) => x.id === inst.id);
+      if (!ex && V.items.length >= CAP) { this.log('城堡倉庫已滿。', 'warn'); return; }
+      if (ex) ex.qty += inst.qty; else V.items.push({ id: inst.id, qty: inst.qty, ench: inst.ench || 0 });
+      removeItem(inst, inst.qty); SFX.play('pickup'); this.refresh();
+    }, { size: 28 }));
+    w.body.appendChild(g2);
   },
 });

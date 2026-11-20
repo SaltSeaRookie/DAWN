@@ -195,7 +195,7 @@ const GM = {
   cmds: {
     gmhelp(a, say) {
       say('【管理員指令】/item 道具 [數量] [強化]・/learn 魔法|all・/level N・/exp N・/gold N・/stat 能力|points N・/heal・/god・/speed 倍率');
-      say('/tp 地點|x y|crypt|overworld・/spawn 怪物 [數量]・/killall [半徑]・/align N・/pet 寵物 [等級]・/day 0~1・/clearinv・/ids items|spells|monsters|pets|places・/siege end・/gm passwd 新密語・/gm off');
+      say('/tp 地點|x y|crypt|overworld・/spawn 怪物 [數量]・/killall [半徑]・/align N・/pet 寵物 [等級]・/day 0~1・/clearinv・/ids items|spells|monsters|pets|places・/siege open|npc|clan|end・/gm passwd 新密語・/gm off');
     },
     item(a, say) {
       const id = GM.find(ITEMS, a[0]); if (!id || id === 'gold') return say('找不到道具：' + a[0] + '（/ids items 可查詢）', 'warn');
@@ -273,7 +273,10 @@ const GM = {
     },
     siege(a, say) {
       if (a[0] === 'end' && G.siege && G.siege.active) { G.siege.t = 0.01; say('攻城戰將立即結束。'); }
-      else say('用法：/siege end', 'warn');
+      else if (a[0] === 'open') { G.siegeForceUntil = Date.now() + SIEGE_WINDOW_MIN * 60000; say('已開放攻城時間 ' + SIEGE_WINDOW_MIN + ' 分鐘（電腦血盟會決定是否宣戰）。'); }
+      else if (a[0] === 'npc') { const pool = siegeAttackerPool(); const c = pickWeighted(pool); if (!c) return say('沒有可以宣戰的血盟。', 'warn'); G.siegeForceUntil = Math.max(G.siegeForceUntil || 0, Date.now() + SIEGE_WINDOW_MIN * 60000); G.npcDecl = { at: G.t + 3, clans: [c] }; say('血盟「' + c.name + '」將在 3 秒後攻城。'); }
+      else if (a[0] === 'clan') { G.formT = 0; say('下一刻會有冒險者嘗試創立血盟（需要在大陸上、附近有 Lv.12 以上無血盟的冒險者）。'); }
+      else say('用法：/siege open|npc|clan|end', 'warn');
     },
   },
 };

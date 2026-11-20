@@ -95,7 +95,7 @@ function makeFighter(x, y, lvl, evil) {
     proj: cls === 'ranger' ? 'arrow' : cls === 'mage' ? 'magic' : null, magic: cls === 'mage',
     aggro: true, aggroR: evil ? 8 : 6, speed: 3.1, sprite: 'human',
     align: evil ? -randi(2000, 20000) : randi(0, 4000),
-    clan: !evil && Math.random() < 0.45 ? pick(NPC_CLANS) : evil && Math.random() < 0.5 ? ENEMY_CLAN : null,
+    clan: !evil && Math.random() < 0.45 ? pick(G.player && G.player.realm ? worldClanNames() : NPC_CLANS) : evil && Math.random() < 0.5 ? ENEMY_CLAN : null,
   });
   if (a.clan) a.emblem = clanEmblemFor(a.clan);
   if (!evil) initLife(a);
@@ -270,6 +270,8 @@ function populateField(m) {
   const C = W.castle;
   m.npcs.push(new NPC(C.herald.x, C.herald.y, '奧德里奇', NPC_TITLES.herald, 'herald', NPC_LOOKS.herald, 'castle'));
   m.npcs.push(new NPC(C.merchant.x, C.merchant.y, '瑟琳娜', '城堡御用商人', 'castleshop', { body: '#6a1a3a', robe: true, hair: '#2a1a10', longHair: true, skin: '#f0d0b0', trim: '#e0c060' }, 'castle'));
+  const vq = W.nearestFree(C.merchant.x + 3, C.merchant.y);
+  m.npcs.push(new NPC(vq.x, vq.y, '哈洛克', '城堡倉庫管理員', 'castlewh', { body: '#4a3a2a', legs: '#2a2a2a', hair: '#6a6a6a', beard: '#8a8a8a', skin: '#e0b890', trim: '#c0a050' }, 'castle'));
   const gy = C.gate.reduce((s, g) => s + g.y, 0) / C.gate.length;
   m.gate = new Actor({ x: C.x0 + 0.5, y: gy + 0.5, kind: 'struct', faction: 'castle', struct: 'gate', name: '灰岩城門', maxHp: 3500, ac: 10, mr: 100, speed: 0 });
   m.gate.open = true;
@@ -424,12 +426,12 @@ function serializePlayer(p) {
     v: 2, name: p.name, cls: p.cls, level: p.level, exp: p.exp, base: p.base, statPoints: p.statPoints,
     baseMaxHp: p.baseMaxHp, baseMaxMp: p.baseMaxMp, hp: Math.ceil(p.hp), mp: Math.floor(p.mp), gold: p.gold, align: p.align,
     inv: p.inv, wh: p.wh, equip: p.equip, spells: p.spells, hotbar: p.hotbar, quest: p.quest, kills: p.kills, pkCount: p.pkCount, petMode: p.petMode,
-    clan: p.clan, castle: p.castle, homeTown: p.homeTown, autoBuff: p.autoBuff || {}, mapId: p.mapId, x: p.x, y: p.y, day: G.day, created: p.created, playTime: p.playTime || 0,
+    clan: p.clan, castle: p.castle, homeTown: p.homeTown, autoBuff: p.autoBuff || {}, realm: p.realm || null, mapId: p.mapId, x: p.x, y: p.y, day: G.day, created: p.created, playTime: p.playTime || 0,
   };
 }
 function loadPlayer(d) {
   const p = new Player({ name: d.name, cls: d.cls, stats: d.base });
-  for (const k of ['level', 'exp', 'statPoints', 'baseMaxHp', 'baseMaxMp', 'hp', 'mp', 'gold', 'align', 'inv', 'wh', 'spells', 'hotbar', 'quest', 'kills', 'pkCount', 'petMode', 'clan', 'castle', 'homeTown', 'autoBuff', 'mapId', 'created', 'playTime'])
+  for (const k of ['level', 'exp', 'statPoints', 'baseMaxHp', 'baseMaxMp', 'hp', 'mp', 'gold', 'align', 'inv', 'wh', 'spells', 'hotbar', 'quest', 'kills', 'pkCount', 'petMode', 'clan', 'castle', 'homeTown', 'autoBuff', 'realm', 'mapId', 'created', 'playTime'])
     if (d[k] !== undefined) p[k] = d[k];
   for (const s of SLOTS) p.equip[s] = (d.equip && d.equip[s]) || null;
   for (const i of p.inv) i.uid = G.uid++;
@@ -486,7 +488,8 @@ function inSafe(e) { return G.world.isSafe(e.x, e.y); }
 function zOf(e) { return e === G.player ? 26 : e.boss ? 60 : e.struct === 'tower' ? 50 : e.struct === 'gate' ? 30 : 24; }
 
 // ---------- 敵我判斷 ----------
-function siegeHostile() { const s = G.siege; return !!(s && s.active && !ownsCastle()); }
+function siegeHostile() { const s = G.siege; return !!(s && s.active && s.playerAtk && !ownsCastle()); }
+function siegeOn() { return !!(G.siege && G.siege.active); }
 function ownsCastle() { const p = G.player; return !!(p && p.castle && p.castle.owned); }
 function combatant(e) { return e && !e.dead && (e === G.player || (e.kind !== 'villager' && e.kind !== 'dog')); }
 // a 會不會主動攻擊 b
@@ -498,14 +501,21 @@ function isHostile(a, b) {
   const bf = b === pl ? 'player' : b.faction;
   if (a.grudge && a.grudge.has(b.id) && !bSafe) return true;
   switch (a.faction) {
-    case 'monster': return !bSafe && (bf === 'player' || bf === 'fighter' || bf === 'ally' || bf === 'pker');
+    case 'monster': return !bSafe && (bf === 'player' || bf === 'fighter' || bf === 'ally' || bf === 'pker' || bf === 'besieger');
     case 'fighter': return !bSafe && (bf === 'monster' || bf === 'pker' || (bf === 'player' && pl.pinkT > 0 && a.grudge.has(pl.id)));
     case 'pker': return !bSafe && (bf === 'player' || bf === 'fighter' || bf === 'ally' || (a.raider && b.struct === 'tower' && ownsCastle()));
-    case 'ally': return !bSafe && (bf === 'monster' || bf === 'pker' || (bf === 'castle' && siegeHostile() && !(b.struct === 'gate' && b.open)));
+    case 'ally': return !bSafe && (bf === 'monster' || bf === 'pker' || (bf === 'besieger' && ownsCastle()) || (bf === 'castle' && siegeHostile() && !(b.struct === 'gate' && b.open)));
+    // 電腦血盟的攻城軍：攻擊守軍、城門與守護之塔；你是城主時也會攻擊你
+    case 'besieger':
+      if (!siegeOn()) return false;
+      if (bf === 'castle') return !b.struct || (b.struct === 'gate' ? !b.open && !b.broken : true);
+      if (bf === 'player' || bf === 'ally') return !bSafe && ownsCastle();
+      if (bf === 'besieger') return false;
+      return bf === 'monster' && b.target === a;   // 只反擊攻擊自己的怪物，不在路上分心
     case 'townguard': return bf === 'pker' || (bf === 'player' && pl.align < 0 && G.t > (pl.guardSafeT || 0));
     case 'castle':
       if (b.struct) return false;
-      if (bf === 'pker') return true;
+      if (bf === 'pker' || bf === 'besieger') return true;
       return siegeHostile() && (bf === 'player' || bf === 'ally');
   }
   return false;
@@ -518,6 +528,7 @@ function playerCanAttack(e, force) {
     case 'monster': case 'pker': return true;
     case 'fighter': return force || e.align < 0 || e.grudge.has(G.player.id);
     case 'castle': return siegeHostile() && !(e.struct === 'gate' && (e.open || e.broken));
+    case 'besieger': return ownsCastle() || force || e.grudge.has(G.player.id);
   }
   return false;
 }
@@ -533,7 +544,7 @@ function dealDamage(src, tgt, dmg, opt = {}) {
     for (const a of G.map.actors) if (a.kind === 'townguard' && a.target === pl) { a.target = null; a.state = 'return'; }
     later(0.3, () => log('守衛：這次只是警告，邪惡之人！別在村裡惹事。', 'npc'));
   }
-  if (tgt !== pl && tgt.kind === 'struct' && !siegeHostile() && !(src.raider)) return;
+  if (tgt !== pl && tgt.kind === 'struct' && !siegeHostile() && !(src && (src.raider || src.besieger))) return;
   tgt.hp -= dmg; tgt.hurtT = 0.2;
   const big = tgt.boss || tgt.struct;
   floatText(tgt.x, tgt.y, String(dmg), tgt === pl ? '#ff5050' : opt.crit ? '#ffd040' : opt.magic ? '#a8d8ff' : '#ffffff', big ? 100 : 60, opt.crit ? 20 : 15);
@@ -639,6 +650,10 @@ function killActor(a, src) {
       }
     }
     if (src && src.kind === 'pker') log(a.name + ' 被 ' + src.name + ' 殺死了！', 'warn');
+  } else if (a.kind === 'besieger') {
+    dropItem(a.x, a.y, 'gold', randi(20, 40) * a.level);
+    if (Math.random() < 0.25) dropItem(a.x + rand(-0.5, 0.5), a.y + rand(-0.5, 0.5), pick(['clear_potion', 'orange_potion', 'ew_scroll', 'ea_scroll']), 1);
+    if (src === pl || (src && src.faction === 'ally') || byComp) gainExp(a.level * 15);
   } else if (a.kind === 'ally') {
     log('盟友 ' + a.name + ' 倒下了。', 'warn');
   }
@@ -1282,6 +1297,7 @@ function findTarget(a) {
     if (!best && siegeHostile()) { const gt = G.map.gate; best = gt && !gt.dead && !gt.open ? gt : G.map.tower && !G.map.tower.dead ? G.map.tower : null; }
   }
   if (a.raider && !best && G.map.tower && !G.map.tower.dead && ownsCastle()) best = G.map.tower;
+  if (a.kind === 'besieger' && !best && siegeOn()) { const gt = G.map.gate; best = gt && !gt.dead && !gt.open && !gt.broken ? gt : G.map.tower && !G.map.tower.dead ? G.map.tower : null; }
   return best;
 }
 function actorAttack(a, t) {
@@ -1310,10 +1326,10 @@ function updateActor(a, dt) {
   if (a.kind === 'villager' || a.kind === 'dog') return updateVillager(a, dt, dp);
   if (a.companion) return updateCompanion(a, dt);
   if (a.life && lifeUpdate(a, dt, dp > 36)) return;
-  if (dp > 36 && !a.target && a.kind !== 'ally') return;
+  if (dp > 36 && !a.target && a.kind !== 'ally' && a.kind !== 'besieger' && !(a.faction === 'castle' && siegeOn())) return;
   const spMul = a.slowT > 0 ? 0.5 : 1;
   // 冒險者喝水
-  if ((a.kind === 'fighter' || a.kind === 'pker' || a.kind === 'ally') && a.hp < a.maxHp * 0.35 && G.t > a.potT && (!a.life || a.life.pots > 0)) {
+  if ((a.kind === 'fighter' || a.kind === 'pker' || a.kind === 'ally' || a.kind === 'besieger') && a.hp < a.maxHp * 0.35 && G.t > a.potT && (!a.life || a.life.pots > 0)) {
     a.potT = G.t + 6; if (a.life) a.life.pots--; a.hp = Math.min(a.maxHp, a.hp + Math.round(a.maxHp * 0.3)); burst(a.x, a.y, 20, '#ff8080', 8, 1, 0.5, 2, 2);
   }
   // 盟友時效
@@ -1440,105 +1456,13 @@ function updateSpawners(dt) {
   }
   for (let i = m.actors.length - 1; i >= 0; i--) {
     const a = m.actors[i];
-    if (a.dead && a.deadT > 3 && a.kind !== 'struct') { if ((a.kind === 'fighter' || a.kind === 'pker') && !a.clanMember) Names.release(a.name); m.actors.splice(i, 1); }
+    if (a.dead && a.deadT > 3 && a.kind !== 'struct') { if ((a.kind === 'fighter' || a.kind === 'pker' || a.kind === 'besieger') && !a.clanMember) Names.release(a.name); m.actors.splice(i, 1); }
   }
 }
 
 // ---------- 血盟：見 js/clan.js ----------
 
-// ---------- 攻城戰 ----------
-function declareSiege() {
-  const p = G.player, m = G.map;
-  if (m.id !== 'overworld') return '只能在灰岩城宣戰。';
-  if (!p.clan) return '只有血盟才能宣戰。';
-  if (ownsCastle()) return '你的血盟已經擁有灰岩城了。';
-  if (G.siege && G.siege.active) return '攻城戰正在進行中。';
-  if (p.level < 10) return '需要等級 10 才能宣戰。';
-  const W = m.world, C = W.castle;
-  G.siege = { active: true, t: 600, startT: G.t };
-  // 關城門、重置守護塔、生成守軍
-  const gate = m.gate; gate.dead = false; gate.broken = false; gate.open = false; gate.hp = gate.maxHp; setGateBlock(true);
-  const tw = m.tower; tw.dead = false; tw.hp = tw.maxHp; tw.ownerColor = '#ff6a5a';
-  for (const a of m.actors) if (a.faction === 'castle' && !a.struct) a.dead = true;
-  for (const s of C.guardSpots) { const g = makeMonster('guard', s.x, s.y); g.home = { x: s.x, y: s.y }; m.actors.push(g); }
-  const cap = makeMonster('guard_captain', C.tower.x - 1.5, C.tower.y); cap.home = { x: cap.x, y: cap.y }; m.actors.push(cap);
-  // 血盟成員全員集結
-  const allies = summonAllies(6 + clanLevel(), 0, { x: C.x0 - 4, y: C.cy });
-  for (const a of allies) a.siegeAlly = true;
-  log('⚔ 血盟「' + p.clan.name + '」向灰岩城宣戰！攻城戰開始（10 分鐘）。摧毀城門，擊破守護之塔！', 'level');
-  SFX.play('roar');
-  UI.refresh();
-  return null;
-}
-function setGateBlock(closed) {
-  const W = G.maps.overworld.world;
-  for (const g of W.castle.gate) W.blockArr[W.idx(g.x, g.y)] = closed ? 3 : 0;
-}
-function onStructDestroyed(s, src) {
-  const m = G.map, p = G.player;
-  SFX.play('boom', s.x, s.y); shake(10);
-  burst(s.x, s.y, 40, '#c0a080', 40, 4, 1, 3, 4);
-  if (s.struct === 'gate') {
-    s.broken = true; setGateBlock(false);
-    log('灰岩城門被攻破了！', 'level');
-  } else if (s.struct === 'tower') {
-    if (G.siege && G.siege.active && !ownsCastle()) {
-      G.siege.active = false;
-      p.castle = { owned: true, taxAcc: 0, since: Date.now() };
-      for (const a of m.actors) if (a.faction === 'castle' && !a.struct) { a.dead = true; a.deadT = 9; }
-      for (const a of m.actors) if (a.siegeAlly) a.expire = G.t + 30;
-      s.dead = false; s.hp = s.maxHp; s.ownerColor = '#7ad0ff';
-      m.gate.open = true; m.gate.broken = false; m.gate.hp = m.gate.maxHp; m.gate.dead = false; setGateBlock(false);
-      later(2, () => log('工匠們連夜修好了灰岩城門，城門重新開啟。', 'sys'));
-      log('★★ 血盟「' + p.clan.name + '」佔領了灰岩城！盟主 ' + p.name + ' 成為了城主！', 'loot');
-      gainExp(3000); SFX.play('levelup');
-      saveGame(true);
-    } else if (ownsCastle() && src && src.raider) {
-      p.castle = null;
-      s.dead = false; s.hp = s.maxHp; s.ownerColor = '#ff6a5a';
-      log('守護之塔被' + ENEMY_CLAN + '摧毀了… 你失去了灰岩城。', 'warn');
-      G.raid = null; saveGame(true);
-    }
-  }
-  UI.refresh();
-}
-function updateSiege(dt) {
-  const s = G.siege, p = G.player;
-  if (s && s.active) {
-    s.t -= dt;
-    if (s.t <= 0) {
-      s.active = false;
-      const m = G.maps.overworld;
-      for (const a of m.actors) if ((a.faction === 'castle' && !a.struct) || a.siegeAlly) { a.dead = true; a.deadT = 9; }
-      m.gate.open = true; m.gate.broken = false; m.gate.dead = false; m.gate.hp = m.gate.maxHp; m.tower.hp = m.tower.maxHp; m.tower.ownerColor = null; setGateBlock(false);
-      log('灰岩城門已經修復。', 'sys');
-      log('攻城戰時間結束，未能攻下灰岩城。', 'warn');
-    }
-  }
-  // 城主：稅收與敵對血盟突襲
-  if (ownsCastle() && G.map.id === 'overworld') {
-    castleEconomyTick(dt);
-    G.raidT = (G.raidT === undefined ? 600 : G.raidT) - dt;
-    if (G.raidT <= 0 && !G.raid) {
-      G.raidT = 900;
-      const W = G.world, C = W.castle;
-      G.raid = { t: 240 };
-      for (let i = 0; i < 5; i++) {
-        const f = makeFighter(C.x0 - 6 + rand(-2, 2), C.cy + rand(-3, 3), p.level + randi(-2, 3), true);
-        f.raider = true; f.clan = ENEMY_CLAN; f.emblem = clanEmblemFor(ENEMY_CLAN); f.aggroR = 14; f.leash = 60;
-        G.map.actors.push(f);
-      }
-      summonAllies(4, 240, { x: C.cx, y: C.cy });
-      log('⚠ ' + ENEMY_CLAN + ' 正在突襲灰岩城！保護守護之塔！', 'warn'); SFX.play('roar');
-    }
-  }
-  if (G.raid) {
-    G.raid.t -= dt;
-    const left = G.maps.overworld.actors.filter((a) => a.raider && !a.dead).length;
-    if (!left && G.raid) { G.raid = null; if (ownsCastle()) { log('成功擊退了' + ENEMY_CLAN + '的突襲！', 'level'); gainExp(1000); } }
-    else if (G.raid.t <= 0) { G.raid = null; for (const a of G.maps.overworld.actors) if (a.raider) { a.dead = true; a.deadT = 9; } }
-  }
-}
+// ---------- 攻城戰：見 js/siege.js ----------
 
 // ---------- 投射物、粒子 ----------
 function updateFx(dt) {
@@ -1757,7 +1681,7 @@ Net.on('portal', (d) => setAction({ type: 'portal', portal: d.portal }));
 function enterWorld(saveData) {
   const p = loadPlayer(saveData);
   G.player = p;
-  G.maps = {}; G.siege = null; G.raid = null; G.raidT = undefined; G.autoHunt = false;
+  G.maps = {}; G.siege = null; G.raid = null; G.raidT = undefined; G.autoHunt = false; G.realmInit = false; G.npcDecl = null; G.formT = undefined;
   // 電腦角色避開所有玩家角色與血盟成員的名字
   const taken = [p.name];
   try { const db = LocalBackend.db(); for (const a of Object.values(db.accounts)) taken.push(...Object.keys(a.chars)); } catch (e) { /* */ }
