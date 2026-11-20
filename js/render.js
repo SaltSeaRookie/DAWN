@@ -351,7 +351,7 @@ function drawEntity(e, S, labels) {
   if (e.struct) {
     if (e.struct === 'gate') { drawGate(ctx, sx, sy, e); top = sy - 70; bb = [sx - 50, sy - 80, sx + 50, sy + 20]; }
     else { drawTower(ctx, sx, sy, e, G.t); top = sy - 96; bb = [sx - 20, sy - 90, sx + 20, sy + 6]; }
-    e._bb = (e.open || e.broken) ? null : { x0: bb[0], y0: bb[1], x1: bb[2], y1: bb[3] };
+    e._bb = e.broken || (e.open && !(e.struct === 'gate' && ownsCastle())) ? null : { x0: bb[0], y0: bb[1], x1: bb[2], y1: bb[3] };
     const show = G.siege && G.siege.active || (e.struct === 'tower' && (ownsCastle() || G.raid));
     if (show && !e.open && !e.broken) labels.push(() => { ctx.font = 'bold 13px sans-serif'; outlineText(e.name, sx, top - 8, '#ffe0a0'); hpBar(sx, top - 4, 70, e.hp / e.maxHp, '#d06a20'); });
     return;

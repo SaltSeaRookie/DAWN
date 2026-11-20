@@ -1619,6 +1619,7 @@ function onPointerDown(e) {
     if (hit.kind === 'remote') { const ci = $('#chatInput'); ci.value = '/w ' + hit.e.name + ' '; ci.focus(); UI.log(hit.e.name + '（玩家・Lv.' + hit.e.level + ' ' + (CLASSES[hit.e.cls] ? CLASSES[hit.e.cls].name : '') + (hit.e.clan ? '・' + hit.e.clan : '') + '）', 'sys'); return; }
     if (hit.kind === 'actor') {
       const a = hit.e;
+      if (a.struct === 'gate' && !playerCanAttack(a, force)) { gateClick(a); return; }
       if (playerCanAttack(a, force)) Net.intent('attack', { target: a, force });
       else if (a.faction === 'fighter') Net.intent('talk', { npc: a });
       else if (a.faction === 'ally' || a.kind === 'townguard') a.speak(a.kind === 'townguard' ? '保持秩序。' : pick(['你好！', '一起加油吧！', '嗨～']), 2.5);

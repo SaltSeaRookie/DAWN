@@ -129,6 +129,12 @@ Object.assign(UI, {
       const home = el('button', 'btn', p.homeTown === 'castle' ? '✓ 復活點：灰岩城' : '把復活點設在灰岩城（回村卷軸也能回城）');
       home.onclick = () => { p.homeTown = p.homeTown === 'castle' ? 'dawn' : 'castle'; this.log(p.homeTown === 'castle' ? '復活點改為灰岩城。' : '復活點改回晨風村。', 'sys'); this.openHerald(npc); };
       w.body.appendChild(home);
+      const gm = G.maps.overworld && G.maps.overworld.gate;
+      if (gm) {
+        const gb = el('button', 'btn', gm.broken ? '城門已被攻破' : gm.open ? '🚪 關閉城門' : '🚪 開啟城門');
+        gb.onclick = () => { const e = toggleGate(); if (e) this.log(e, 'warn'); this.openHerald(npc); };
+        w.body.appendChild(gb);
+      }
       w.body.appendChild(el('div', 'dim small', '城主血盟專屬：城內的地下要塞練功副本、城堡御用商人（祝福卷軸、王家秘藥）、狩獵經驗 +10%、城門守衛保護。稅收來自所有勇者（包含電腦冒險者）打怪掉落的金幣與商店交易。'));
       w.body.appendChild(el('div', 'npc-text', '🏰 ' + siegeTimeText() + '<br>攻城時間內，其他血盟可能會向灰岩城宣戰，請準備守城！不在城裡時，守軍會替你防守，但有可能失守。'));
       w.body.appendChild(this.clanPowers());

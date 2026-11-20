@@ -159,14 +159,39 @@ function setGateBlock(closed) {
   const W = G.maps.overworld.world;
   for (const g of W.castle.gate) W.blockArr[W.idx(g.x, g.y)] = closed ? 3 : 0;
 }
+// ---------- 城主開關城門 ----------
+function gateClosedPref() { return ownsCastle() && !!G.player.castle.gateClosed; }
+function toggleGate(close) {
+  const m = G.maps.overworld; if (!m) return '找不到城門。';
+  const g = m.gate;
+  if (!ownsCastle()) return '只有城主可以開關城門。';
+  if (g.broken || g.dead) return '城門已經被攻破，要等攻城戰結束後才會修好。';
+  if (close === undefined) close = g.open;
+  g.open = !close; setGateBlock(close);
+  G.player.castle.gateClosed = close;
+  if (close) {   // 關門時把擋在門口的人推開
+    const W = m.world;
+    for (const e of [G.player, ...m.actors]) if (!e.dead && !e.struct && W.blocked(e.x, e.y)) { const q = W.nearestFree(e.x, e.y); e.x = q.x; e.y = q.y; e.path = []; }
+  }
+  SFX.play(close ? 'boom' : 'click', g.x, g.y); shake(close ? 3 : 0);
+  log(close ? '城門緩緩關上了。（再點一次城門或向傳令官說話可以開啟）' : '城門打開了。', 'sys');
+  UI.refresh();
+  return null;
+}
+function gateClick(g) {
+  const p = G.player;
+  if (!ownsCastle()) { log(g.open ? '灰岩城門開著。只有城主可以開關城門。' : '灰岩城門關著。只有城主可以開關城門。', 'sys'); return; }
+  if (dist(p.x, p.y, g.x, g.y) > 9) { log('請走近城門再開關。', 'sys'); return; }
+  const e = toggleGate(); if (e) log(e, 'warn');
+}
 function endSiege() {
-  const s = G.siege; if (!s) return;
-  s.active = false;
+  const s = G.siege; if (s) s.active = false;
   const m = G.maps.overworld; if (!m) return;
   for (const a of m.actors) if ((a.faction === 'castle' && !a.struct) || a.siegeAlly || a.kind === 'besieger') { a.dead = true; a.deadT = 9; }
   m.gate.open = true; m.gate.broken = false; m.gate.dead = false; m.gate.hp = m.gate.maxHp;
   m.tower.dead = false; m.tower.hp = m.tower.maxHp; setGateBlock(false);
   m.tower.ownerColor = ownsCastle() ? '#7ad0ff' : realm().owner ? '#ffb040' : null;
+  if (gateClosedPref()) { m.gate.open = false; setGateBlock(true); }
   G.npcDecl = null;
   UI.refresh();
 }
@@ -214,6 +239,7 @@ function updateSiege(dt) {
     G.realmInit = true;
     const m = getMap('overworld');
     m.tower.ownerColor = ownsCastle() ? '#7ad0ff' : R.owner ? '#ffb040' : null;
+    if (gateClosedPref() && !(G.siege && G.siege.active)) { m.gate.open = false; setGateBlock(true); }
   }
   clanFormTick(dt);
   const sc = siegeSchedule();
