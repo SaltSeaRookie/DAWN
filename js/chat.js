@@ -7,6 +7,7 @@ const Chat = {
     if (v[0] === '/') return this.command(v.slice(1).trim());
     p.speak(v, 5);
     UI.log(p.name + '：' + v, 'me');
+    Online.say(v);
     this.reply(v);
   },
 
@@ -92,9 +93,23 @@ const Chat = {
     if (GM.handle(cmd, args)) return;
     switch (cmd) {
       case 'help': case '說明':
-        say('指令：/who 附近的人・/pos 座標・/time 時間・/save 存檔・/w 名字 訊息 悄悄話・/c 訊息 盟頻・/roll 擲骰・/auto 自動狩獵開關・/pickup 自動拾取開關・/mode 攻擊|自由|待命|跟隨・/pet 夥伴視窗・/stuck 卡住時回村・/clear 清除訊息・/backup 匯出存檔');
+        say('指令：/who 線上與附近的人・/all 訊息 全頻・/r 訊息 回覆悄悄話・/pos 座標・/time 時間・/save 存檔・/w 名字 訊息 悄悄話・/c 訊息 盟頻・/roll 擲骰・/auto 自動狩獵開關・/pickup 自動拾取開關・/mode 攻擊|自由|待命|跟隨・/pet 夥伴視窗・/stuck 卡住時回村・/clear 清除訊息・/backup 匯出存檔');
         break;
+      case 'all': case 's': case '全頻': { const msg = args.join(' '); if (!msg) { say('用法：/all 訊息', 'warn'); break; } Online.world(msg); break; }
+      case 'r': {
+        const msg = args.join(' ');
+        if (!G.lastWhisper || !msg) { say(G.lastWhisper ? '用法：/r 訊息' : '還沒有人對你說悄悄話。', 'warn'); break; }
+        if (Online.whisper(G.lastWhisper, msg)) UI.log('（悄悄話給 ' + G.lastWhisper + '）' + msg, 'whisper');
+        break;
+      }
       case 'who': {
+        if (Online.active) {
+          Online.who().then((list) => {
+            if (!list) return;
+            const MAPN = { overworld: '晨曦大陸', isle: '翡翠群島', crypt: '地下墓穴', keep: '地下要塞', volcano: '熾焰火山' };
+            say('線上玩家（' + list.length + '）：' + list.map((x) => x.name + ' Lv.' + x.level + (x.clan ? '[' + x.clan + ']' : '') + '・' + (MAPN[x.map] || x.map)).join('、'));
+          });
+        }
         const list = this.responders(16).filter((a) => !(a instanceof NPC) && !a.companion && a.kind !== 'dog');
         say('附近的冒險者（' + list.length + '）：' + (list.map((a) => a.name + ' Lv.' + a.level + (a.clan ? '[' + a.clan + ']' : '')).join('、') || '沒有人'));
         break;
@@ -105,8 +120,10 @@ const Chat = {
       case 'w': case 'whisper': {
         const name = args[0], msg = args.slice(1).join(' ');
         if (!name || !msg) { say('用法：/w 名字 訊息', 'warn'); break; }
-        const t = [...G.map.actors, ...G.map.npcs].find((a) => a.name === name && !a.dead);
         UI.log('（悄悄話給 ' + name + '）' + msg, 'whisper');
+        if (Online.find(name) && Online.whisper(name, msg)) break;
+        const t = [...G.map.actors, ...G.map.npcs].find((a) => a.name === name && !a.dead);
+        if (!t && Online.active) { Online.whisper(name, msg); break; }
         if (!t) { say(name + ' 不在線上或不在這張地圖。', 'warn'); break; }
         this.reply(msg, t, true);
         break;
@@ -125,7 +142,7 @@ const Chat = {
         setPetMode(m); break;
       }
       case 'pet': UI.toggle('pet'); break;
-      case 'c': case 'clan': { const msg = args.join(' '); if (!msg) { say('用法：/c 訊息', 'warn'); break; } clanChat(msg); break; }
+      case 'c': case 'clan': { const msg = args.join(' '); if (!msg) { say('用法：/c 訊息', 'warn'); break; } clanChat(msg); Online.clan(msg); break; }
       case 'auto': useHotbarEntry({ kind: 'auto' }); break;
       case 'stuck': if (p.dead) break; say('你被傳送回村莊。'); goHome(); break;
       case 'clear': $('#chatLog').innerHTML = ''; break;

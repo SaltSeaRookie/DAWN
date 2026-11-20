@@ -88,9 +88,120 @@ const LocalBackend = {
   },
 };
 
+// ===== 連線模式：WebSocket 伺服器（server/server.js）=====
+// 帳號、角色存檔、聊天與玩家位置由伺服器處理；怪物與戰鬥仍在瀏覽器計算。
+// 角色資料在登入時整批取得並保留在本機快取，所以 list/load 仍是同步的。
+const RemoteBackend = {
+  name: 'remote',
+  ws: null, url: '', rid: 0, pending: new Map(), cache: null, token: null, connected: false, listeners: {}, online: 0,
+  on(t, fn) { (this.listeners[t] = this.listeners[t] || []).push(fn); },
+  emit(t, m) { for (const fn of this.listeners[t] || []) { try { fn(m); } catch (e) { console.error(e); } } },
+  open(url, timeout = 2500) {
+    this.url = url;
+    return new Promise((resolve) => {
+      let done = false;
+      const fin = (ok) => { if (done) return; done = true; clearTimeout(tm); resolve(ok); };
+      let ws;
+      try { ws = new WebSocket(url); } catch (e) { resolve(false); return; }
+      const tm = setTimeout(() => { try { ws.close(); } catch (e) { /* */ } fin(false); }, timeout);
+      ws.onopen = async () => {
+        this.ws = ws; this.connected = true;
+        const r = await this.call('hello', {}, 2000);
+        if (r && r.ok) this.online = r.online || 0;
+        fin(!!(r && r.ok));
+      };
+      ws.onerror = () => fin(false);
+      ws.onclose = () => {
+        fin(false);
+        if (this.ws !== ws) return;
+        this.ws = null; this.connected = false;
+        for (const [, p] of this.pending) p({ ok: false, error: '與伺服器的連線中斷了。' });
+        this.pending.clear();
+        this.emit('close', {});
+      };
+      ws.onmessage = (ev) => {
+        let m; try { m = JSON.parse(ev.data); } catch (e) { return; }
+        if (m.re !== undefined) { const p = this.pending.get(m.re); if (p) { this.pending.delete(m.re); p(m); } return; }
+        this.emit(m.t, m);
+      };
+    });
+  },
+  call(t, data, timeout = 8000) {
+    return new Promise((resolve) => {
+      if (!this.ws || this.ws.readyState !== 1) { resolve({ ok: false, error: '尚未連線到伺服器。' }); return; }
+      const rid = ++this.rid;
+      this.pending.set(rid, resolve);
+      setTimeout(() => { if (this.pending.has(rid)) { this.pending.delete(rid); resolve({ ok: false, error: '伺服器沒有回應。' }); } }, timeout);
+      this.ws.send(JSON.stringify(Object.assign({ t, rid }, data)));
+    });
+  },
+  post(t, data) { if (this.ws && this.ws.readyState === 1) { this.ws.send(JSON.stringify(Object.assign({ t }, data))); return true; } return false; },
+  setCache(r) { this.cache = { chars: {}, meta: r.meta || {} }; for (const c of r.chars || []) this.cache.chars[c.name] = c; this.token = r.token; },
+  // 斷線後自動重新連線並恢復登入
+  async reconnect() {
+    if (!this.token) return false;
+    if (!(await this.open(this.url))) return false;
+    const r = await this.call('resume', { token: this.token });
+    if (!r.ok) return false;
+    this.setCache(r);
+    return true;
+  },
+  auth: {
+    async login(account, pw) {
+      const r = await RemoteBackend.call('login', { account, pw });
+      if (!r.ok) return r;
+      RemoteBackend.setCache(r);
+      return { ok: true, session: { account: r.account } };
+    },
+    async register(account, pw) {
+      const r = await RemoteBackend.call('register', { account, pw });
+      if (!r.ok) return r;
+      RemoteBackend.setCache(r);
+      return { ok: true, session: { account: r.account } };
+    },
+  },
+  meta: {
+    get(session, key) { const c = RemoteBackend.cache; return c ? c.meta[key] : undefined; },
+    set(session, key, val) { const c = RemoteBackend.cache; if (c) c.meta[key] = val; RemoteBackend.call('meta', { key, val }); },
+  },
+  chars: {
+    list() { const c = RemoteBackend.cache; return c ? Object.values(c.chars).sort((x, y) => (x.created || 0) - (y.created || 0)) : []; },
+    async create(session, data) {
+      if (typeof isReservedName === 'function' && isReservedName(data.name)) return { ok: false, error: '這個名稱是保留名稱，請換一個。' };
+      const r = await RemoteBackend.call('create', { data });
+      if (r.ok) { data.created = data.created || Date.now(); RemoteBackend.cache.chars[data.name] = data; }
+      return r;
+    },
+    remove(session, name) { if (RemoteBackend.cache) delete RemoteBackend.cache.chars[name]; RemoteBackend.call('remove', { name }); return { ok: true }; },
+    load(session, name) { const c = RemoteBackend.cache; return c ? JSON.parse(JSON.stringify(c.chars[name] || null)) : null; },
+    save(session, data) {
+      if (RemoteBackend.cache) RemoteBackend.cache.chars[data.name] = data;
+      const ok = RemoteBackend.post('save', { data });
+      return { ok, error: ok ? '' : '與伺服器斷線，存檔暫存在本機，重新連線後會再上傳。' };
+    },
+  },
+};
+
 const Net = {
   backend: LocalBackend,
   session: null,
+  get online() { return this.backend === RemoteBackend; },
+  // 尋找伺服器：網址參數 ?server=wss://… 優先；用 http(s) 開啟時嘗試同一台主機的 /ws；?offline 強制本機模式
+  serverUrl() {
+    const q = new URLSearchParams(location.search);
+    if (q.has('offline')) return null;
+    if (q.get('server')) return q.get('server');
+    try { const s = localStorage.getItem('dawnlands_server'); if (s) return s; } catch (e) { /* */ }
+    if (!/^https?:$/.test(location.protocol)) return null;
+    return (location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + '/ws';
+  },
+  async autoConnect() {
+    const url = this.serverUrl();
+    if (url && await RemoteBackend.open(url)) { this.backend = RemoteBackend; return true; }
+    this.backend = LocalBackend;
+    return false;
+  },
+  useLocal() { this.backend = LocalBackend; try { if (RemoteBackend.ws) RemoteBackend.ws.close(); } catch (e) { /* */ } },
   get auth() { return this.backend.auth; },
   get chars() { return this.backend.chars; },
   get meta() { return this.backend.meta; },

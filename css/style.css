@@ -171,6 +171,7 @@ body:not(.in-game) #hud, body:not(.in-game) #minimapWrap, body:not(.in-game) #bu
 #chatLog .level { color: #ffd76a; }
 #chatLog .quest { color: #a8ff9a; }
 #chatLog .whisper { color: #ff9ae8; }
+#chatLog .world { color: #ffd0a0; }
 #chatLog .gm { color: #ffb040; font-weight: bold; }
 #chatInput { height: 22px; background: #0c0b0a; border: 1px solid #4a4030; color: #fff; padding: 0 6px; font-size: 13px; border-radius: 3px; outline: none; }
 #chatInput:focus { border-color: var(--gold); }
@@ -253,6 +254,9 @@ body:not(.in-game) #hud, body:not(.in-game) #minimapWrap, body:not(.in-game) #bu
 .cw-doll .slot { cursor: pointer; }
 .special { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
 .special .slot { width: 44px; cursor: pointer; }
+.autobuff { margin-top: 8px; padding: 6px; background: rgba(0,0,0,0.25); border: 1px solid #3a3228; border-radius: 3px; display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+.autobuff .lbl { width: 100%; font-size: 12px; color: var(--dim); margin: 0 0 2px; }
+.slot .abadge { position: absolute; left: 1px; top: 1px; font-size: 9px; line-height: 11px; padding: 0 2px; background: #3a7a3a; color: #e8ffe0; border-radius: 2px; pointer-events: none; }
 .spell-foot { display: flex; justify-content: space-between; gap: 6px; margin-top: 8px; padding: 6px; background: rgba(0,0,0,0.3); border: 1px solid #3a3228; border-radius: 3px; font-size: 12px; color: var(--dim); }
 .spell-foot b { color: #bfe0ff; font-family: Georgia, serif; }
 .npc-head { margin-bottom: 6px; }
@@ -372,3 +376,8 @@ body:not(.in-game) #hud, body:not(.in-game) #minimapWrap, body:not(.in-game) #bu
 
 .expmini { height: 3px; background: #0c0b0a; border-radius: 2px; overflow: hidden; margin-top: 2px; }
 .expmini div { height: 100%; background: linear-gradient(#ffd060, #a06010); }
+
+/* 登入畫面的伺服器狀態 */
+.netstatus { margin-top: 10px; font-size: 12px; color: var(--dim); text-align: center; }
+.netstatus.on { color: #8ef0a0; }
+.netstatus a { color: #c9a55a; cursor: pointer; text-decoration: underline; margin-left: 6px; }

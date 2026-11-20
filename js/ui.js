@@ -433,16 +433,18 @@ const UI = {
       const c = el('div', 'slot' + (has ? '' : ' locked'));
       c.appendChild(iconCanvas(id, 34, 'spell'));
       c.appendChild(el('span', 'qty', s.mp));
+      if (has && p.autoBuff && p.autoBuff[id] && autoBuffable(id)) c.appendChild(el('span', 'abadge', '自動'));
       c.addEventListener('mouseenter', (e) => {
         const t = $('#tip');
         t.innerHTML = '<b>' + s.name + '</b><div>第 ' + s.circle + ' 階　消耗 MP ' + s.mp + (s.aoe ? '　範圍 ' + s.aoe : '') + '</div><div>' + esc(s.desc) + '</div>' + (s.dur ? '<div class="dim">持續 ' + s.dur + ' 秒</div>' : '') +
-          (has ? '<div class="dim">點擊施放・拖曳到快捷列</div>' : '<div class="bad">尚未學會（Lv.' + s.learn[p.cls] + ' 可學，需要魔法書）</div>');
+          (has ? '<div class="dim">點擊施放・拖曳到快捷列' + (autoBuffable(id) ? '・右鍵切換自動施放' : '') + '</div>' : '<div class="bad">尚未學會（Lv.' + s.learn[p.cls] + ' 可學，需要魔法書）</div>');
         t.style.display = 'block'; this.placeTip(t, c);
       });
       c.addEventListener('mouseleave', () => this.hideTip());
       if (has) {
         c.addEventListener('pointerdown', (e) => { if (e.button === 0) this.dragStart(e, { kind: 'spell', id }); });
         c.addEventListener('click', () => { if (this.wasDrag()) return; this.hideTip(); castSpell(id); });
+        if (autoBuffable(id)) c.addEventListener('contextmenu', (e) => { e.preventDefault(); this.toggleAutoBuff(id); });
       }
       grid.appendChild(c);
     }
@@ -457,10 +459,29 @@ const UI = {
     sp2.appendChild(au);
     sp2.appendChild(el('div', 'dim small', '自動狩獵（可拖到快捷列，或輸入 /auto 開關）'));
     w.body.appendChild(sp2);
+    // 自動施放增益魔法
+    const ab = list.filter((id) => autoBuffable(id) && p.spells.includes(id));
+    const abox = el('div', 'autobuff');
+    abox.appendChild(el('div', 'lbl', '自動施放（效果快結束且魔力足夠時自動重新施放）'));
+    if (!ab.length) abox.appendChild(el('div', 'dim small', '學會防護術、加速術、祝福鎧甲等持續型魔法後，可以在這裡設定自動施放。'));
+    for (const id of ab) {
+      const on = !!(p.autoBuff && p.autoBuff[id]);
+      const b = el('button', 'btn sm' + (on ? ' on' : ''), (on ? '✓ ' : '') + SPELLS[id].name);
+      b.onclick = () => this.toggleAutoBuff(id);
+      abox.appendChild(b);
+    }
+    w.body.appendChild(abox);
     const f = el('div', 'spell-foot');
     f.innerHTML = '<span>S.power 魔攻 <b>' + p.d.sp + '</b></span><span>M.resist 魔防 <b>' + p.d.mr + '%</b></span><span>魔法等級 <b>' + p.d.mlevel + '</b></span>';
     w.body.appendChild(f);
     w.body.appendChild(el('div', 'dim small', '灰色為尚未學會的魔法。到魔法商人購買魔法書學習，高階魔法書需要從強大的怪物身上取得。'));
+  },
+
+  toggleAutoBuff(id) {
+    const p = G.player; p.autoBuff = p.autoBuff || {};
+    p.autoBuff[id] = !p.autoBuff[id];
+    this.log('自動施放「' + SPELLS[id].name + '」：' + (p.autoBuff[id] ? '開啟' : '關閉'), 'sys');
+    SFX.play('click'); this.renderSpell();
   },
 
   renderClan() {
@@ -512,7 +533,7 @@ const UI = {
     const b2 = el('button', 'btn', '選擇角色'); b2.onclick = () => { exitWorld(); this.leaveGame(); Scenes.show('select'); };
     row.appendChild(b0); row.appendChild(b1); row.appendChild(b2);
     w.body.appendChild(row);
-    w.body.appendChild(el('div', 'dim small', '版本 v' + GAME_VERSION + '・模式：本機（資料儲存在這個瀏覽器）。帳號：' + esc(Net.session ? Net.session.account : '')));
+    w.body.appendChild(el('div', 'dim small', '版本 v' + GAME_VERSION + (Net.online ? '・模式：線上（資料儲存在伺服器' + (RemoteBackend.connected ? '' : '，目前斷線中') + '）。帳號：' : '・模式：本機（資料儲存在這個瀏覽器）。帳號：') + esc(Net.session ? Net.session.account : '')));
     const vb = el('button', 'btn sm link', '檢查更新'); vb.onclick = async () => { await Version.check(); if (!Version.remote) this.log('目前已是最新版本 v' + GAME_VERSION + '。', 'sys'); }; w.body.appendChild(vb);
   },
 

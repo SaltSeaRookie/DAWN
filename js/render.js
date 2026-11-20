@@ -141,7 +141,7 @@ function render() {
       const o = W.objs[oi]; if (!o) continue;
       list.push({ d: i + j + 1 + (o.kind === 'ship' ? 3 : 0), o });
     }
-  const ents = [p, ...m.npcs, ...m.actors];
+  const ents = [p, ...m.npcs, ...m.actors, ...Online.visible()];
   for (const e of ents) {
     const [sx, sy] = S(e.x, e.y);
     if (sx < -160 || sx > VW + 160 || sy < -60 || sy > VH + 220) { e._bb = null; continue; }
@@ -336,6 +336,7 @@ function playerLook(e) {
 }
 function nameColor(e) {
   if (e === G.player) return e.pinkT > 0 ? '#d070ff' : alignColor(e.align);
+  if (e.kind === 'remote') return e.pink ? '#d070ff' : alignColor(e.align || 0);
   if (e.kind === 'pker') return '#ff4a3a';
   if (e.kind === 'fighter') return e.grudge.has(G.player.id) && G.player.pinkT > 0 ? '#ff9a5a' : e.align < 0 ? '#ff4a3a' : '#c8d8ff';
   if (e.kind === 'ally') return '#8affa0';
@@ -455,6 +456,7 @@ function drawEntity(e, S, labels) {
     } else if (e.kind !== 'dog') {
       if (e === p) hpBar(sx, top - 2, 36, p.hp / p.maxHp, '#d02a20');
       else if (e.kind === 'fighter' || e.kind === 'pker' || e.kind === 'ally' || e.kind === 'townguard') { if (e.hp < e.maxHp) hpBar(sx, top - 2, 30, e.hp / e.maxHp, '#d02a20'); }
+      else if (e.kind === 'remote' && e.hp < 1) hpBar(sx, top - 2, 30, e.hp, '#d02a20');
       const nm = e.name;
       const clan = e === p ? (p.clan ? p.clan.name : null) : e.clan;
       const em = e === p ? (p.clan ? p.clan.emblem : null) : e.emblem;
@@ -464,7 +466,7 @@ function drawEntity(e, S, labels) {
       if (em) drawEmblem(ctx, em, sx - w / 2 - 10, yy - 11, 13);
       y = yy - 14;
       if (clan) { ctx.font = '11px sans-serif'; outlineText('[' + clan + ']', sx, y, '#b8e0a8'); y -= 13; }
-      if (e === p && ownsCastle()) { drawCrown(ctx, sx, y - 6, G.t, 1.1); y -= 20; }
+      if ((e === p && ownsCastle()) || (e.kind === 'remote' && e.crown)) { drawCrown(ctx, sx, y - 6, G.t, 1.1); y -= 20; }
     }
     if (e.say && e.sayT > 0) bubble(e.say, sx, y - 4);
   });

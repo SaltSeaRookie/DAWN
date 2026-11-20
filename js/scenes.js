@@ -23,6 +23,28 @@ const Scenes = {
     this.buildCreate();
     try { const last = localStorage.getItem('dawnlands_last_account'); if (last) $('#lAccount').value = last; } catch (e) { /* */ }
     this.show('login');
+    this.connect();
+  },
+  // 尋找多人連線伺服器；找不到就使用本機模式
+  async connect() {
+    const st = $('#netStatus');
+    st.className = 'netstatus'; st.textContent = '正在尋找伺服器…';
+    const ok = await Net.autoConnect();
+    this.netUI(ok);
+  },
+  netUI(ok) {
+    const st = $('#netStatus');
+    if (ok) {
+      st.className = 'netstatus on';
+      st.innerHTML = '● 線上模式：已連線到伺服器（目前 ' + RemoteBackend.online + ' 人在線）<a id="netLocal">改用本機模式</a>';
+      $('#modeNote').textContent = '線上模式：帳號與角色儲存在伺服器，可以看到其他玩家並一起聊天';
+      $('#netLocal').onclick = () => { Net.useLocal(); this.netUI(false); };
+    } else {
+      st.className = 'netstatus';
+      st.innerHTML = '○ 本機模式' + (Net.serverUrl() ? '（沒有連上伺服器）<a id="netRetry">重新連線</a>' : '');
+      $('#modeNote').textContent = '本機模式：帳號與角色儲存在這台裝置的瀏覽器中';
+      const b = $('#netRetry'); if (b) b.onclick = () => this.connect();
+    }
   },
   show(name) {
     this.cur = name;
@@ -145,7 +167,7 @@ const Scenes = {
     const sp = c.spells.map((s) => SPELLS[s].name).join('、');
     $('#cStart').textContent = '初始裝備：' + c.start.filter((x) => x[2]).map((x) => ITEMS[x[0]].name).join('、') + (sp ? '　初始魔法：' + sp : '');
   },
-  create() {
+  async create() {
     const name = $('#cName').value.trim();
     const msg = $('#cMsg');
     if (!/^[一-鿿A-Za-z0-9]{2,8}$/.test(name)) { msg.textContent = '名稱需為 2～8 個中文、英文或數字。'; SFX.play('error'); return; }
@@ -155,7 +177,7 @@ const Scenes = {
     const c = CLASSES[this.cc.cls];
     const stats = {}; for (const s of STATS) stats[s] = c.base[s] + this.cc.add[s];
     const data = newCharacterData(name, this.cc.cls, stats);
-    const r = Net.chars.create(Net.session, data);
+    const r = await Net.chars.create(Net.session, data);
     if (!r.ok) { msg.textContent = r.error; SFX.play('error'); return; }
     SFX.play('levelup');
     this.show('select');

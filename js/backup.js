@@ -37,7 +37,7 @@ const Backup = {
     try { await navigator.clipboard.writeText(code); return { ok: true, code }; } catch (e) { return { ok: false, code }; }
   },
   // 匯入到目前帳號；同名角色可選擇覆蓋或改名
-  importChars(chars) {
+  async importChars(chars) {
     const res = [];
     for (const c0 of chars) {
       const c = JSON.parse(JSON.stringify(c0));
@@ -48,8 +48,8 @@ const Backup = {
         let n = 2; const base = c.name.slice(0, 6); while (mine.find((x) => x.name === base + n)) n++; c.name = base + n;
       }
       if (Net.chars.list(Net.session).length >= MAX_CHARS) { res.push(c.name + '（角色欄位已滿，略過）'); continue; }
-      let r = Net.chars.create(Net.session, c);
-      if (!r.ok && /名稱/.test(r.error)) { c.name = c.name.slice(0, 6) + randi(10, 99); r = Net.chars.create(Net.session, c); }
+      let r = await Net.chars.create(Net.session, c);
+      if (!r.ok && /名稱/.test(r.error)) { c.name = c.name.slice(0, 6) + randi(10, 99); r = await Net.chars.create(Net.session, c); }
       res.push(c.name + (r.ok ? '' : '（' + r.error + '）'));
     }
     return res;
@@ -66,10 +66,10 @@ const Backup = {
     box.querySelector('#impText').addEventListener('keydown', (e) => e.stopPropagation());
     box.querySelector('#impCancel').onclick = () => box.remove();
     box.querySelector('#impFile').onchange = (e) => { const f = e.target.files[0]; if (!f) return; f.text().then((t) => { box.querySelector('#impText').value = t; }); };
-    box.querySelector('#impOk').onclick = () => {
+    box.querySelector('#impOk').onclick = async () => {
       try {
         const chars = this.fromAny(box.querySelector('#impText').value);
-        const res = this.importChars(chars);
+        const res = await this.importChars(chars);
         box.remove(); SFX.play('quest');
         alert('匯入完成：\n' + res.join('\n'));
         if (onDone) onDone();

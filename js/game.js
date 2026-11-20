@@ -424,12 +424,12 @@ function serializePlayer(p) {
     v: 2, name: p.name, cls: p.cls, level: p.level, exp: p.exp, base: p.base, statPoints: p.statPoints,
     baseMaxHp: p.baseMaxHp, baseMaxMp: p.baseMaxMp, hp: Math.ceil(p.hp), mp: Math.floor(p.mp), gold: p.gold, align: p.align,
     inv: p.inv, wh: p.wh, equip: p.equip, spells: p.spells, hotbar: p.hotbar, quest: p.quest, kills: p.kills, pkCount: p.pkCount, petMode: p.petMode,
-    clan: p.clan, castle: p.castle, homeTown: p.homeTown, mapId: p.mapId, x: p.x, y: p.y, day: G.day, created: p.created, playTime: p.playTime || 0,
+    clan: p.clan, castle: p.castle, homeTown: p.homeTown, autoBuff: p.autoBuff || {}, mapId: p.mapId, x: p.x, y: p.y, day: G.day, created: p.created, playTime: p.playTime || 0,
   };
 }
 function loadPlayer(d) {
   const p = new Player({ name: d.name, cls: d.cls, stats: d.base });
-  for (const k of ['level', 'exp', 'statPoints', 'baseMaxHp', 'baseMaxMp', 'hp', 'mp', 'gold', 'align', 'inv', 'wh', 'spells', 'hotbar', 'quest', 'kills', 'pkCount', 'petMode', 'clan', 'castle', 'homeTown', 'mapId', 'created', 'playTime'])
+  for (const k of ['level', 'exp', 'statPoints', 'baseMaxHp', 'baseMaxMp', 'hp', 'mp', 'gold', 'align', 'inv', 'wh', 'spells', 'hotbar', 'quest', 'kills', 'pkCount', 'petMode', 'clan', 'castle', 'homeTown', 'autoBuff', 'mapId', 'created', 'playTime'])
     if (d[k] !== undefined) p[k] = d[k];
   for (const s of SLOTS) p.equip[s] = (d.equip && d.equip[s]) || null;
   for (const i of p.inv) i.uid = G.uid++;
@@ -1062,6 +1062,22 @@ function dropFromInv(inst, qty) {
 }
 
 // ---------- 魔法 ----------
+// 自動施放：持續型增益魔法快結束時自動重新施放
+const AUTO_BUFF_EXCLUDE = ['warcry'];
+function autoBuffable(id) { const s = SPELLS[id]; return s && s.target === 'self' && s.dur && !AUTO_BUFF_EXCLUDE.includes(id); }
+function autoBuffTick(dt) {
+  const p = G.player; if (!p || p.dead || !p.autoBuff) return;
+  G.abT = (G.abT || 0) - dt; if (G.abT > 0) return;
+  G.abT = 0.5;
+  if (p.castCd > G.t || G.targeting) return;
+  for (const id in p.autoBuff) {
+    if (!p.autoBuff[id] || !autoBuffable(id) || !p.spells.includes(id)) continue;
+    if ((p.buffs[id] || 0) > 1.5) continue;
+    if (p.mp < SPELLS[id].mp) continue;
+    doCast(id, null);
+    return;
+  }
+}
 function castSpell(id) {
   const p = G.player; if (p.dead) return;
   const s = SPELLS[id];
@@ -1614,7 +1630,7 @@ function frameBody(ts) {
     updateSpawners(dt);
     updateSiege(dt);
     updateFx(dt);
-    updateHazards(dt);
+    updateHazards(dt); autoBuffTick(dt); if (typeof Online !== "undefined") Online.tick(dt);
     volcanoTick(dt);
     if (Settings.autoPickup !== false && !p.dead) autoPickup(dt);
     if (G.autoHunt && !p.action && !p.dead) { G.autoT = (G.autoT || 0) - dt; if (G.autoT <= 0) { G.autoT = 0.5; autoNext(); } }
@@ -1649,6 +1665,7 @@ function pickAt(mx, my) {
   };
   for (const a of G.map.actors) if (!a.dead) test(a, a.kind === 'villager' || a.kind === 'dog' ? 'villager' : 'actor');
   for (const n of G.map.npcs) test(n, 'npc');
+  for (const r of Online.visible()) if (!r.dead) test(r, 'remote');
   for (const it of G.map.items) test(it, 'item');
   for (const pt of G.world.portals) test(pt, 'portal');
   for (const o of G.boards || []) test(o, 'board');
@@ -1675,6 +1692,7 @@ function onPointerDown(e) {
     return;
   }
   if (hit) {
+    if (hit.kind === 'remote') { const ci = $('#chatInput'); ci.value = '/w ' + hit.e.name + ' '; ci.focus(); UI.log(hit.e.name + '（玩家・Lv.' + hit.e.level + ' ' + (CLASSES[hit.e.cls] ? CLASSES[hit.e.cls].name : '') + (hit.e.clan ? '・' + hit.e.clan : '') + '）', 'sys'); return; }
     if (hit.kind === 'actor') {
       const a = hit.e;
       if (playerCanAttack(a, force)) Net.intent('attack', { target: a, force });
@@ -1766,9 +1784,11 @@ function enterWorld(saveData) {
   Music.play('field');
   for (const inst of p.inv) if (inst.pet && inst.pet.out) { inst.pet.out = false; if (!companions('pet').length) spawnPet(inst); }
   UI.refresh();
+  Online.enter();
 }
 function exitWorld() {
   saveGame(true);
+  Online.leave();
   G.running = false; G.player = null;
   UI.closeAll();
 }
@@ -1788,6 +1808,7 @@ window.addEventListener('load', () => {
   window.addEventListener('beforeunload', () => { if (G.running) saveGame(true); });
   buildTileTextures(); buildObjectSprites(); buildExtraSprites();
   UI.init();
+  Online.init();
   Scenes.init();
   requestAnimationFrame(frame);
 });

@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 <title>晨曦大陸 Dawnlands</title>
-<link rel="stylesheet" href="css/style.css?v=2.8.0">
+<link rel="stylesheet" href="css/style.css?v=2.9.0">
 </head>
 <body class="in-scene">
 <canvas id="game"></canvas>
@@ -30,7 +30,8 @@
         <button type="button" id="btnQuit" class="btn">離開</button>
       </div>
     </form>
-    <div class="note"><span class="verLabel"></span>・本機模式：帳號與角色儲存在這台裝置的瀏覽器中，<br>沒有帳號時輸入新的帳號密碼即可建立。</div>
+    <div id="netStatus" class="netstatus">正在尋找伺服器…</div>
+    <div class="note" id="loginNote"><span class="verLabel"></span>・<span id="modeNote">本機模式：帳號與角色儲存在這台裝置的瀏覽器中</span>，<br>沒有帳號時輸入新的帳號密碼即可建立。</div>
   </div>
 </div>
 
@@ -138,26 +139,27 @@
   </div>
 </div>
 
-<script src="js/version.js?v=2.8.0"></script>
-<script src="assets/music/theme.js?v=2.8.0"></script>
-<script src="js/util.js?v=2.8.0"></script>
-<script src="js/data.js?v=2.8.0"></script>
-<script src="js/names.js?v=2.8.0"></script>
-<script src="js/net.js?v=2.8.0"></script>
-<script src="js/world.js?v=2.8.0"></script>
-<script src="js/assets.js?v=2.8.0"></script>
-<script src="js/sprites.js?v=2.8.0"></script>
-<script src="js/audio.js?v=2.8.0"></script>
-<script src="js/render.js?v=2.8.0"></script>
-<script src="js/companions.js?v=2.8.0"></script>
-<script src="js/life.js?v=2.8.0"></script>
-<script src="js/backup.js?v=2.8.0"></script>
-<script src="js/chat.js?v=2.8.0"></script>
-<script src="js/ui.js?v=2.8.0"></script>
-<script src="js/clan.js?v=2.8.0"></script>
-<script src="js/castle.js?v=2.8.0"></script>
-<script src="js/dragon.js?v=2.8.0"></script>
-<script src="js/scenes.js?v=2.8.0"></script>
-<script src="js/game.js?v=2.8.0"></script>
+<script src="js/version.js?v=2.9.0"></script>
+<script src="assets/music/theme.js?v=2.9.0"></script>
+<script src="js/util.js?v=2.9.0"></script>
+<script src="js/data.js?v=2.9.0"></script>
+<script src="js/names.js?v=2.9.0"></script>
+<script src="js/net.js?v=2.9.0"></script>
+<script src="js/world.js?v=2.9.0"></script>
+<script src="js/assets.js?v=2.9.0"></script>
+<script src="js/sprites.js?v=2.9.0"></script>
+<script src="js/audio.js?v=2.9.0"></script>
+<script src="js/render.js?v=2.9.0"></script>
+<script src="js/companions.js?v=2.9.0"></script>
+<script src="js/life.js?v=2.9.0"></script>
+<script src="js/backup.js?v=2.9.0"></script>
+<script src="js/chat.js?v=2.9.0"></script>
+<script src="js/ui.js?v=2.9.0"></script>
+<script src="js/clan.js?v=2.9.0"></script>
+<script src="js/castle.js?v=2.9.0"></script>
+<script src="js/dragon.js?v=2.9.0"></script>
+<script src="js/scenes.js?v=2.9.0"></script>
+<script src="js/game.js?v=2.9.0"></script>
+<script src="js/online.js?v=2.9.0"></script>
 </body>
 </html>
