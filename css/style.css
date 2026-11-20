@@ -395,3 +395,11 @@ input.vaultamt { width: 72px; padding: 3px 5px; background: #12100d; color: #eee
 .merchire { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; margin-top: 6px; }
 .merchire .btn { height: auto; padding: 4px 2px; line-height: 1.3; font-size: 12px; }
 .btn.buffrow { display: flex; justify-content: space-between; align-items: center; width: 100%; text-align: left; font-size: 13px; }
+
+/* 商店排序與稀有度 */
+.shopsort { display: flex; align-items: center; gap: 4px; margin: 2px 0 6px; }
+.rarityhead { font-size: 12px; font-weight: bold; padding: 4px 4px 2px; border-bottom: 1px solid #3a3228; margin-top: 4px; }
+.rarityhead.r0, .rn0 { color: #e8e2d4; }
+.rarityhead.r1, .rn1 { color: #8fd0ff; }
+.rarityhead.r2, .rn2 { color: #c89aff; }
+.rarityhead.r3, .rn3 { color: #ffcf60; }

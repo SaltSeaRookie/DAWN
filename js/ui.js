@@ -15,9 +15,18 @@ function iconCanvas(id, size, kind = 'item') {
   return c;
 }
 
+// 稀有度：普通、精良、高級、稀有（依道具標記與價格判斷）
+const RARITY_NAMES = ['普通', '精良', '高級', '稀有'];
+function itemRarity(d) {
+  if (d.rare) return 3;
+  if (d.price >= 20000) return 2;
+  if (d.price >= 2500) return 1;
+  return 0;
+}
 const UI = {
   windows: {}, drag: null,
   init() {
+    try { this.shopSort = localStorage.getItem('dawnlands_shopsort') || 'price'; } catch (e) { this.shopSort = 'price'; }
     const menu = [['btnInv', 'inv'], ['btnChar', 'char'], ['btnSpell', 'spell'], ['btnPet', 'pet'], ['btnClan', 'clan'], ['btnMap', 'map'], ['btnSet', 'settings']];
     for (const [b, w] of menu) $('#' + b).onclick = () => { SFX.play('click'); this.toggle(w); };
     const bm = $('#btnMusic'), bs = $('#btnSfx');
@@ -569,8 +578,24 @@ const UI = {
     w.body.appendChild(tabs);
     const list = el('div', 'list');
     if (w.tab === 'buy') {
-      for (const id of (npc.town === 'oren' && SHOPS['oren_' + npc.role]) || SHOPS[npc.role]) {
+      // 排序：價格由低到高、由高到低、或依稀有度（同稀有度再依價格）
+      const mode = this.shopSort || 'price';
+      const sorts = el('div', 'shopsort');
+      sorts.appendChild(el('span', 'dim small', '排序：'));
+      for (const [k, l] of [['price', '價格 ↑'], ['priceDesc', '價格 ↓'], ['rarity', '稀有度']]) {
+        const b = el('button', 'btn sm' + (mode === k ? ' on' : ''), l);
+        b.onclick = () => { this.shopSort = k; try { localStorage.setItem('dawnlands_shopsort', k); } catch (e) { /* */ } this.renderShop(); };
+        sorts.appendChild(b);
+      }
+      w.body.appendChild(sorts);
+      const ids = ((npc.town === 'oren' && SHOPS['oren_' + npc.role]) || SHOPS[npc.role]).filter((id) => ITEMS[id]);
+      const byPrice = (a, b) => ITEMS[a].price - ITEMS[b].price;
+      ids.sort(mode === 'priceDesc' ? (a, b) => -byPrice(a, b) : mode === 'rarity' ? (a, b) => itemRarity(ITEMS[a]) - itemRarity(ITEMS[b]) || byPrice(a, b) : byPrice);
+      let lastR = -1;
+      for (const id of ids) {
         const d = ITEMS[id];
+        const rr = itemRarity(d);
+        if (mode === 'rarity' && rr !== lastR) { lastR = rr; list.appendChild(el('div', 'rarityhead r' + rr, RARITY_NAMES[rr])); }
         let sub = d.type === 'weapon' ? '攻擊 ' + d.dmg[0] + '-' + d.dmg[1] + (d.ranged ? ' 遠程' : '') : d.ac ? 'AC ' + d.ac : d.desc || '';
         let bad = false;
         if (d.cls && !d.cls.includes(p.cls)) { sub += '・' + CLASSES[p.cls].name + '不可用'; bad = true; }
@@ -578,7 +603,7 @@ const UI = {
         if (d.type === 'book') { const need = SPELLS[d.spell].learn[p.cls]; if (need === undefined) { sub = CLASSES[p.cls].name + '無法學習'; bad = true; } else sub = (p.spells.includes(d.spell) ? '已學會' : '學習等級 ' + need); }
         const row = el('div', 'li' + (bad ? ' bad' : ''));
         row.appendChild(iconCanvas(id, 28));
-        row.appendChild(el('div', 'li-n', '<b>' + d.name + '</b><span class="dim">' + esc(sub) + '</span>'));
+        row.appendChild(el('div', 'li-n', '<b class="rn' + rr + '">' + d.name + '</b><span class="dim">' + esc(sub) + '</span>'));
         row.appendChild(el('div', 'price', d.price.toLocaleString()));
         row.addEventListener('mouseenter', (e) => this.showTip({ id, qty: 1, ench: 0 }, e));
         row.addEventListener('mouseleave', () => this.hideTip());
