@@ -430,3 +430,65 @@ Object.assign(MONSTERS, {
     loot: [['iron_core', 1], ['bew_scroll', 0.5], ['bea_scroll', 0.5], ['royal_sword', 0.15], ['royal_bow', 0.15], ['royal_staff', 0.15], ['royal_plate', 0.12], ['royal_robe', 0.12], ['crown_ring', 0.15]] },
 });
 SHOPS.castleshop = ['royal_potion', 'clear_potion', 'haste_potion', 'bew_scroll', 'bea_scroll', 'ew_scroll', 'ea_scroll', 'silver_arrow'];
+
+// ===== 熾焰火山與炎皇火龍（v2.8）=====
+Object.assign(ITEMS, {
+  // 火龍系列裝備
+  flamelord_sword: { name: '炎皇之劍', type: 'weapon', wclass: 'claymore', dmg: [14, 30], dmgB: 3, hit: 2, spd: 1.15, range: 1.5, w: 210, price: 60000, safe: 6, lvl: 25, twoHand: true, cls: ['knight'], res: { fire: 20 }, rare: true, desc: '以炎皇火龍之牙鍛造的巨劍' },
+  dragonbreath_bow:{ name: '龍息長弓', type: 'weapon', wclass: 'bow', dmg: [9, 20], hit: 3, spd: 0.85, range: 8, ranged: true, w: 60, price: 60000, safe: 6, lvl: 25, twoHand: true, cls: ['ranger'], res: { fire: 15 }, rare: true },
+  magma_staff:     { name: '熔岩法杖', type: 'weapon', wclass: 'staff', dmg: [5, 13], sp: 7, mp: 50, mpr: 3, spd: 1.0, range: 1.4, w: 60, price: 60000, safe: 6, lvl: 25, twoHand: true, cls: ['mage', 'cleric'], res: { fire: 15 }, rare: true },
+  ember_mace:      { name: '餘燼聖錘', type: 'weapon', wclass: 'mace', dmg: [9, 19], sp: 3, undeadB: 6, spd: 0.95, range: 1.35, w: 110, price: 45000, safe: 6, lvl: 22, cls: ['cleric', 'knight'], res: { fire: 10 }, rare: true },
+  obsidian_blade:  { name: '黑曜石刀', type: 'weapon', wclass: 'sword', dmg: [8, 17], hit: 1, spd: 0.8, range: 1.4, w: 70, price: 9000, safe: 6, lvl: 20, cls: ['knight', 'ranger'] },
+  dragonscale_armor:{ name: '火龍鱗甲', type: 'armor', slot: 'armor', ac: 10, mr: 15, hp: 50, w: 400, price: 70000, safe: 4, lvl: 25, cls: ['knight', 'cleric'], res: { fire: 30 }, rare: true },
+  flame_robe:      { name: '炎皇法袍', type: 'armor', slot: 'armor', ac: 4, mr: 28, sp: 3, mpr: 4, mp: 50, w: 50, price: 70000, safe: 4, lvl: 25, cls: ['mage', 'cleric'], res: { fire: 25 }, rare: true },
+  drake_leather:   { name: '龍皮獵裝', type: 'armor', slot: 'armor', ac: 6, er: 5, w: 130, price: 60000, safe: 4, lvl: 25, cls: ['ranger'], res: { fire: 25 }, rare: true },
+  dragon_helm:     { name: '龍角頭盔', type: 'armor', slot: 'helm', ac: 4, mr: 5, w: 70, price: 30000, safe: 4, lvl: 22, cls: ['knight', 'cleric', 'ranger'], res: { fire: 10 }, rare: true },
+  dragonwing_cloak:{ name: '龍翼斗篷', type: 'armor', slot: 'cloak', ac: 3, er: 3, move: 0.05, w: 25, price: 35000, safe: 4, lvl: 22, res: { fire: 15 }, rare: true, desc: '移動速度 +5%' },
+  dragon_aegis:    { name: '火龍之盾', type: 'armor', slot: 'shield', ac: 5, mr: 15, w: 230, price: 40000, safe: 4, lvl: 22, cls: ['knight', 'cleric'], res: { fire: 20 }, rare: true },
+  dragonclaw_gloves:{ name: '龍爪手套', type: 'armor', slot: 'gloves', ac: 2, stat: { str: 1, dex: 1 }, w: 30, price: 30000, safe: 4, lvl: 22, rare: true },
+  cinder_boots:    { name: '炎紋長靴', type: 'armor', slot: 'boots', ac: 2, move: 0.12, w: 30, price: 25000, safe: 4, lvl: 20, res: { fire: 10 }, rare: true, desc: '移動速度 +12%' },
+  dragonheart:     { name: '火龍之心', type: 'acc', slot: 'amulet', hp: 60, mp: 30, stat: { con: 1 }, w: 5, price: 50000, res: { fire: 25 }, rare: true },
+  dragoneye_ring:  { name: '龍眼戒指', type: 'acc', slot: 'ring', stat: { int: 1, wis: 1 }, sp: 1, w: 2, price: 35000, rare: true },
+  magma_ring:      { name: '熔岩戒指', type: 'acc', slot: 'ring', res: { fire: 30 }, hp: 20, w: 2, price: 6000 },
+  basalt_mail:     { name: '玄武岩鎧', type: 'armor', slot: 'armor', ac: 8, w: 460, price: 15000, safe: 4, lvl: 20, cls: ['knight'], res: { fire: 15 } },
+  ash_robe:        { name: '灰燼長袍', type: 'armor', slot: 'armor', ac: 3, mr: 18, sp: 2, mpr: 2, w: 45, price: 15000, safe: 4, lvl: 20, cls: ['mage', 'cleric'], res: { fire: 15 } },
+  // 消耗品
+  fireres_potion:  { name: '抗火藥水', type: 'consume', icon: 'potion', w: 2, price: 300, stack: true, desc: '5 分鐘內火屬性抗性 +30%，能抵擋岩漿的熱氣' },
+  dragonblood:     { name: '龍血藥水', type: 'consume', icon: 'potion', w: 2, price: 800, stack: true, desc: '恢復 300 點體力與 60 點魔力' },
+  exp_scroll:      { name: '經驗祝福卷軸', type: 'consume', icon: 'scroll', w: 1, price: 3000, stack: true, rare: true, desc: '10 分鐘內狩獵經驗值 +50%' },
+  volcano_scroll:  { name: '火山傳送卷軸', type: 'consume', icon: 'scroll', w: 1, price: 600, stack: true, desc: '傳送到熾焰火山的入口' },
+  // 材料
+  dragon_scale:    { name: '火龍鱗片', type: 'junk', w: 10, price: 4000, stack: true, rare: true },
+  magma_core:      { name: '熔岩核心', type: 'junk', w: 12, price: 380, stack: true },
+  obsidian:        { name: '黑曜石', type: 'junk', w: 6, price: 160, stack: true },
+  sulfur:          { name: '硫磺結晶', type: 'junk', w: 2, price: 90, stack: true },
+});
+for (const id in ITEMS) { const it = ITEMS[id]; if (it.icon) continue; if (it.type === 'weapon') it.icon = it.wclass; else if (it.type === 'armor' || it.type === 'acc') it.icon = it.slot; else it.icon = 'junk'; }
+Object.assign(POTION_COLORS, { fireres_potion: '#ff6a20', dragonblood: '#8a0a1a' });
+Object.assign(SCROLL_COLORS, { exp_scroll: '#a0ffa0', volcano_scroll: '#ff8a40' });
+SHOPS.general.push('fireres_potion', 'volcano_scroll');
+SHOPS.smith.push('obsidian_blade', 'basalt_mail');
+SHOPS.magic.splice(4, 0, 'ash_robe');
+SHOPS.jewel.push('magma_ring');
+SHOPS.castleshop.push('exp_scroll', 'dragonblood');
+Object.assign(MONSTERS, {
+  lava_slime:  { name: '熔岩史萊姆', lvl: 23, hp: 300, dmg: [12, 22], ac: 12, mr: 30, exp: 290, speed: 2.0, atkSpd: 1.4, range: 1.3, aggro: true, aggroR: 4.5, sprite: 'slime', element: 'fire', gold: [40, 90],
+    loot: [['sulfur', 0.5], ['magma_core', 0.15], ['fireres_potion', 0.1], ['magma_ring', 0.008]] },
+  hellhound:   { name: '地獄犬', lvl: 24, hp: 320, dmg: [13, 25], ac: 12, mr: 20, exp: 310, speed: 3.6, atkSpd: 0.9, range: 1.25, aggro: true, aggroR: 7, sprite: 'wolf', color: '#5a1a10', eye: '#ffb030', scaleUp: 1.3, gold: [45, 100],
+    loot: [['obsidian', 0.4], ['clear_potion', 0.1], ['ew_scroll', 0.05], ['cinder_boots', 0.004]] },
+  salamander:  { name: '火焰蜥蜴人', lvl: 25, hp: 380, dmg: [14, 27], ac: 14, mr: 25, exp: 340, speed: 2.8, atkSpd: 1.15, range: 1.6, aggro: true, aggroR: 6, sprite: 'lizard', color: '#9a2a14', gold: [50, 110],
+    loot: [['obsidian', 0.4], ['dragonblood', 0.06], ['ea_scroll', 0.06], ['obsidian_blade', 0.02], ['dragon_helm', 0.004]] },
+  magma_golem: { name: '熔岩巨像', lvl: 26, hp: 560, dmg: [16, 30], ac: 18, mr: 30, exp: 420, speed: 1.6, atkSpd: 1.7, range: 1.6, aggro: true, aggroR: 4, sprite: 'golem', color: '#5a2a1a', gold: [60, 130],
+    loot: [['magma_core', 0.5], ['bea_scroll', 0.02], ['basalt_mail', 0.02], ['dragon_aegis', 0.004]] },
+  fire_spirit: { name: '炎魔', lvl: 25, hp: 300, dmg: [14, 26], ac: 10, mr: 45, exp: 360, speed: 3.0, atkSpd: 1.4, range: 5.5, proj: 'fire', magic: true, element: 'fire', aggro: true, aggroR: 7, sprite: 'fireelem', gold: [50, 110],
+    loot: [['sulfur', 0.4], ['blue_potion', 0.2], ['bew_scroll', 0.015], ['ash_robe', 0.02], ['dragoneye_ring', 0.004]] },
+  draconian:   { name: '龍人戰士', lvl: 27, hp: 480, dmg: [16, 32], ac: 17, mr: 30, exp: 470, speed: 2.9, atkSpd: 1.1, range: 1.7, aggro: true, aggroR: 6.5, sprite: 'lizard', color: '#4a1a2a', scaleUp: 1.45, gold: [70, 150],
+    loot: [['obsidian', 0.4], ['dragonblood', 0.1], ['exp_scroll', 0.01], ['dragonclaw_gloves', 0.004], ['dragonwing_cloak', 0.004]] },
+  fire_whelp:  { name: '幼火龍', lvl: 26, hp: 420, dmg: [15, 28], ac: 15, mr: 35, exp: 400, speed: 3.2, atkSpd: 1.3, range: 2.0, aggro: true, aggroR: 7, sprite: 'wyvern', color: '#d8601a', scaleUp: 0.7, gold: [60, 140],
+    loot: [['dragon_scale', 0.05], ['magma_core', 0.3], ['dragonblood', 0.1], ['bew_scroll', 0.02]] },
+  flame_dragon:{ name: '炎皇火龍', lvl: 35, hp: 7000, dmg: [26, 46], ac: 24, mr: 60, exp: 12000, speed: 2.2, atkSpd: 1.8, range: 3.0, aggro: true, aggroR: 10, boss: true, dragon: true, sprite: 'firedragon', gold: [3000, 6000], respawn: 420,
+    loot: [['dragon_scale', 1], ['dragon_scale', 1], ['dragon_scale', 0.5], ['exp_scroll', 0.5], ['bew_scroll', 0.6], ['bea_scroll', 0.6],
+      ['flamelord_sword', 0.15], ['dragonbreath_bow', 0.15], ['magma_staff', 0.15], ['ember_mace', 0.15], ['dragonscale_armor', 0.12], ['flame_robe', 0.12], ['drake_leather', 0.12],
+      ['dragon_helm', 0.2], ['dragonwing_cloak', 0.2], ['dragon_aegis', 0.15], ['dragonclaw_gloves', 0.15], ['cinder_boots', 0.2], ['dragonheart', 0.12], ['dragoneye_ring', 0.15]] },
+});
+QUESTS.push({ target: 'flame_dragon', count: 1, gold: 20000, exp: 30000, item: ['exp_scroll', 3], text: '赤岩峽谷深處的火山隘口後，沉睡著炎皇火龍。牠一旦甦醒，整片大陸都將化為焦土。帶上抗火藥水，去討伐牠吧！' });

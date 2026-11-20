@@ -1,14 +1,14 @@
 'use strict';
 // ===== 世界：地圖生成（原創大陸＋地下城）=====
 const TW = 64, TH = 32, HW = 32, HH = 16;
-const TILE = { GRASS: 0, DARKGRASS: 1, DIRT: 2, COBBLE: 3, SOIL: 4, WATER: 5, SAND: 6, CANYON: 7, DESERT: 8, BRIDGE: 9, DUNGEON: 10, SEA: 11, SNOW: 12 };
-const BIOME = { TOWN: 0, MEADOW: 1, FOREST: 2, BONE: 3, CANYON: 4, DESERT: 5, COAST: 6, CASTLE: 7, HIGHLAND: 8, PLAIN: 9, CRYPT: 10, JUNGLE: 11, BEACH: 12, COVE: 13 };
+const TILE = { GRASS: 0, DARKGRASS: 1, DIRT: 2, COBBLE: 3, SOIL: 4, WATER: 5, SAND: 6, CANYON: 7, DESERT: 8, BRIDGE: 9, DUNGEON: 10, SEA: 11, SNOW: 12, LAVA: 13, ASH: 14 };
+const BIOME = { TOWN: 0, MEADOW: 1, FOREST: 2, BONE: 3, CANYON: 4, DESERT: 5, COAST: 6, CASTLE: 7, HIGHLAND: 8, PLAIN: 9, CRYPT: 10, JUNGLE: 11, BEACH: 12, COVE: 13, VOLCANO: 14, LAIR: 15 };
 const BIOME_INFO = [
   { name: '村莊' }, { name: '碧波草原' }, { name: '幽影森林' }, { name: '骸骨荒原' }, { name: '赤岩峽谷' },
   { name: '灰燼沙漠' }, { name: '銀砂海岸' }, { name: '灰岩城' }, { name: '霜嶺高地' }, { name: '灰岩平原' }, { name: '地下墓穴' },
-  { name: '翡翠叢林' }, { name: '珊瑚海灘' }, { name: '海盜灣' },
+  { name: '翡翠叢林' }, { name: '珊瑚海灘' }, { name: '海盜灣' }, { name: '熾焰火山' }, { name: '炎皇巢穴' },
 ];
-const WATER_TILES = new Set([TILE.WATER, TILE.SEA]);
+const WATER_TILES = new Set([TILE.WATER, TILE.SEA, TILE.LAVA]);   // 不能走的液體地形
 
 function toScreen(x, y) { return { x: (x - y) * HW, y: (x + y) * HH }; }
 function toWorld(sx, sy) { return { x: (sx / HW + sy / HH) / 2, y: (sy / HH - sx / HW) / 2 }; }
@@ -19,7 +19,7 @@ class World {
     this.objs = []; this.decos = []; this.lights = [];
     this.towns = []; this.places = []; this.portals = []; this.npcSpots = []; this.gates = [];
     this.ambient = 0;
-    if (id === 'crypt') this.genCrypt(); else if (id === 'keep') this.genCrypt(true); else if (id === 'isle') this.genIsle(); else this.genOverworld();
+    if (id === 'crypt') this.genCrypt(); else if (id === 'keep') this.genCrypt(true); else if (id === 'isle') this.genIsle(); else if (id === 'volcano') this.genVolcano(); else this.genOverworld();
   }
   alloc(w, h) {
     this.w = w; this.h = h; const n = w * h;
@@ -288,6 +288,20 @@ class World {
     this.clearArea(best.x + 0.5, best.y + 0.5, 6, TILE.CANYON);
     this.carveRoad(best.x, best.y, 118, 42, R);
     this.places.push({ name: '飛龍巢穴', x: best.x, y: best.y, kind: 'boss', zone: 9 });
+    // 火山隘口：在峽谷靠近飛龍巢穴的地方
+    let gate = null, gd = 1e9;
+    for (let y = 8; y < H - 8; y++) for (let x = 8; x < W - 8; x++) {
+      if (this.biome[y * W + x] !== BIOME.CANYON || this.blockArr[y * W + x]) continue;
+      const d = Math.abs(dist(x, y, best.x, best.y) - 13) + Math.abs(dist(x, y, 100, 100) - dist(best.x, best.y, 100, 100) + 4) * 0.5;
+      if (d < gd) { gd = d; gate = { x, y }; }
+    }
+    this.volcanoGate = gate;
+    this.clearArea(gate.x + 0.5, gate.y + 0.5, 3, TILE.CANYON);
+    this.carveRoad(gate.x, gate.y, best.x, best.y, R);
+    this.addObj({ kind: 'cave', tx: gate.x, ty: gate.y, v: 0 }, false);
+    this.portals.push({ x: gate.x + 0.5, y: gate.y + 0.5, to: 'volcano', label: '火山隘口' });
+    this.places.push({ name: '火山隘口', x: gate.x, y: gate.y, kind: 'dungeon' });
+    this.lights.push({ x: gate.x + 0.5, y: gate.y + 0.5, r: 200 });
     for (let k = 0; k < 14; k++) this.addDeco(best.x + randi(-5, 5), best.y + randi(-5, 5), 'bones', randi(0, 2));
     // 可達性
     this.floodReach(100, 103);
@@ -463,6 +477,70 @@ class World {
     this.places.push({ name: '翡翠叢林', x: 52, y: 82, kind: 'spot' });
     this.places.push({ name: '西方小島', x: 30, y: 40, kind: 'spot' });
     this.floodReach(cx, cy + 2);
+  }
+
+  // ================= 熾焰火山 =================
+  genVolcano() {
+    this.alloc(130, 130);
+    this.ambient = 0.32;
+    const S = this.seed + 777, W = this.w, H = this.h, R = mulberry32(S);
+    const entry = { x: 10, y: 68 }, lair = { x: 108, y: 44 };
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+      const i = y * W + x;
+      const dl = dist(x, y, lair.x, lair.y), de = dist(x, y, entry.x, entry.y);
+      this.biome[i] = dl < 16 ? BIOME.LAIR : BIOME.VOLCANO;
+      let t = TILE.ASH;
+      const river = Math.abs(fbm(x * 0.035, y * 0.035, S) - 0.5);
+      if (de > 12 && dl > 17 && river < 0.028) t = TILE.LAVA;
+      if (dl > 12.5 && dl < 16 + fbm(x * 0.2, y * 0.2, S + 3) * 2) t = TILE.LAVA;   // 環繞巢穴的岩漿湖
+      if (fbm(x * 0.09, y * 0.09, S + 8) > 0.72 && de > 10) t = t === TILE.LAVA ? t : TILE.CANYON;
+      this.tiles[i] = t;
+      this.variant[i] = clamp(Math.floor(fbm(x * 0.12, y * 0.12, S + 77) * 6 + (R() - 0.5) * 1.6), 0, 5);
+      if (t === TILE.LAVA) this.blockArr[i] = 1;
+    }
+    // 黑曜石棧道：入口 → 中段 → 巢穴
+    const path = [[entry.x, entry.y], [40, 80], [62, 60], [84, 72], [96, 52], [lair.x, lair.y]];
+    for (let k = 0; k < path.length - 1; k++) {
+      const [ax, ay] = path[k], [bx, by] = path[k + 1], n = Math.ceil(Math.hypot(bx - ax, by - ay));
+      for (let s = 0; s <= n; s++) {
+        const x = Math.round(lerp(ax, bx, s / n)), y = Math.round(lerp(ay, by, s / n));
+        for (let oy = -1; oy <= 1; oy++) for (let ox = -1; ox <= 1; ox++) {
+          const tx = x + ox, ty = y + oy; if (!this.inBounds(tx, ty)) continue;
+          const j = this.idx(tx, ty);
+          if (this.tiles[j] === TILE.LAVA) { this.tiles[j] = TILE.BRIDGE; this.blockArr[j] = 0; }
+          this.road[j] = 1;
+        }
+      }
+    }
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+      const i = y * W + x;
+      if (this.blockArr[i] || this.road[i]) continue;
+      if (x < 3 || y < 3 || x >= W - 3 || y >= H - 3) { this.addObj({ kind: 'cliff', tx: x, ty: y, v: (R() * 4) | 0, style: 2 }); continue; }
+      const de = dist(x, y, entry.x, entry.y), dl = dist(x, y, lair.x, lair.y);
+      if (de < 5 || dl < 11) continue;
+      const ridge = Math.abs(fbm(x * 0.06, y * 0.06, S + 21) - 0.5), r = R();
+      if (ridge < 0.022) this.addObj({ kind: 'cliff', tx: x, ty: y, v: (R() * 4) | 0, style: 2 });
+      else if (r < 0.025) this.addObj({ kind: 'rock', tx: x, ty: y, v: 3 + ((R() * 2) | 0) });
+      else if (r < 0.035) this.addObj({ kind: 'deadtree', tx: x, ty: y, v: (R() * 3) | 0 });
+      else if (r < 0.1) this.addDeco(x, y, 'rubble', (R() * 3) | 0);
+      else if (r < 0.12) this.addDeco(x, y, 'bones', (R() * 3) | 0);
+    }
+    this.entry = { x: entry.x + 0.5, y: entry.y + 0.5 };
+    this.clearArea(entry.x + 0.5, entry.y + 0.5, 3, TILE.ASH);
+    this.addObj({ kind: 'cave', tx: entry.x - 2, ty: entry.y, v: 0 }, true);
+    this.portals.push({ x: entry.x - 1, y: entry.y + 0.5, to: 'overworld', from: 'volcano', label: '回到赤岩峽谷' });
+    this.lights.push({ x: entry.x + 0.5, y: entry.y + 0.5, r: 230 });
+    this.lair = { x: lair.x + 0.5, y: lair.y + 0.5 };
+    this.clearArea(lair.x + 0.5, lair.y + 0.5, 6, TILE.CANYON);
+    for (let k = 0; k < 12; k++) this.addDeco(lair.x + randi(-5, 5), lair.y + randi(-5, 5), 'bones', randi(0, 2));
+    this.lights.push({ x: lair.x + 0.5, y: lair.y + 0.5, r: 320 });
+    // 岩漿光源（取樣）
+    let n = 0;
+    for (let y = 2; y < H - 2 && n < 90; y += 3) for (let x = 2; x < W - 2 && n < 90; x += 3) if (this.tiles[this.idx(x, y)] === TILE.LAVA && hash2(x, y, S) < 0.35) { this.lights.push({ x: x + 0.5, y: y + 0.5, r: 150, lava: true }); n++; }
+    this.places.push({ name: '火山入口', x: entry.x, y: entry.y, kind: 'spot', zone: 8 });
+    this.places.push({ name: '熔岩河', x: 62, y: 60, kind: 'spot' });
+    this.places.push({ name: '炎皇巢穴', x: lair.x, y: lair.y, kind: 'boss', zone: 16 });
+    this.floodReach(entry.x + 1, entry.y);
   }
 
   // ================= 地下墓穴 =================

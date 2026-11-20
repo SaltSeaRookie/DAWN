@@ -152,6 +152,7 @@ function recalc(p = G.player) {
   if (B.warcry) d.ac += 3;
   if (B.earthskin) d.ac += 5;
   if (B.blessarmor) { d.ac += 4; d.mr += 10; }
+  if (B.fireres) d.res.fire += 30;
   d.st = st;
   d.ac += Math.max(0, Math.floor(statMod(st.dex) / 2)) + Math.floor(p.level / 6);
   d.er += 3 + statMod(st.dex) * 2;
@@ -180,7 +181,7 @@ function getMap(id) {
   const w = new World(id, 20261115);
   const m = { id, world: w, actors: [], items: [], spawners: [], npcs: [] };
   G.maps[id] = m;
-  if (id === 'overworld') populateOverworld(m); else if (id === 'isle') populateIsle(m); else if (id === 'keep') populateKeep(m); else populateCrypt(m);
+  if (id === 'overworld') populateOverworld(m); else if (id === 'isle') populateIsle(m); else if (id === 'keep') populateKeep(m); else if (id === 'volcano') populateVolcano(m); else populateCrypt(m);
   return m;
 }
 function setMap(id) {
@@ -328,6 +329,17 @@ function populateIsle(m) {
   for (const sp of m.spawners) for (let i = 0; i < sp.max; i++) spawnFrom(m, sp);
   m.fighterT = 0;
   for (let i = 0; i < 6; i++) spawnFighter(m, false);
+}
+function populateVolcano(m) {
+  const W = m.world;
+  const table = [['lava_slime', 8, 50, 10, 3], ['hellhound', 10, 70, 9, 3], ['salamander', 20, 999, 10, 3], ['fire_spirit', 25, 999, 8, 2], ['magma_golem', 30, 999, 8, 2], ['draconian', 55, 999, 8, 2]];
+  for (const [type, dmin, dmax, n, max] of table)
+    for (let i = 0; i < n; i++) {
+      const p = W.randomFreeTile((x, y) => { const d = dist(x, y, W.entry.x, W.entry.y); return d > dmin && d < dmax && dist(x, y, W.lair.x, W.lair.y) > 18; });
+      if (p) m.spawners.push({ type, x: p.x + 0.5, y: p.y + 0.5, max, alive: 0, timer: 0, respawn: 30 });
+    }
+  m.spawners.push({ type: 'flame_dragon', x: W.lair.x, y: W.lair.y, max: 1, alive: 0, timer: 0, respawn: MONSTERS.flame_dragon.respawn });
+  for (const sp of m.spawners) for (let i = 0; i < sp.max; i++) spawnFrom(m, sp);
 }
 function populateKeep(m) {
   const W = m.world;
@@ -590,7 +602,7 @@ function killActor(a, src) {
     const d = a.def;
     if (byPlayer && !pl.dead) {
       const lvDiff = d.lvl - pl.level;
-      const full = Math.max(1, Math.floor(d.exp * clamp(1 + lvDiff * 0.06, 0.25, 1.6) * clanExpMul()));
+      const full = Math.max(1, Math.floor(d.exp * clamp(1 + lvDiff * 0.06, 0.25, 1.6) * clanExpMul() * (pl.buffs.expboost ? 1.5 : 1)));
       // 夥伴擊殺：經驗值一半給主人、一半給夥伴自己
       if (byComp) { gainExp(Math.max(1, Math.floor(full / 2))); if (src.pet) petGainExp(src, Math.floor(full / 2)); }
       else gainExp(src === pl || a.hitByPlayer ? full : Math.floor(full / 2));
@@ -728,7 +740,7 @@ function goNearestTown() {
   }
   // 地下城：以入口在大陸上的位置找最近的村莊
   const ow = getMap('overworld').world;
-  const ent = G.map.id === 'keep' ? { x: ow.castle.cx, y: ow.castle.cy } : ow.crypt;
+  const ent = G.map.id === 'keep' ? { x: ow.castle.cx, y: ow.castle.cy } : G.map.id === 'volcano' ? ow.volcanoGate : ow.crypt;
   const opts = ow.towns.map((t) => ({ x: t.x, y: t.y + 2, name: t.name, d: dist(t.x, t.y, ent.x, ent.y) }));
   if (ownsCastle()) opts.push({ x: ow.castle.cx, y: ow.castle.cy + 2, name: '灰岩城', d: G.map.id === 'keep' ? 0 : dist(ow.castle.cx, ow.castle.cy, ent.x, ent.y) });
   const t = opts.sort((a, b) => a.d - b.d)[0];
@@ -800,7 +812,7 @@ function updatePlayer(dt) {
     p.buffs[k] -= dt;
     if (p.buffs[k] <= 0) {
       delete p.buffs[k]; changed = true;
-      const msg = { haste: '你的動作恢復正常速度。', holy: '武器上神聖的氣息消失了。', shield: '防護術的效果消失了。', glow: '身邊的光芒消失了。', might: '力量祝福的效果消失了。', warcry: '戰吼的效果消失了。', earthskin: '大地之膚的效果消失了。', blessarmor: '祝福鎧甲的效果消失了。', sanctuary: '神聖光環消失了。' }[k];
+      const msg = { haste: '你的動作恢復正常速度。', holy: '武器上神聖的氣息消失了。', shield: '防護術的效果消失了。', glow: '身邊的光芒消失了。', might: '力量祝福的效果消失了。', fireres: '抗火的力量消失了。', expboost: '經驗祝福的效果結束了。', warcry: '戰吼的效果消失了。', earthskin: '大地之膚的效果消失了。', blessarmor: '祝福鎧甲的效果消失了。', sanctuary: '神聖光環消失了。' }[k];
       if (msg) log(msg, 'sys');
     }
   }
@@ -845,6 +857,8 @@ function usePortal(pt) {
     if (!ownsCastle()) { log('城門守衛：地下要塞只開放給灰岩城的城主血盟。', 'warn'); SFX.play('error'); return; }
     const w = getMap('keep').world; changeMap('keep', w.entry.x + 1, w.entry.y); log('你走進了灰岩城的地下要塞。', 'level'); return;
   }
+  if (pt.to === 'volcano') { const w = getMap('volcano').world; changeMap('volcano', w.entry.x + 1, w.entry.y); log('一股熱浪撲面而來…你進入了熾焰火山。', 'level'); return; }
+  if (pt.from === 'volcano') { const g = getMap('overworld').world.volcanoGate; changeMap('overworld', g.x + 1.5, g.y + 2); return; }
   if (pt.to === 'crypt') { const w = getMap('crypt').world; changeMap('crypt', w.entry.x + 1, w.entry.y); }
   else if (pt.from === 'keep') { const C = getMap('overworld').world.castle; changeMap('overworld', C.keepGate.x + 1.5, C.keepGate.y - 1); }
   else { const w = getMap('overworld').world; changeMap('overworld', w.crypt.x + 0.5, w.crypt.y - 2); }
@@ -963,6 +977,10 @@ function useItem(inst) {
     case 'red_potion': if (!heal(30, '#ff6060')) return; break;
     case 'orange_potion': if (!heal(70, '#ffa040')) return; break;
     case 'clear_potion': if (!heal(150, '#ffffff')) return; break;
+    case 'fireres_potion': p.buffs.fireres = 300; recalc(); SFX.play('potion'); burst(p.x, p.y, 20, '#ff8a30', 16, 2, 0.8, 2, 3); log('你的身體被一層抗火的力量包覆。（火屬性抗性 +30%，5 分鐘）', 'sys'); break;
+    case 'dragonblood': if (p.hp >= p.maxHp && p.mp >= p.maxMp) { log('體力與魔力已經全滿了。', 'sys'); return; } p.hp = Math.min(p.maxHp, p.hp + 300); p.mp = Math.min(p.maxMp, p.mp + 60); SFX.play('potion'); floatText(p.x, p.y, '+300', '#60ff80', 60); burst(p.x, p.y, 20, '#c01020', 16, 1.5, 0.7, 2, 3); break;
+    case 'exp_scroll': p.buffs.expboost = 600; SFX.play('buff'); burst(p.x, p.y, 30, '#a0ff80', 24, 2, 1, 3, 4); log('經驗祝福降臨！10 分鐘內狩獵經驗值 +50%。', 'level'); break;
+    case 'volcano_scroll': { const w = getMap('volcano').world; if (G.map.id === 'volcano') teleportTo(w.entry.x + 1, w.entry.y); else changeMap('volcano', w.entry.x + 1, w.entry.y); log('你被傳送到熾焰火山的入口。', 'sys'); break; }
     case 'royal_potion': p.hp = p.maxHp; p.mp = p.maxMp; SFX.play('potion'); SFX.play('heal'); burst(p.x, p.y, 20, '#ffd040', 24, 2, 1, 3, 4); log('王家秘藥讓你的體力與魔力完全恢復了！', 'level'); break;
     case 'blue_potion':
       if (p.mp >= p.maxMp) { log('魔力已經全滿了。', 'sys'); return; }
@@ -1256,7 +1274,7 @@ function actorAttack(a, t) {
     const kind = a.proj;
     if (kind === 'arrow') SFX.play('bow', a.x, a.y);
     G.projectiles.push({ kind, x: a.x, y: a.y, z: a.boss ? 60 : 26, target: t, speed: kind === 'arrow' ? 13 : 9, from: a,
-      onHit: () => { if (a.magic) magicHit(a, t, randi(a.dmg[0], a.dmg[1])); else physHit(a, t, 1, { ranged: true }); } });
+      onHit: () => { if (a.magic) magicHit(a, t, randi(a.dmg[0], a.dmg[1]), { element: (a.def && a.def.element) || (kind === 'fire' ? 'fire' : undefined) }); else physHit(a, t, 1, { ranged: true }); } });
   } else {
     const range = a.range;
     later(0.22, () => { if (!a.dead && !t.dead && dist(a.x, a.y, t.x, t.y) <= range + 0.8 + (t.struct ? 1 : 0)) physHit(a, t, 1); });
@@ -1299,6 +1317,7 @@ function updateActor(a, dt) {
     const range = a.range + (a.boss ? 0.4 : 0) + (t.struct === 'gate' ? 1.4 : t.struct ? 0.6 : 0);
     const dt2 = dist(a.x, a.y, t.x, t.y);
     // 特殊能力
+    if (a.def && a.def.dragon && dragonThink(a, dt)) return;
     if (a.def && a.def.breath && dt2 < 6 && dt2 > 2.5 && a.atkCd <= 0 && Math.random() < 0.02) {
       a.face(t.x, t.y); a.atkAnim = 0; a.atkCd = a.atkSpd * 1.6; a.path = [];
       SFX.play('fire', a.x, a.y);
@@ -1595,6 +1614,8 @@ function frameBody(ts) {
     updateSpawners(dt);
     updateSiege(dt);
     updateFx(dt);
+    updateHazards(dt);
+    volcanoTick(dt);
     if (Settings.autoPickup !== false && !p.dead) autoPickup(dt);
     if (G.autoHunt && !p.action && !p.dead) { G.autoT = (G.autoT || 0) - dt; if (G.autoT <= 0) { G.autoT = 0.5; autoNext(); } }
     if (G.autoHunt && !p.dead && p.hp < p.maxHp * 0.4 && (G.potT || 0) < G.t) {
@@ -1725,7 +1746,7 @@ function enterWorld(saveData) {
   if (p.clan) taken.push(...p.clan.members.map((m) => m.name));
   Names.reset(taken);
   G.day = saveData.day || 0.3;
-  setMap(['crypt', 'isle'].includes(saveData.mapId) || (saveData.mapId === 'keep' && saveData.castle && saveData.castle.owned) ? saveData.mapId : 'overworld');
+  setMap(['crypt', 'isle', 'volcano'].includes(saveData.mapId) || (saveData.mapId === 'keep' && saveData.castle && saveData.castle.owned) ? saveData.mapId : 'overworld');
   recalc(p);
   if (saveData.x && !G.world.blocked(saveData.x, saveData.y)) { p.x = saveData.x; p.y = saveData.y; }
   else { const t = G.world.towns[0] || { x: G.world.entry.x, y: G.world.entry.y - 2 }; const q = G.world.nearestFree(t.x + 1, t.y + 2); p.x = q.x; p.y = q.y; }

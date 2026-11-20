@@ -282,10 +282,10 @@ const UI = {
       const show = (id) => {
         win.mapId = id;
         tabs.querySelectorAll('.tab').forEach((b) => b.classList.toggle('on', b.dataset.id === id));
-        note.textContent = G.map.id === id ? '紅點為你的位置。' : G.map.id === 'crypt' ? '你目前在地下墓穴中。' : (id === 'isle' ? '在銀風港找船長搭船前往翡翠群島。' : '在珊瑚鎮找船長搭船回到大陸。');
+        note.textContent = G.map.id === id ? '紅點為你的位置。' : G.map.id === 'crypt' ? '你目前在地下墓穴中。' : (id === 'isle' ? '在銀風港找船長搭船前往翡翠群島。' : id === 'volcano' ? '從赤岩峽谷深處的火山隘口進入，傳送師也能送你到隘口。' : '在珊瑚鎮找船長搭船回到大陸。');
         drawWorldMap(cv, id);
       };
-      for (const [id, nm] of [['overworld', '晨曦大陸'], ['isle', '翡翠群島']]) { const b = el('button', 'tab', nm); b.dataset.id = id; b.onclick = () => show(id); tabs.appendChild(b); }
+      for (const [id, nm] of [['overworld', '晨曦大陸'], ['isle', '翡翠群島'], ['volcano', '熾焰火山']]) { const b = el('button', 'tab', nm); b.dataset.id = id; b.onclick = () => show(id); tabs.appendChild(b); }
       win.body.appendChild(tabs); win.body.appendChild(cv); win.body.appendChild(note); win.cv = cv;
       show(win.mapId);
     }
@@ -630,6 +630,7 @@ const UI = {
     dests.push({ name: '地下墓穴入口', sub: '骸骨荒原・建議 Lv 10+', cost: 350, x: W.crypt.x - 2, y: W.crypt.y - 2 });
     dests.push({ name: '霜嶺高地', sub: '建議 Lv 15+', cost: 400, x: 36, y: 38 });
     dests.push({ name: '赤岩峽谷', sub: '建議 Lv 12+', cost: 380, x: 118, y: 44 });
+    dests.push({ name: '火山隘口', sub: '熾焰火山・建議 Lv 23+', cost: 600, x: W.volcanoGate.x + 1, y: W.volcanoGate.y + 2 });
     w.body.innerHTML = this.dialogHead(npc, '要去哪裡呢？我可以用魔法送你一程。');
     const list = el('div', 'list');
     for (const d of dests) {

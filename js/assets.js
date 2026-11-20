@@ -18,6 +18,8 @@ function buildTileTextures() {
     [TILE.BRIDGE]: { base: ['#6a4a2a', '#6d4c2b', '#704e2c', '#734f2d', '#76512e', '#79532f'], planks: true },
     [TILE.DUNGEON]: { base: ['#3a3836', '#3c3a38', '#3e3c3a', '#403e3b', '#42403d', '#44423f'], flags: true },
     [TILE.SEA]: { base: ['#1a3a5a', '#1b3c5c', '#1c3e5e', '#1d4060', '#1e4262', '#1f4464'], water: true },
+    [TILE.LAVA]: { base: ['#d8400a', '#e04a0c', '#e8540e', '#f05e10', '#e04a0c', '#d8400a'], lava: true },
+    [TILE.ASH]: { base: ['#3a3230', '#3d3532', '#403834', '#433a36', '#463d38', '#49403a'], fleck: ['#2a2422', '#5a4e48', '#6a3a2a', '#1a1614'], pebbles: true },
     [TILE.SNOW]: { base: ['#d8dce4', '#dadee6', '#dce0e8', '#dee2ea', '#e0e4ec', '#e2e6ee'], fleck: ['#c0c8d4', '#f0f4fa', '#b0b8c4'] },
   };
   for (const k in defs) {
@@ -74,6 +76,15 @@ function buildTileTextures() {
         for (let i = -2; i < 6; i++) { g.beginPath(); g.moveTo(i * 16, 0); g.lineTo(i * 16 + 32, 16 + 16); g.stroke(); g.beginPath(); g.moveTo(i * 16 + 32, 0); g.lineTo(i * 16, 32); g.stroke(); }
         for (let i = 0; i < 30; i++) { g.fillStyle = R() < 0.5 ? 'rgba(80,78,72,0.5)' : 'rgba(20,20,18,0.4)'; g.fillRect(R() * TW, R() * TH, 1.5, 1.5); }
         if (R() < 0.4) { g.fillStyle = 'rgba(60,80,40,0.35)'; g.beginPath(); g.ellipse(R() * TW, R() * TH, 6, 3, 0, 0, 7); g.fill(); }
+      }
+      if (d.lava) {
+        for (let i = 0; i < 7; i++) {
+          g.strokeStyle = R() < 0.5 ? 'rgba(255,230,120,0.75)' : 'rgba(120,20,0,0.6)'; g.lineWidth = 1 + R() * 1.5;
+          const x = R() * TW, y = R() * TH;
+          g.beginPath(); g.moveTo(x, y); g.quadraticCurveTo(x + 6, y - 3 + R() * 6, x + 12, y + (R() - 0.5) * 4); g.stroke();
+        }
+        for (let i = 0; i < 4; i++) { g.fillStyle = 'rgba(60,10,0,0.45)'; g.beginPath(); g.ellipse(R() * TW, R() * TH, 4 + R() * 5, 2 + R() * 2, 0, 0, 7); g.fill(); }
+        for (let i = 0; i < 3; i++) { g.fillStyle = 'rgba(255,240,160,0.8)'; g.beginPath(); g.arc(R() * TW, R() * TH, 1 + R(), 0, 7); g.fill(); }
       }
       if (d.water) {
         g.globalAlpha = 0.3;
@@ -415,6 +426,16 @@ function buildExtraSprites() {
       g.beginPath(); g.moveTo(tx, ty); g.quadraticCurveTo((tx + ex) / 2, ty - 14, ex, ey); g.stroke();
     }
     g.fillStyle = '#6a4a20'; for (const [dx, dy] of [[-4, 4], [3, 6], [0, 9]]) { g.beginPath(); g.arc(tx + dx, ty + dy, 4, 0, 7); g.fill(); }
+  });
+  // 火山洞口
+  spr('cave0', 120, 100, 60, 78, (g) => {
+    g.fillStyle = 'rgba(0,0,0,0.35)'; g.beginPath(); g.ellipse(62, 80, 52, 16, 0, 0, 7); g.fill();
+    const rock = g.createLinearGradient(0, 10, 0, 80); rock.addColorStop(0, '#5a4a40'); rock.addColorStop(1, '#2a2220');
+    g.fillStyle = rock; g.beginPath(); g.moveTo(8, 80); g.quadraticCurveTo(10, 30, 40, 18); g.quadraticCurveTo(62, 6, 84, 18); g.quadraticCurveTo(112, 30, 114, 80); g.closePath(); g.fill();
+    const glow = g.createRadialGradient(60, 66, 2, 60, 66, 34); glow.addColorStop(0, '#ffd070'); glow.addColorStop(0.4, '#e04a10'); glow.addColorStop(1, '#2a0800');
+    g.fillStyle = glow; g.beginPath(); g.moveTo(34, 80); g.quadraticCurveTo(36, 40, 60, 36); g.quadraticCurveTo(84, 40, 86, 80); g.closePath(); g.fill();
+    g.strokeStyle = 'rgba(20,14,12,0.6)'; g.lineWidth = 2;
+    for (const [x0, y0, x1, y1] of [[20, 50, 30, 70], [96, 46, 90, 66], [50, 20, 56, 30], [74, 22, 70, 32]]) { g.beginPath(); g.moveTo(x0, y0); g.lineTo(x1, y1); g.stroke(); }
   });
   // 牆上火把
   spr('torch0', 20, 60, 10, 56, (g) => {

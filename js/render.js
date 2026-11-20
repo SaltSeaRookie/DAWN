@@ -22,7 +22,7 @@ function buildMinimapBase() {
   const col = {
     [TILE.GRASS]: [104, 136, 62], [TILE.DARKGRASS]: [70, 100, 46], [TILE.DIRT]: [140, 115, 82], [TILE.COBBLE]: [150, 140, 125],
     [TILE.SOIL]: [76, 62, 48], [TILE.WATER]: [40, 90, 130], [TILE.SAND]: [186, 166, 125], [TILE.CANYON]: [128, 106, 82],
-    [TILE.DESERT]: [200, 168, 110], [TILE.BRIDGE]: [120, 84, 46], [TILE.DUNGEON]: [70, 68, 64], [TILE.SEA]: [26, 58, 90], [TILE.SNOW]: [220, 224, 232], 255: [8, 8, 8],
+    [TILE.LAVA]: [230, 80, 20], [TILE.ASH]: [70, 60, 56], [TILE.DESERT]: [200, 168, 110], [TILE.BRIDGE]: [120, 84, 46], [TILE.DUNGEON]: [70, 68, 64], [TILE.SEA]: [26, 58, 90], [TILE.SNOW]: [220, 224, 232], 255: [8, 8, 8],
   };
   for (let i = 0; i < W.w * W.h; i++) {
     let c2 = col[W.tiles[i]] || [0, 0, 0];
@@ -73,7 +73,7 @@ function render() {
       const k = j * W.w + i, t = W.tiles[k];
       if (t === 255) continue;
       let v = W.variant[k];
-      if (t === TILE.WATER || t === TILE.SEA) v = (v + wph + ((i * 7 + j * 3) % 3)) % 6;
+      if (t === TILE.WATER || t === TILE.SEA || t === TILE.LAVA) v = (v + wph + ((i * 7 + j * 3) % 3)) % 6;
       ctx.drawImage(TEX[t][v], sx - HW - 1, sy - 1);
     }
   for (let j = y0; j <= y1; j++)
@@ -130,6 +130,8 @@ function render() {
     ctx.fillStyle = 'rgba(200,230,255,0.18)'; ctx.beginPath(); ctx.ellipse(sx, sy, rr, rr * 0.55, 0, 0, 7); ctx.fill();
     for (let i = 0; i < 6; i++) G.particles.push({ x: sn.x + rand(-sn.r, sn.r) * 0.75, y: sn.y + rand(-sn.r, sn.r) * 0.75, z: rand(80, 160), vx: 1.5, vy: 1.5, vz: -150, life: 0.8, max: 0.8, color: Math.random() < 0.5 ? '#ffffff' : '#bfe6ff', size: 2.5 });
   }
+
+  drawHazards(S);
 
   // 深度排序
   const list = [];
@@ -285,6 +287,7 @@ function drawObj(o, S) {
     case 'crate': s = SPR.crate0; break;
     case 'snowrock': s = SPR.snowrock0; break;
     case 'palm': s = SPR['palm' + o.v]; break;
+    case 'cave': s = SPR.cave0; break;
   }
   if (!s) return;
   if (sx < -s.c.width || sx > VW + s.c.width || sy < -40 || sy > VH + s.c.height) return;
@@ -362,11 +365,13 @@ function drawEntity(e, S, labels) {
     if (e.companion === 'charm') glowUnder(sx, sy, 26 + Math.sin(G.t * 4) * 3, 'rgba(255,110,200,0.45)');
     const H = (opts, h, w = 14) => { drawShadow(ctx, sx, sy, 11, 4); drawHumanoid(ctx, sx, sy, Object.assign(o, opts)); top = sy - h; bb = [sx - w, sy - h + 2, sx + w, sy + 4]; };
     switch (d.sprite) {
-      case 'wolf': drawShadow(ctx, sx, sy, 16, 6); drawWolf(ctx, sx, sy, o); top = sy - 34; bb = [sx - 24, sy - 34, sx + 24, sy + 4]; break;
+      case 'wolf': { const k = d.scaleUp || 1; drawShadow(ctx, sx, sy, 16 * k, 6 * k); drawWolf(ctx, sx, sy, Object.assign(o, { scale: e.scale * k, eye: d.eye })); top = sy - 34 * k; bb = [sx - 24 * k, sy - 34 * k, sx + 24 * k, sy + 4]; break; }
+      case 'slime': drawSlime(ctx, sx, sy, o); top = sy - 40; bb = [sx - 22, sy - 38, sx + 22, sy + 4]; break;
+      case 'firedragon': { o.breath = e.breathing || 0; drawFireDragon(ctx, sx, sy, o); top = sy - 210; bb = [sx - 110, sy - 200, sx + 110, sy + 20]; break; }
       case 'goblin': H({ kind: 'goblin', body: '#6a5a3a', skin: '#7a9a3a', legs: '#4a3a24', boots: '#3a2a18', weapon: d.bow ? 'bow' : 'club', scale: 0.82, draw: e.atkAnim >= 0 && e.atkAnim < 0.6 }, 48); break;
       case 'skeleton': H({ kind: 'skeleton', body: '#e6e0cc', legs: '#e6e0cc', sleeve: '#e6e0cc', weapon: d.bow ? 'bow' : 'rusty', draw: e.atkAnim >= 0 && e.atkAnim < 0.6, shield: !d.bow && e.id % 2 === 0, shieldCol: '#5a4a3a' }, 56); break;
       case 'ghoul': H({ kind: 'ghoul', body: '#5a6250', skin: '#8e9e83', legs: '#4a4a3a', boots: '#6e7a62', sleeve: '#8e9e83' }, 52, 16); break;
-      case 'lizard': { const c = d.color || '#4f8a46'; H({ kind: 'lizard', body: c, skin: c, legs: shade(c, -0.2), boots: shade(c, -0.4), sleeve: c, belt: '#6a4a2a', weapon: 'spear', scale: d.color ? 1.25 : 1.1 }, 62, 18); break; }
+      case 'lizard': { const c = d.color || '#4f8a46'; H({ kind: 'lizard', body: c, skin: c, legs: shade(c, -0.2), boots: shade(c, -0.4), sleeve: c, belt: '#6a4a2a', weapon: 'spear', scale: d.scaleUp || (d.color ? 1.25 : 1.1) }, 62 * (d.scaleUp || 1), 18); break; }
       case 'pirate': H(d.captainLook
         ? { body: '#2a2a4a', legs: '#1a1a2a', hair: '#1a1010', cape: '#8a1a1a', trim: '#e0c060', belt: '#5a3a1a', weapon: 'claymore', skin: '#c89070', scale: 1.3 }
         : { body: '#e8e0d0', sleeve: '#a02a2a', legs: '#2a2a3a', hood: '#a02a2a', belt: '#5a3a1a', weapon: 'sword', skin: '#c89070' }, d.captainLook ? 70 : 56, 16); break;
@@ -383,7 +388,7 @@ function drawEntity(e, S, labels) {
       case 'scorpion': drawShadow(ctx, sx, sy, 20, 7); drawScorpion(ctx, sx, sy, o); top = sy - 44; bb = [sx - 24, sy - 40, sx + 24, sy + 4]; break;
       case 'worm': drawShadow(ctx, sx, sy, 20, 7); drawWorm(ctx, sx, sy, o); top = sy - 70; bb = [sx - 22, sy - 64, sx + 22, sy + 4]; break;
       case 'ghost': { drawShadow(ctx, sx, sy, 12, 4, 0.2); const h = drawGhost(ctx, sx, sy, o); top = sy - h - 54; bb = [sx - 16, sy - h - 52, sx + 16, sy + 4]; break; }
-      case 'wyvern': { const h = drawWyvern(ctx, sx, sy, o); top = sy - h - 100; bb = [sx - 60, sy - h - 90, sx + 60, sy + 10]; break; }
+      case 'wyvern': { const k = d.scaleUp || 1; const h = drawWyvern(ctx, sx, sy, Object.assign(o, { big: k })); top = sy - h - 100 * k; bb = [sx - 60 * k, sy - h - 90 * k, sx + 60 * k, sy + 10]; break; }
     }
     if (e.hurtT > 0 && !e.dead) hitFlash(sx, (sy + top) / 2 + 6, Math.min(40, (sy - top) * 0.45), e.hurtT / 0.2);
     if (e.dead) ctx.restore();
@@ -581,7 +586,9 @@ function drawWorldMap(cv, mapId = 'overworld') {
   for (let y = 0; y < W.h; y += cell) for (let x = 0; x < W.w; x += cell) {
     const i = W.idx(x, y), t = W.tiles[i], o = W.objGrid[i] >= 0 ? W.objs[W.objGrid[i]] : null;
     let c;
-    if (t === TILE.SEA) c = 'rgba(70,110,140,0.55)';
+    if (t === TILE.LAVA) c = 'rgba(220,70,20,0.8)';
+    else if (t === TILE.ASH) c = 'rgba(60,50,45,0.35)';
+    else if (t === TILE.SEA) c = 'rgba(70,110,140,0.55)';
     else if (t === TILE.WATER) c = 'rgba(60,100,140,0.8)';
     else if (o && (o.kind === 'cliff')) c = 'rgba(110,80,50,0.55)';
     else if (o && o.kind === 'tree') c = 'rgba(70,100,50,0.45)';
