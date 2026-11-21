@@ -40,6 +40,11 @@ end $$;
 drop trigger if exists characters_limit on public.characters;
 create trigger characters_limit before insert on public.characters for each row execute function public.limit_characters();
 
+-- 資料表權限（新版 Supabase 專案不會自動開放，需要明確授權；實際能讀寫哪些資料仍由下面的 RLS 規則決定）
+grant usage on schema public to anon, authenticated;
+grant select, insert, update, delete on public.characters to authenticated;
+grant usage, select on all sequences in schema public to authenticated;
+
 -- 列級安全（RLS）：每個人只能讀寫自己的帳號與角色
 alter table public.profiles enable row level security;
 alter table public.characters enable row level security;

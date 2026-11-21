@@ -29,6 +29,7 @@ function sbErr(e) {
   if (/Email not confirmed/i.test(m)) return '這個帳號還沒有驗證。請到 Supabase 的 Authentication 設定關閉「Confirm email」（教學第 2 步）。';
   if (/rate limit/i.test(m)) return '註冊太頻繁了，請稍後再試（Supabase 的頻率限制）。';
   if (/fetch|network/i.test(m)) return '無法連線到 Supabase，請檢查網路或專案是否暫停。';
+  if (/permission denied for (table|function)/i.test(m)) return '資料表權限不足：請在 Supabase 的 SQL Editor 重新執行最新版的 supabase/schema.sql（教學第 3 步）。';
   return m;
 }
 
