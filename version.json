@@ -1,1 +1,1 @@
-{"version": "2.17.0", "notes": "改用 Supabase 做多人連線（帳號、存檔、即時同步）"}
+{"version": "2.17.1", "notes": "Supabase 改用匿名登入＋遊戲帳號密碼（不需要信箱）"}

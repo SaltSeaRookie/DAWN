@@ -1,13 +1,12 @@
 'use strict';
 // ===== Supabase 多人連線後端 =====
-// 帳號：Supabase Auth（帳號名稱轉成「帳號@dawnlands.game」當作登入信箱，不會寄信）
+// 帳號：每個瀏覽器用 Supabase 的匿名登入取得身分，遊戲帳號與密碼由資料庫函式檢查（不需要信箱）
 // 存檔：資料表 profiles（帳號、設定）與 characters（角色存檔，jsonb）
 // 即時：Realtime 頻道「dawnlands-world」—— Presence 記錄誰在線上，Broadcast 傳送位置、聊天、交易
 // 與 RemoteBackend（自架 Node 伺服器）提供相同的介面，遊戲其他部分不需要知道用的是哪一種。
 // 先載入專案內附的 supabase-js（js/vendor），失敗時再改用 CDN
 const SB_LIBS = ['js/vendor/supabase-2.118.0.js', 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.118.0/dist/umd/supabase.js', 'https://unpkg.com/@supabase/supabase-js@2.118.0/dist/umd/supabase.js'];
 const SB_CHANNEL = 'dawnlands-world';
-const SB_EMAIL_DOMAIN = 'dawnlands.game';
 const SAY_RANGE_SB = 22;
 
 function sbConfig() {
@@ -145,7 +144,6 @@ const SupabaseBackend = {
     return this.joinChannel();
   },
   // ---------- 帳號 ----------
-  email(acc) { return acc.toLowerCase() + '@' + SB_EMAIL_DOMAIN; },
   async loadAccount() {
     const uid = this.user.id;
     const [{ data: prof }, { data: rows, error }] = await Promise.all([
@@ -153,9 +151,23 @@ const SupabaseBackend = {
       this.sb.from('characters').select('name, data, created_at').eq('owner', uid),
     ]);
     if (error) throw error;
-    this.account = prof ? prof.account : this.user.email.split('@')[0];
+    if (!prof) throw new Error('找不到帳號資料，請重新登入。');
+    this.account = prof.account;
     this.cache = { meta: (prof && prof.meta) || {}, chars: {} };
     for (const r of rows || []) { const d = r.data || {}; d.name = r.name; d.created = d.created || Date.parse(r.created_at); this.cache.chars[r.name] = d; }
+  },
+  // 確保目前有一個可用的匿名身分（如果目前的身分已經屬於別的帳號，就換一個新的）
+  async freshIdentity(account) {
+    const { data: { session } } = await this.sb.auth.getSession();
+    if (session && session.user) {
+      const { data: prof } = await this.sb.from('profiles').select('account').eq('id', session.user.id).maybeSingle();
+      if (!prof || (account && prof.account.toLowerCase() === account.toLowerCase())) { this.user = session.user; return null; }
+      await this.sb.auth.signOut();
+    }
+    const { data, error } = await this.sb.auth.signInAnonymously();
+    if (error) return /anonymous/i.test(error.message) ? '請到 Supabase 開啟「匿名登入」：Authentication → Sign In / Providers → Allow anonymous sign-ins（教學第 2 步）。' : sbErr(error);
+    this.user = data.user;
+    return null;
   },
   auth: {
     async login(account, pw) {
@@ -164,22 +176,25 @@ const SupabaseBackend = {
       const { data: exists, error: e1 } = await B.sb.rpc('account_exists', { acc: account });
       if (e1) return { ok: false, error: sbErr(e1) };
       if (!exists) return { ok: false, error: 'noaccount' };
-      const { data, error } = await B.sb.auth.signInWithPassword({ email: B.email(account), password: pw });
-      if (error) return { ok: false, error: sbErr(error) };
-      B.user = data.user;
+      const e2 = await B.freshIdentity(account); if (e2) return { ok: false, error: e2 };
+      const { data: r, error } = await B.sb.rpc('login_account', { acc: account, pw });
+      if (error) return { ok: false, error: /login_account|function/i.test(error.message) ? '資料庫函式還沒建立：請重新執行 supabase/schema.sql（教學第 3 步）。' : sbErr(error) };
+      if (r === 'bad_password') return { ok: false, error: '密碼錯誤。' };
+      if (r === 'noaccount') return { ok: false, error: 'noaccount' };
+      if (r !== 'ok') return { ok: false, error: '登入失敗（' + r + '），請重新整理後再試。' };
       try { await B.loadAccount(); } catch (e) { return { ok: false, error: sbErr(e) }; }
       return { ok: true, session: { account: B.account } };
     },
     async register(account, pw) {
       const B = SupabaseBackend;
       if (!/^[A-Za-z0-9_]{3,16}$/.test(account)) return { ok: false, error: '帳號需為 3～16 個英數字或底線。' };
-      if (pw.length < 6) return { ok: false, error: '密碼至少需要 6 個字元（Supabase 的要求）。' };
-      const { data, error } = await B.sb.auth.signUp({ email: B.email(account), password: pw, options: { data: { account } } });
-      if (error) return { ok: false, error: sbErr(error) };
-      if (!data.session) return { ok: false, error: '帳號已建立，但需要信箱驗證才能登入。請到 Supabase 的 Authentication 設定關閉「Confirm email」（教學第 2 步），再刪除這個使用者重新註冊。' };
-      B.user = data.user;
-      const { error: e2 } = await B.sb.from('profiles').insert({ id: B.user.id, account });
-      if (e2 && !/duplicate/i.test(e2.message)) return { ok: false, error: sbErr(e2) };
+      if (pw.length < 4) return { ok: false, error: '密碼至少需要 4 個字元。' };
+      const e2 = await B.freshIdentity(null); if (e2) return { ok: false, error: e2 };
+      const { data: r, error } = await B.sb.rpc('register_account', { acc: account, pw });
+      if (error) return { ok: false, error: /register_account|function/i.test(error.message) ? '資料庫函式還沒建立：請重新執行 supabase/schema.sql（教學第 3 步）。' : sbErr(error) };
+      if (r === 'exists') return { ok: false, error: '帳號已存在。' };
+      if (r === 'session_in_use') { await B.sb.auth.signOut(); return B.auth.register(account, pw); }
+      if (r !== 'ok') return { ok: false, error: '註冊失敗（' + r + '）。' };
       try { await B.loadAccount(); } catch (e) { return { ok: false, error: sbErr(e) }; }
       return { ok: true, session: { account: B.account } };
     },
