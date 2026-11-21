@@ -478,93 +478,13 @@ function itemColor(id) {
   let h = 0; for (const ch of id) h = (h * 31 + ch.charCodeAt(0)) & 0xffff;
   return 'hsl(' + (h % 360) + ',35%,60%)';
 }
-function drawItemIcon(ctx, id, x, y, s) {
-  const it = ITEMS[id]; if (!it) return;
-  ctx.save(); ctx.translate(x, y); ctx.scale(s / 32, s / 32);
-  const c = itemColor(id);
-  const blade = (L, w, col) => { ctx.fillStyle = '#5a3c20'; ctx.fillRect(-1.5, 6, 3, 7); ctx.fillStyle = '#c9a33a'; ctx.fillRect(-w - 2, 5, (w + 2) * 2, 2.5); ctx.fillStyle = col; ctx.beginPath(); ctx.moveTo(-w, 5); ctx.lineTo(-w, -L); ctx.lineTo(0, -L - 3); ctx.lineTo(w, -L); ctx.lineTo(w, 5); ctx.fill(); ctx.fillStyle = 'rgba(255,255,255,0.4)'; ctx.fillRect(-0.5, -L, 1, L + 4); };
-  const rot = (fn) => { ctx.save(); ctx.translate(16, 16); ctx.rotate(-Math.PI / 4); fn(); ctx.restore(); };
-  switch (it.icon) {
-    case 'potion': {
-      ctx.fillStyle = 'rgba(220,230,240,0.35)'; ctx.fillRect(13, 4, 6, 8);
-      ctx.fillStyle = '#7a5434'; ctx.fillRect(12.5, 2, 7, 4);
-      const gr = ctx.createRadialGradient(13, 17, 1, 16, 20, 10); gr.addColorStop(0, shade(c, 0.5)); gr.addColorStop(1, shade(c, -0.3));
-      ctx.fillStyle = gr; ctx.beginPath(); ctx.arc(16, 20, 9, 0, 7); ctx.fill();
-      ctx.strokeStyle = 'rgba(255,255,255,0.5)'; ctx.lineWidth = 1; ctx.stroke();
-      ctx.fillStyle = 'rgba(255,255,255,0.6)'; ctx.beginPath(); ctx.ellipse(12.5, 16.5, 2, 3, -0.5, 0, 7); ctx.fill();
-      break;
-    }
-    case 'scroll': {
-      ctx.fillStyle = shade(c, 0.1); ctx.fillRect(7, 8, 18, 16);
-      ctx.fillStyle = shade(c, -0.3); ctx.beginPath(); ctx.ellipse(7, 16, 3, 8, 0, 0, 7); ctx.ellipse(25, 16, 3, 8, 0, 0, 7); ctx.fill();
-      ctx.strokeStyle = 'rgba(80,40,20,0.7)'; ctx.lineWidth = 1;
-      for (let i = 0; i < 3; i++) { ctx.beginPath(); ctx.moveTo(11, 12 + i * 4); ctx.lineTo(21, 12 + i * 4); ctx.stroke(); }
-      ctx.fillStyle = /^b/.test(id) ? '#ffd040' : '#b02020'; ctx.beginPath(); ctx.arc(16, 24, 2.5, 0, 7); ctx.fill();
-      break;
-    }
-    case 'book': {
-      ctx.fillStyle = '#5a2a3a'; ctx.fillRect(7, 5, 18, 23); ctx.fillStyle = '#e8dcc0'; ctx.fillRect(9, 7, 15, 20); ctx.fillStyle = '#6a3040'; ctx.fillRect(7, 5, 16, 21);
-      ctx.strokeStyle = '#d0b050'; ctx.lineWidth = 1; ctx.strokeRect(9.5, 7.5, 11, 16);
-      ctx.save(); ctx.translate(9, 9); ctx.scale(0.4, 0.4); drawSkillIcon(ctx, SPELLS[it.spell].icon, 0, 0, 32); ctx.restore();
-      break;
-    }
-    case 'dagger': rot(() => blade(8, 1.8, c)); break;
-    case 'sword': rot(() => blade(12, 2, c)); break;
-    case 'claymore': rot(() => blade(15, 2.6, c)); break;
-    case 'axe': rot(() => { ctx.fillStyle = '#5a3c20'; ctx.fillRect(-1.5, -14, 3, 28); ctx.fillStyle = c; ctx.beginPath(); ctx.moveTo(1, -14); ctx.quadraticCurveTo(12, -12, 11, -2); ctx.lineTo(1, -4); ctx.fill(); }); break;
-    case 'spear': rot(() => { ctx.fillStyle = '#5a3c20'; ctx.fillRect(-1, -10, 2, 26); ctx.fillStyle = c; ctx.beginPath(); ctx.moveTo(-3, -10); ctx.lineTo(0, -17); ctx.lineTo(3, -10); ctx.fill(); }); break;
-    case 'mace': rot(() => { ctx.fillStyle = '#5a3c20'; ctx.fillRect(-1.5, -4, 3, 18); ctx.fillStyle = c; ctx.beginPath(); ctx.arc(0, -7, 6, 0, 7); ctx.fill(); ctx.fillStyle = shade(c, -0.3); for (let i = 0; i < 6; i++) { const a = i * 1.05; ctx.fillRect(Math.cos(a) * 7 - 1, -7 + Math.sin(a) * 7 - 1, 2.5, 2.5); } }); break;
-    case 'staff': rot(() => { ctx.fillStyle = '#6a4a28'; ctx.fillRect(-1.3, -12, 2.6, 28); const gem = id === 'oak_staff' ? '#7ad070' : id === 'star_staff' ? '#ffe070' : '#7ad0ff'; ctx.fillStyle = gem; ctx.shadowColor = gem; ctx.shadowBlur = 6; ctx.beginPath(); ctx.arc(0, -14, 4, 0, 7); ctx.fill(); }); break;
-    case 'bow':
-      ctx.strokeStyle = c; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.moveTo(8, 4); ctx.quadraticCurveTo(28, 16, 8, 28); ctx.stroke();
-      ctx.strokeStyle = '#ddd'; ctx.lineWidth = 0.8; ctx.beginPath(); ctx.moveTo(8, 4); ctx.lineTo(8, 28); ctx.stroke(); break;
-    case 'arrow':
-      for (const o of [-3, 0, 3]) { ctx.strokeStyle = '#a07a4a'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(6 + o, 26); ctx.lineTo(24 + o, 8); ctx.stroke(); ctx.fillStyle = id === 'silver_arrow' ? '#f0f4ff' : '#9aa0a8'; ctx.beginPath(); ctx.moveTo(26 + o, 6); ctx.lineTo(21 + o, 8); ctx.lineTo(24 + o, 11); ctx.fill(); ctx.fillStyle = '#e8e0d0'; ctx.fillRect(5 + o, 24, 3, 3); }
-      break;
-    case 'helm': { const gr = ctx.createLinearGradient(6, 0, 26, 0); gr.addColorStop(0, shade(c, -0.3)); gr.addColorStop(0.5, shade(c, 0.3)); gr.addColorStop(1, shade(c, -0.4)); ctx.fillStyle = gr; if (id === 'wizard_hat') { ctx.fillStyle = '#3a2a6a'; ctx.beginPath(); ctx.moveTo(16, 3); ctx.lineTo(24, 22); ctx.lineTo(8, 22); ctx.fill(); ctx.fillRect(4, 22, 24, 4); } else { ctx.beginPath(); ctx.arc(16, 18, 10, Math.PI, 0); ctx.lineTo(26, 24); ctx.lineTo(6, 24); ctx.closePath(); ctx.fill(); if (/iron/.test(id)) { ctx.fillStyle = '#222'; ctx.fillRect(10, 17, 12, 2); } } break; }
-    case 'armor': case 'cloak': {
-      const gr = ctx.createLinearGradient(6, 0, 26, 0); gr.addColorStop(0, shade(c, -0.3)); gr.addColorStop(0.5, shade(c, 0.2)); gr.addColorStop(1, shade(c, -0.3));
-      ctx.fillStyle = gr;
-      if (it.icon === 'cloak') { ctx.beginPath(); ctx.moveTo(11, 4); ctx.lineTo(21, 4); ctx.lineTo(27, 28); ctx.lineTo(5, 28); ctx.closePath(); ctx.fill(); }
-      else if (/robe/.test(id)) { ctx.beginPath(); ctx.moveTo(11, 4); ctx.lineTo(21, 4); ctx.lineTo(26, 10); ctx.lineTo(24, 29); ctx.lineTo(8, 29); ctx.lineTo(6, 10); ctx.closePath(); ctx.fill(); ctx.fillStyle = '#d0b050'; ctx.fillRect(15, 6, 2, 22); }
-      else { ctx.beginPath(); ctx.moveTo(10, 5); ctx.lineTo(22, 5); ctx.lineTo(27, 10); ctx.lineTo(24, 14); ctx.lineTo(23, 27); ctx.lineTo(9, 27); ctx.lineTo(8, 14); ctx.lineTo(5, 10); ctx.closePath(); ctx.fill(); }
-      ctx.strokeStyle = 'rgba(0,0,0,0.4)'; ctx.stroke(); break;
-    }
-    case 'shield': ctx.fillStyle = c; ctx.beginPath(); ctx.moveTo(6, 5); ctx.lineTo(26, 5); ctx.lineTo(26, 16); ctx.quadraticCurveTo(16, 30, 6, 16); ctx.closePath(); ctx.fill(); ctx.strokeStyle = '#d0b050'; ctx.lineWidth = 1.5; ctx.stroke(); ctx.fillStyle = '#d0b050'; ctx.fillRect(15, 7, 2, 16); break;
-    case 'gloves': ctx.fillStyle = c; ctx.beginPath(); ctx.roundRect(9, 10, 13, 16, 3); ctx.fill(); for (let i = 0; i < 4; i++) { ctx.beginPath(); ctx.roundRect(9 + i * 3.3, 4 + Math.abs(i - 1.5), 3, 9, 1.5); ctx.fill(); } ctx.beginPath(); ctx.roundRect(21, 14, 6, 4, 2); ctx.fill(); break;
-    case 'boots': ctx.fillStyle = c; ctx.beginPath(); ctx.moveTo(10, 4); ctx.lineTo(18, 4); ctx.lineTo(18, 20); ctx.lineTo(27, 23); ctx.lineTo(27, 28); ctx.lineTo(10, 28); ctx.closePath(); ctx.fill(); ctx.fillStyle = shade(c, -0.4); ctx.fillRect(10, 26, 17, 2); break;
-    case 'belt': ctx.fillStyle = c; ctx.fillRect(3, 13, 26, 7); ctx.fillStyle = '#d0b050'; ctx.strokeStyle = '#d0b050'; ctx.lineWidth = 2; ctx.strokeRect(13, 12, 7, 9); break;
-    case 'ring': { ctx.strokeStyle = '#d8b040'; ctx.lineWidth = 3; ctx.beginPath(); ctx.ellipse(16, 19, 8, 7, 0, 0, 7); ctx.stroke(); const gem = { ring_str: '#e03030', ring_dex: '#30c060', ring_int: '#4070ff', ring_fire: '#ff8020', ring_guard: '#c0c8d0' }[id] || '#fff'; ctx.fillStyle = gem; ctx.shadowColor = gem; ctx.shadowBlur = 5; ctx.beginPath(); ctx.moveTo(16, 5); ctx.lineTo(20, 10); ctx.lineTo(16, 14); ctx.lineTo(12, 10); ctx.fill(); break; }
-    case 'amulet': { ctx.strokeStyle = '#d8b040'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(16, 8, 10, 0.2, Math.PI - 0.2); ctx.stroke(); const gem = { amulet_wis: '#6080ff', amulet_guard: '#e0e0f0', amulet_earth: '#60a040' }[id] || '#fff'; ctx.fillStyle = '#d8b040'; ctx.beginPath(); ctx.arc(16, 21, 6, 0, 7); ctx.fill(); ctx.fillStyle = gem; ctx.beginPath(); ctx.arc(16, 21, 4, 0, 7); ctx.fill(); break; }
-    case 'jerky':
-      ctx.fillStyle = '#7a3a1a'; ctx.beginPath(); ctx.moveTo(6, 20); ctx.quadraticCurveTo(10, 8, 22, 7); ctx.quadraticCurveTo(28, 12, 24, 20); ctx.quadraticCurveTo(14, 28, 6, 20); ctx.fill();
-      ctx.strokeStyle = '#a85a30'; ctx.lineWidth = 1; for (let i = 0; i < 3; i++) { ctx.beginPath(); ctx.moveTo(10 + i * 4, 18); ctx.lineTo(14 + i * 4, 11); ctx.stroke(); }
-      break;
-    case 'collar':
-      ctx.strokeStyle = '#8a3a2a'; ctx.lineWidth = 4; ctx.beginPath(); ctx.ellipse(16, 15, 10, 7, 0, 0, 7); ctx.stroke();
-      ctx.fillStyle = '#d8b040'; ctx.beginPath(); ctx.arc(16, 24, 4, 0, 7); ctx.fill();
-      ctx.fillStyle = '#c0c8d0'; for (const a of [0.5, 1.5, 2.5, 3.5, 4.5, 5.5]) ctx.fillRect(16 + Math.cos(a) * 10 - 1, 15 + Math.sin(a) * 7 - 1, 2, 2);
-      break;
-    case 'gold':
-      for (const [a, b] of [[12, 20], [20, 21], [16, 15]]) { ctx.fillStyle = '#a07a10'; ctx.beginPath(); ctx.ellipse(a, b + 1, 6, 3.5, 0, 0, 7); ctx.fill(); ctx.fillStyle = '#f2cc40'; ctx.beginPath(); ctx.ellipse(a, b, 6, 3.5, 0, 0, 7); ctx.fill(); }
-      break;
-    default: { // 戰利品
-      const gr = ctx.createRadialGradient(13, 12, 1, 16, 16, 12); gr.addColorStop(0, shade(c.startsWith('#') ? c : '#a08060', 0.4)); gr.addColorStop(1, c.startsWith('#') ? shade(c, -0.3) : c);
-      ctx.fillStyle = gr;
-      if (/scale|gem|core/.test(id)) { ctx.beginPath(); ctx.moveTo(16, 4); ctx.lineTo(27, 14); ctx.lineTo(16, 28); ctx.lineTo(5, 14); ctx.closePath(); ctx.fill(); }
-      else if (/fang|tooth|claw|tail/.test(id)) { ctx.beginPath(); ctx.moveTo(10, 6); ctx.quadraticCurveTo(26, 10, 20, 28); ctx.quadraticCurveTo(14, 16, 10, 6); ctx.fill(); }
-      else if (/bone/.test(id)) { ctx.strokeStyle = '#e8e3d0'; ctx.lineWidth = 4; ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo(8, 24); ctx.lineTo(24, 8); ctx.stroke(); }
-      else { ctx.beginPath(); ctx.moveTo(6, 10); ctx.lineTo(24, 6); ctx.lineTo(27, 22); ctx.lineTo(9, 27); ctx.closePath(); ctx.fill(); }
-    }
-  }
-  if (it.rare) { ctx.strokeStyle = 'rgba(200,160,255,0.7)'; ctx.lineWidth = 1; ctx.strokeRect(1, 1, 30, 30); }
-  ctx.restore();
-}
+// drawItemIcon 已移到 js/icons.js（v2.19 重新繪製）
 
 // ===== 魔法圖示 =====
 function drawSkillIcon(ctx, id, x, y, s) {
   ctx.save(); ctx.translate(x, y); ctx.scale(s / 32, s / 32);
   const glow = (c, b = 6) => { ctx.shadowColor = c; ctx.shadowBlur = b; };
+  if (typeof SPELL_ART !== 'undefined' && SPELL_ART[id]) { SPELL_ART[id](ctx, glow); ctx.restore(); return; }
   switch (id) {
     case 'heal': case 'heal2': case 'heal3': {
       const col = { heal: '#f4f8ff', heal2: '#c8ffd0', heal3: '#fff2a0' }[id];

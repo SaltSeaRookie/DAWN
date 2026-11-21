@@ -37,10 +37,24 @@ const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
 const dist = (ax, ay, bx, by) => Math.hypot(ax - bx, ay - by);
 const lerp = (a, b, t) => a + (b - a) * t;
 
-function shade(hex, amt) {
-  let c = hex.replace('#', '');
+// 把 #hex、rgb()、hsl() 轉成 [r,g,b]（讓 shade 可以重複套用在自己的結果上）
+function colorRGB(col) {
+  col = String(col || '#888').trim();
+  let m = col.match(/^rgba?\(([\d.]+)[,\s]+([\d.]+)[,\s]+([\d.]+)/i);
+  if (m) return [+m[1], +m[2], +m[3]];
+  m = col.match(/^hsla?\(([\d.]+)[,\s]+([\d.]+)%[,\s]+([\d.]+)%/i);
+  if (m) {
+    const h = +m[1] / 360, s = +m[2] / 100, l = +m[3] / 100;
+    const q = l < 0.5 ? l * (1 + s) : l + s - l * s, p = 2 * l - q;
+    const f = (t) => { t = (t + 1) % 1; return t < 1 / 6 ? p + (q - p) * 6 * t : t < 0.5 ? q : t < 2 / 3 ? p + (q - p) * (2 / 3 - t) * 6 : p; };
+    return [f(h + 1 / 3) * 255, f(h) * 255, f(h - 1 / 3) * 255];
+  }
+  let c = col.replace('#', '');
   if (c.length === 3) c = c.split('').map((ch) => ch + ch).join('');
-  let r = parseInt(c.substr(0, 2), 16), g = parseInt(c.substr(2, 2), 16), b = parseInt(c.substr(4, 2), 16);
+  return [parseInt(c.substr(0, 2), 16) || 0, parseInt(c.substr(2, 2), 16) || 0, parseInt(c.substr(4, 2), 16) || 0];
+}
+function shade(hex, amt) {
+  let [r, g, b] = colorRGB(hex);
   if (amt > 0) { r += (255 - r) * amt; g += (255 - g) * amt; b += (255 - b) * amt; }
   else { r *= 1 + amt; g *= 1 + amt; b *= 1 + amt; }
   return 'rgb(' + (r | 0) + ',' + (g | 0) + ',' + (b | 0) + ')';

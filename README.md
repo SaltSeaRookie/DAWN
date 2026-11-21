@@ -115,6 +115,7 @@ js/net.js       帳號／角色存檔／玩家指令的網路層（目前為本�
 js/world.js     大陸與地下城地圖生成
 js/assets.js    地表貼圖與靜態物件繪製
 js/sprites.js   角色、怪物、城門、圖示、血盟徽章繪製
+js/icons.js     物品圖示（依裝備系列的具象圖）與高階魔法圖騰 SPELL_ART
 js/audio.js     MIDI 解析與合成、原創登入曲、程序化音效
 js/music.js     區域音樂：程序作曲引擎與 21 首區域曲
 js/render.js    等角渲染、光照、小地圖、世界地圖
