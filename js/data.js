@@ -640,3 +640,4 @@ for (const id in ITEMS) {
   it.value = it.price;
   const np = it.price * (PRICE_MARKUP[id] || 1.5); it.price = np >= 100 ? Math.round(np / 10) * 10 : Math.max(1, Math.round(np));
 }
+for (const id in PETS) { const d = PETS[id]; d.value = d.price; if (d.price) d.price = Math.round(d.price * 1.5 / 10) * 10; }
