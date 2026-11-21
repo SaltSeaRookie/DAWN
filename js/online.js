@@ -18,7 +18,8 @@ class RemotePlayer extends Entity {
     if (s.atk && !this.netAtk) this.atkAnim = 0;
     this.netAtk = !!s.atk;
     if (look) this.look = look;
-    if (!this.look) this.look = Object.assign({}, CLASSES[this.cls] ? CLASSES[this.cls].look : CLASSES.knight.look);
+    // 還沒收到外觀資料時，先用職業的預設外觀（加上基本衣著顏色）
+    if (!this.look || !this.look.body) this.look = Object.assign({ body: '#7a6a5a', sleeve: '#6a5a4a' }, CLASSES[this.cls] ? CLASSES[this.cls].look : CLASSES.knight.look, this.look || {});
   }
   update(dt) {
     const dx = this.tx - this.x, dy = this.ty - this.y, d = Math.hypot(dx, dy);
