@@ -216,7 +216,8 @@ const Net = {
   handlers: {},
   on(type, fn) { this.handlers[type] = fn; },
   intent(type, payload) {
-    if (this.backend.send) { this.backend.send({ type, payload }); return; }
+    // 只有「由伺服器計算遊戲」的後端才把行為送出去（目前的後端都在瀏覽器裡計算）
+    if (this.backend.serverAuthoritative) { this.backend.sendIntent({ type, payload }); return; }
     const h = this.handlers[type];
     if (h) h(payload || {});
   },

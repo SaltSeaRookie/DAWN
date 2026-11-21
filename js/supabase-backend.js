@@ -100,13 +100,13 @@ const SupabaseBackend = {
     else if (m.ch !== 'world') return;
     this.emit('chat', { ch: m.ch, from: m.from, id: m.id, text: String(m.text || '').slice(0, 60) });
   },
-  send(event, payload) { if (this.channel && this.connected) this.channel.send({ type: 'broadcast', event, payload }); },
+  bcast(event, payload) { if (this.channel && this.connected) this.channel.send({ type: 'broadcast', event, payload }); },
   // RemoteBackend 相容：不需要回覆的訊息
   post(t, d) {
     if (!this.inWorld && t !== 'leave') return false;
     if (t === 'state') {
       this.me.s = Object.assign(this.me.s || {}, d.s); if (d.look) this.me.look = d.look;
-      this.send('st', { id: this.myId, name: this.me.name, s: d.s, look: d.look });
+      this.bcast('st', { id: this.myId, name: this.me.name, s: d.s, look: d.look });
       // 每 5 秒更新一次 Presence，讓剛上線的人看到最新位置與外觀
       const now = Date.now(); if (now - (this.trackT || 0) > 5000) { this.trackT = now; this.channel.track(this.me); }
       return true;
@@ -117,10 +117,10 @@ const SupabaseBackend = {
       this.chatTimes.push(now);
       const s = this.me.s || {};
       if (d.ch === 'whisper' && !this.presenceList().some((p) => p.name.toLowerCase() === String(d.to).toLowerCase())) { this.emit('chat', { ch: 'sys', text: d.to + ' 目前不在線上。' }); return false; }
-      this.send('chat', { id: this.myId, from: this.me.name, ch: d.ch, text: String(d.text).slice(0, 60), to: d.to, map: s.map, x: s.x, y: s.y, clan: s.clan });
+      this.bcast('chat', { id: this.myId, from: this.me.name, ch: d.ch, text: String(d.text).slice(0, 60), to: d.to, map: s.map, x: s.x, y: s.y, clan: s.clan });
       return true;
     }
-    if (t === 'relay') { this.send('relay', { to: d.to, from: this.myId, fromName: this.me.name, data: d.data }); return true; }
+    if (t === 'relay') { this.bcast('relay', { to: d.to, from: this.myId, fromName: this.me.name, data: d.data }); return true; }
     if (t === 'save') return this.chars.save(null, d.data).ok;
     return false;
   },
@@ -131,7 +131,7 @@ const SupabaseBackend = {
       this.me = { name: d.name, account: this.account, s: d.state, look: d.look };
       this.inWorld = true; this.trackT = Date.now();
       // 同一個帳號在別處登入時，請舊的連線離開
-      this.send('kick', { account: this.account, id: this.myId });
+      this.bcast('kick', { account: this.account, id: this.myId });
       await this.channel.track(this.me);
       return { ok: true, id: this.myId, players: this.presenceList().filter((p) => p.id !== this.myId) };
     }
