@@ -158,11 +158,7 @@ const Music = {
   song: null, playing: false, timer: null, cursor: 0, base: 0, chans: [], voices: [],
   songs: {}, current: 'login',
   load() {
-    if (!this.songs.field && window.THEME_MIDI_B64) {
-      const bin = atob(window.THEME_MIDI_B64), u = new Uint8Array(bin.length);
-      for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i);
-      try { this.songs.field = parseMidi(u); } catch (e) { console.warn('MIDI 解析失敗', e); }
-    }
+    if (!this.songs.theme && typeof composeDawnTheme === 'function') this.songs.theme = composeDawnTheme();
     if (!this.songs.login) this.songs.login = composeLoginTheme();
     if (!this.songs[this.current] && typeof composeArea === 'function') { const t = composeArea(this.current); if (t) this.songs[this.current] = t; }
     this.song = this.songs[this.current] || this.songs.login;

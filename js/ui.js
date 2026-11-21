@@ -576,7 +576,7 @@ const UI = {
     opt('昏暗中世紀色調', Settings.grade, (v) => { Settings.grade = v; saveSettings(); });
     opt('自動拾取附近的物品', Settings.autoPickup !== false, (v) => { Settings.autoPickup = v; saveSettings(); });
     opt('換區域時顯示曲名', Settings.showSongTitle !== false, (v) => { Settings.showSongTitle = v; saveSettings(); });
-    opt('大陸野外改播原版 0.mid', !!Settings.classicBgm, (v) => { Settings.classicBgm = v; saveSettings(); G.musT = 0; });
+    opt('大陸野外改播主題曲《晨曦大陸》', !!Settings.themeBgm, (v) => { Settings.themeBgm = v; saveSettings(); G.musT = 0; });
     const bk = el('div', 'btnrow');
     const e1 = el('button', 'btn sm', '⬇ 匯出此角色'); e1.onclick = () => { saveGame(true); Backup.download([serializePlayer(G.player)], G.player.name); };
     const e2 = el('button', 'btn sm', '📋 複製存檔碼'); e2.onclick = async () => { saveGame(true); const r = await Backup.copyCode([serializePlayer(G.player)]); if (r.ok) this.log('存檔碼已複製到剪貼簿，可以貼到另一台裝置的「匯入角色」。', 'sys'); else prompt('請手動複製這段存檔碼：', r.code); };

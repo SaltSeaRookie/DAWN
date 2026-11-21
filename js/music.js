@@ -164,7 +164,7 @@ function areaMusicId() {
   const town = W.townAt(p.x, p.y);
   if (town) return 'town_' + town.id;
   if (m === 'overworld') {
-    if (Settings.classicBgm && G.world.biomeAt(p.x, p.y) !== BIOME.CASTLE) return 'field';
+    if (Settings.themeBgm && G.world.biomeAt(p.x, p.y) !== BIOME.CASTLE) return 'theme';
     return BIOME_MUSIC()[W.biomeAt(p.x, p.y)] || 'meadow';
   }
   if (m === 'oren') return 'snowfield';
@@ -180,7 +180,117 @@ function musicTick(dt) {
   if (G.musWant !== want) { G.musWant = want; G.musSince = G.t; return; }
   if (G.t - G.musSince >= (want === 'battle' || Music.current === 'battle' ? 0.5 : 2)) {
     Music.play(want); G.musWant = null;
-    const S = AREA_MUSIC[want];
-    if (S && Settings.showSongTitle !== false) UI.log('♪ ' + S.name, 'sys');
+    const nm = want === 'theme' ? '晨曦大陸（主題曲）' : AREA_MUSIC[want] && AREA_MUSIC[want].name;
+    if (nm && Settings.showSongTitle !== false) UI.log('♪ ' + nm, 'sys');
   }
+}
+
+// ===== 主題曲《晨曦大陸》（v2.21 原創）=====
+// 降 B 和聲小調、每分鐘 132 拍、4/4 拍。曲式：序奏 → A 主題（法國號）→ A'（管風琴與短笛加入）
+// → B 段（轉到降 D 大調的抒情段，弦樂主奏）→ 高潮（全樂團）→ 尾奏，結尾接回序奏可無縫循環。
+function composeDawnTheme() {
+  const bpm = 132, beat = 60 / bpm, bar = beat * 4;
+  const ev = [];
+  const prog = (ch, a) => ev.push({ type: 'prog', ch, a, t: 0 });
+  const cc = (ch, a, b) => ev.push({ type: 'cc', ch, a, b, t: 0 });
+  const note = (ch, n, start, dur, v) => { if (n < 24 || n > 108) return; ev.push({ type: 'note', ch, n, v: Math.round(clamp(v, 1, 127)), t: start, end: start + Math.max(0.05, dur) }); };
+  // 0 法國號（主旋律） 1 弦樂（八分音符頑固音型） 2 管風琴 3 短笛（高音對位） 4 低音提琴 5 小號（高潮重複主旋律）
+  // 6 鋼片琴（閃爍音） 7 定音鼓 8 合唱 9 鼓組 10 弦樂（抒情段主旋律）
+  [[0, 60], [1, 48], [2, 19], [3, 72], [4, 43], [5, 56], [6, 8], [7, 47], [8, 52], [10, 49]].forEach(([c, p]) => prog(c, p));
+  [[0, 104], [1, 64], [2, 50], [3, 66], [4, 92], [5, 86], [6, 58], [7, 98], [8, 58], [9, 74], [10, 98]].forEach(([c, v]) => cc(c, 7, v));
+  [[0, 56], [1, 40], [2, 64], [3, 84], [5, 72], [6, 92], [8, 52], [10, 60]].forEach(([c, v]) => cc(c, 10, v));
+  // 音名 → MIDI（例如 'Bb4'、'F#5'）
+  const N = (s) => { const m = /^([A-G])(b|#)?(-?\d)$/.exec(s); return 12 * (+m[3] + 1) + { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 }[m[1]] + (m[2] === 'b' ? -1 : m[2] === '#' ? 1 : 0); };
+  // 和弦：[低音, 三和弦（中音域）]
+  const CH = {
+    Bbm: ['Bb1', ['F3', 'Bb3', 'Db4']], Gb: ['Gb1', ['Gb3', 'Bb3', 'Db4']], Db: ['Db2', ['F3', 'Ab3', 'Db4']], Ab: ['Ab1', ['Eb3', 'Ab3', 'C4']],
+    Ebm: ['Eb2', ['Gb3', 'Bb3', 'Eb4']], F: ['F1', ['F3', 'A3', 'C4']], Eb: ['Eb2', ['G3', 'Bb3', 'Eb4']], F7: ['F1', ['Eb3', 'A3', 'C4']],
+  };
+  // 旋律：每小節 [[音名, 拍數], ...]，'-' 為休止
+  const MA = [
+    [['F4', 1.5], ['Bb4', 0.5], ['C5', 1], ['Db5', 1]], [['Eb5', 1.5], ['Db5', 0.5], ['Bb4', 2]],
+    [['Ab4', 1], ['F4', 1], ['Ab4', 1], ['Db5', 1]], [['C5', 3], ['Eb5', 1]],
+    [['F5', 1.5], ['Eb5', 0.5], ['Db5', 1], ['C5', 1]], [['Bb4', 1.5], ['Gb4', 0.5], ['Eb4', 1], ['Gb4', 1]],
+    [['F4', 1], ['A4', 1], ['C5', 1], ['Eb5', 1]], [['Db5', 0.5], ['C5', 0.5], ['A4', 1], ['F4', 2]],
+  ];
+  const MA2 = MA.slice(0, 6).concat([[['A4', 1.5], ['C5', 0.5], ['Eb5', 1], ['C5', 1]], [['Bb4', 4]]]);
+  const MB = [
+    [['Bb4', 2], ['Db5', 1], ['Eb5', 1]], [['F5', 3], ['Eb5', 0.5], ['Db5', 0.5]],
+    [['Gb5', 2], ['F5', 1], ['Eb5', 1]], [['Db5', 3], ['Bb4', 1]],
+    [['Db5', 1.5], ['Eb5', 0.5], ['F5', 1], ['Gb5', 1]], [['Ab5', 2], ['F5', 2]],
+    [['Bb5', 1.5], ['Ab5', 0.5], ['G5', 1], ['Eb5', 1]], [['F5', 2], ['Eb5', 1], ['C5', 1]],
+  ];
+  // 短笛的高音對位（A' 與高潮段）
+  const DESC = [
+    [['Db6', 2], ['C6', 2]], [['Bb5', 2], ['Db6', 2]], [['Ab5', 2], ['F5', 2]], [['Eb6', 4]],
+    [['Db6', 2], ['F6', 2]], [['Eb6', 2], ['Gb6', 2]], [['F6', 2], ['Eb6', 2]], [['Db6', 4]],
+  ];
+  const SECTIONS = [
+    { id: 'intro', chords: ['Bbm', 'Gb', 'Ab', 'F'] },
+    { id: 'A', chords: ['Bbm', 'Gb', 'Db', 'Ab', 'Bbm', 'Ebm', 'F', 'F'], mel: MA },
+    { id: 'A2', chords: ['Bbm', 'Gb', 'Db', 'Ab', 'Bbm', 'Ebm', 'F7', 'Bbm'], mel: MA2, desc: true },
+    { id: 'B', chords: ['Gb', 'Db', 'Ebm', 'Bbm', 'Gb', 'Db', 'Eb', 'F7'], mel: MB },
+    { id: 'C', chords: ['Bbm', 'Gb', 'Db', 'Ab', 'Bbm', 'Ebm', 'F7', 'Bbm'], mel: MA2, desc: true },
+    { id: 'outro', chords: ['Gb', 'Ab', 'F', 'F7'] },
+  ];
+  let t = 0;
+  for (const S of SECTIONS) {
+    S.chords.forEach((cn, b) => {
+      const t0 = t + b * bar, [bassN, triad] = CH[cn], bass = N(bassN), tones = triad.map(N);
+      const big = S.id === 'C', soft = S.id === 'intro' || S.id === 'B', lastBar = b === S.chords.length - 1;
+      // ---- 旋律 ----
+      if (S.mel) {
+        let pos = 0;
+        for (const [nm, len] of S.mel[b]) {
+          if (nm !== '-') {
+            const n = N(nm), st = t0 + pos * beat, d = len * beat;
+            if (S.id === 'B') { note(10, n, st, d * 0.98, 92); note(0, n - 12, st, d * 0.9, 58); }
+            else {
+              note(0, n, st, d * 0.92, big ? 108 : 98);
+              if (big) { note(5, n + 12, st, d * 0.9, 88); note(0, n - 12, st, d * 0.9, 72); }
+              // 第二法國號：和弦內低一個音的和聲
+              if (S.id !== 'A') { const h = tones.map((x) => x + 12).filter((x) => x < n - 1).pop(); if (h) note(0, h, st, d * 0.9, 64); }
+            }
+          }
+          pos += len;
+        }
+      }
+      if (S.desc) { let pos = 0; for (const [nm, len] of DESC[b]) { note(3, N(nm), t0 + pos * beat, len * beat * 0.95, big ? 74 : 62); pos += len; } }
+      // ---- 弦樂八分音符頑固音型（根音－五音－八度） ----
+      if (S.id !== 'B') {
+        const pat = [tones[0], tones[1], tones[2], tones[1]];
+        for (let k = 0; k < 8; k++) note(1, pat[k % 4] + (k >= 4 && !soft ? 12 : 0), t0 + k * beat / 2, beat * 0.45, (k % 2 ? 48 : 60) + (big ? 12 : 0) + (S.id === 'intro' ? b * 4 - 10 : 0));
+      } else {
+        // 抒情段：弦樂改為長音和聲，鋼片琴分解和弦
+        for (const n of tones) note(1, n, t0, bar * 0.98, 52);
+        [0, 1, 2, 1, 2, 0, 1, 2].forEach((k, i) => note(6, tones[k] + 24, t0 + i * beat / 2, beat * 0.8, i === 0 ? 62 : 46));
+      }
+      // ---- 管風琴與合唱 ----
+      if (S.id === 'A2' || S.id === 'C' || S.id === 'outro') for (const n of tones) note(2, n, t0, bar * 0.98, big ? 60 : 50);
+      if (S.id === 'intro' || S.id === 'C' || S.id === 'B') for (const n of tones) note(8, n + 12, t0, bar * 0.98, S.id === 'C' ? 64 : 48);
+      if (S.id === 'intro') note(6, tones[2] + 24, t0 + beat * 3, beat * 2, 50);
+      // ---- 低音 ----
+      if (S.id === 'B') { note(4, bass + 12, t0, beat * 2 * 0.95, 76); note(4, bass + 19, t0 + beat * 2, beat * 2 * 0.95, 66); }
+      else if (S.id === 'intro') note(4, bass + 12, t0, bar * 0.98, 80);
+      else for (const [k, o] of [[0, 0], [1.5, 0], [2, 12], [3, 7]]) note(4, bass + 12 + o, t0 + k * beat, beat * (k === 1.5 ? 0.45 : 0.9), k === 0 ? 92 : 74);
+      // ---- 定音鼓 ----
+      if (S.id === 'intro' && lastBar) for (let k = 0; k < 16; k++) note(7, N('F2'), t0 + k * beat / 4, beat / 4, 40 + k * 4);
+      else if (big || S.id === 'outro') { note(7, N(cn === 'F' || cn === 'F7' ? 'F2' : 'Bb1') + (cn === 'F' || cn === 'F7' ? 0 : 12), t0, beat, 100); note(7, N('F2'), t0 + beat * 2.5, beat / 2, 80); if (lastBar) for (let k = 0; k < 8; k++) note(7, N('F2'), t0 + beat * 2 + k * beat / 4, beat / 4, 60 + k * 6); }
+      else if (S.id === 'A2' && b % 4 === 0) note(7, N('Bb2'), t0, beat, 84);
+      // ---- 鼓組 ----
+      const d = (n, p, v) => note(9, n, t0 + p * beat, beat * 0.2, v);
+      if (S.id === 'intro') { if (b === 0) d(49, 0, 70); }
+      else if (S.id === 'B') { d(36, 0, 56); d(36, 2.5, 44); for (let k = 0; k < 4; k++) d(42, k + 0.5, 28); if (b === 0) d(49, 0, 60); }
+      else {
+        const hv = big ? 1.15 : 1;
+        d(36, 0, 92 * hv); d(36, 1.5, 70 * hv); d(36, 2.5, 76 * hv); d(38, 1, 74 * hv); d(38, 3, 80 * hv);
+        for (let k = 0; k < 8; k++) d(42, k / 2, (k % 2 ? 34 : 48) * hv);
+        if (b === 0 || (big && b === 4)) d(49, 0, 96);
+        if (lastBar) { d(38, 3.25, 60); d(38, 3.5, 70); d(38, 3.75, 82); }
+      }
+    });
+    t += S.chords.length * bar;
+  }
+  ev.sort((a, b) => a.t - b.t || (a.type === 'note' ? 1 : -1));
+  return { events: ev, duration: t, loopGap: 0, title: '晨曦大陸（主題曲）', gain: 0.8 };
 }
