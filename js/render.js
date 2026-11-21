@@ -122,9 +122,10 @@ function render() {
     const [sx, sy] = S(c.x, c.y), a = Math.min(1, (c.dur - c.t) / 0.6, c.t / 0.3);
     const rr = c.r * HW * 1.4;
     const gr = ctx.createRadialGradient(sx, sy - 10, 4, sx, sy - 10, rr);
-    gr.addColorStop(0, 'rgba(120,220,80,' + 0.45 * a + ')'); gr.addColorStop(1, 'rgba(60,140,40,0)');
+    if (c.dark) { gr.addColorStop(0, 'rgba(150,70,220,' + 0.5 * a + ')'); gr.addColorStop(1, 'rgba(60,20,100,0)'); }
+    else { gr.addColorStop(0, 'rgba(120,220,80,' + 0.45 * a + ')'); gr.addColorStop(1, 'rgba(60,140,40,0)'); }
     ctx.fillStyle = gr; ctx.beginPath(); ctx.ellipse(sx, sy - 10, rr, rr * 0.55, 0, 0, 7); ctx.fill();
-    if (Math.random() < 0.4) G.particles.push({ x: c.x + rand(-c.r, c.r) * 0.7, y: c.y + rand(-c.r, c.r) * 0.7, z: 2, vx: 0, vy: 0, vz: 25, life: 0.8, max: 0.8, color: '#a8ff70', size: 3 });
+    if (Math.random() < 0.4) G.particles.push({ x: c.x + rand(-c.r, c.r) * 0.7, y: c.y + rand(-c.r, c.r) * 0.7, z: 2, vx: 0, vy: 0, vz: 25, life: 0.8, max: 0.8, color: c.dark ? '#c890ff' : '#a8ff70', size: 3 });
   }
   for (const sn of G.snows || []) {
     const [sx, sy] = S(sn.x, sn.y), rr = sn.r * HW * 1.4;
@@ -179,10 +180,16 @@ function render() {
     if (mt.t < 0) continue;
     const [sx, sy] = S(mt.x, mt.y); const k = mt.t / mt.dur;
     const zz = (1 - k) * 300;
-    const gr = ctx.createRadialGradient(sx + zz * 0.4, sy - zz, 1, sx + zz * 0.4, sy - zz, 14);
+    const R = mt.big ? 28 : 14, mx = sx + zz * 0.4, my = sy - zz;
+    if (mt.big) {   // 拖曳的火焰尾巴
+      const tg = ctx.createLinearGradient(mx, my, mx + 60, my - 150);
+      tg.addColorStop(0, 'rgba(255,170,60,0.75)'); tg.addColorStop(1, 'rgba(255,60,0,0)');
+      ctx.strokeStyle = tg; ctx.lineWidth = 16; ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo(mx, my); ctx.lineTo(mx + 60, my - 150); ctx.stroke(); ctx.lineCap = 'butt';
+    }
+    const gr = ctx.createRadialGradient(mx, my, 1, mx, my, R);
     gr.addColorStop(0, '#fff6c0'); gr.addColorStop(0.5, '#ff8a20'); gr.addColorStop(1, 'rgba(200,40,0,0)');
-    ctx.fillStyle = gr; ctx.beginPath(); ctx.arc(sx + zz * 0.4, sy - zz, 14, 0, 7); ctx.fill();
-    if (k > 0.9) burst(mt.x, mt.y, 5, '#ff7020', 4, 3, 0.5, 3, 2);
+    ctx.fillStyle = gr; ctx.beginPath(); ctx.arc(mx, my, R, 0, 7); ctx.fill();
+    if (k > 0.9) burst(mt.x, mt.y, 5, '#ff7020', mt.big ? 10 : 4, mt.big ? 5 : 3, 0.6, 3, 2);
   }
   for (const q of G.particles) {
     const [sx, sy] = S(q.x, q.y);

@@ -429,16 +429,18 @@ const UI = {
     w.body.innerHTML = '';
     const grid = el('div', 'grid sgrid');
     const list = Object.keys(SPELLS).filter((s) => SPELLS[s].learn[p.cls] !== undefined).sort((a, b) => SPELLS[a].circle - SPELLS[b].circle || SPELLS[a].learn[p.cls] - SPELLS[b].learn[p.cls]);
+    let lastC = 0;
     for (const id of list) {
       const s = SPELLS[id], has = p.spells.includes(id);
+      if (s.circle !== lastC) { lastC = s.circle; grid.appendChild(el('div', 'circlehead', '第 ' + s.circle + ' 階' + (s.circle >= 6 ? ' <span class="dim">高階</span>' : ''))); }
       const c = el('div', 'slot' + (has ? '' : ' locked'));
       c.appendChild(iconCanvas(id, 34, 'spell'));
       c.appendChild(el('span', 'qty', s.mp));
       if (has && p.autoBuff && p.autoBuff[id] && autoBuffable(id)) c.appendChild(el('span', 'abadge', '自動'));
       c.addEventListener('mouseenter', (e) => {
         const t = $('#tip');
-        t.innerHTML = '<b>' + s.name + '</b><div>第 ' + s.circle + ' 階　消耗 MP ' + s.mp + (s.aoe ? '　範圍 ' + s.aoe : '') + '</div><div>' + esc(s.desc) + '</div>' + (s.dur ? '<div class="dim">持續 ' + s.dur + ' 秒</div>' : '') +
-          (has ? '<div class="dim">點擊施放・拖曳到快捷列' + (autoBuffable(id) ? '・右鍵切換自動施放' : '') + '</div>' : '<div class="bad">尚未學會（Lv.' + s.learn[p.cls] + ' 可學，需要魔法書）</div>');
+        t.innerHTML = '<b>' + s.name + '</b><div>第 ' + s.circle + ' 階　消耗 MP ' + s.mp + (s.aoe ? '　範圍 ' + s.aoe : '') + (s.cd ? '　冷卻 ' + s.cd + ' 秒' : '') + '</div><div>' + esc(s.desc) + '</div>' + (s.dur ? '<div class="dim">持續 ' + s.dur + ' 秒</div>' : '') +
+          (has ? '<div class="dim">點擊施放・拖曳到快捷列' + (autoBuffable(id) ? '・右鍵切換自動施放' : '') + '</div>' : '<div class="bad">尚未學會（Lv.' + s.learn[p.cls] + ' 可學，需要魔法書' + (s.circle >= 7 ? '，只有強大的頭目會掉落' : s.circle >= 5 ? '，城堡御用商人或歐瑞城魔法商人有售' : '') + '）</div>');
         t.style.display = 'block'; this.placeTip(t, c);
       });
       c.addEventListener('mouseleave', () => this.hideTip());

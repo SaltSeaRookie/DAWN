@@ -153,6 +153,8 @@ function recalc(p = G.player) {
   if (B.earthskin) d.ac += 5;
   if (B.blessarmor) { d.ac += 4; d.mr += 10; }
   if (B.fireres) d.res.fire += 30;
+  if (B.divineshield) { d.ac += 8; d.mr += 20; }
+  if (B.berserk) d.ac -= 5;
   d.st = st;
   d.ac += Math.max(0, Math.floor(statMod(st.dex) / 2)) + Math.floor(p.level / 6);
   d.er += 3 + statMod(st.dex) * 2;
@@ -558,6 +560,16 @@ function dealDamage(src, tgt, dmg, opt = {}) {
   if (tgt.dead || dmg <= 0) return;
   const pl = G.player;
   if (tgt === pl && pl.god) { floatText(pl.x, pl.y, '0', '#ffb040', 60, 13); return; }
+  if (tgt === pl) {
+    if (pl.buffs.miracle) { floatText(pl.x, pl.y, '無敵', '#fff6c0', 60, 13); return; }
+    if (pl.buffs.holyfield) dmg = Math.max(1, Math.round(dmg * 0.7));
+    if (pl.buffs.manashield && pl.mp >= 1) {
+      const ab = Math.min(Math.floor(dmg * 0.5), Math.floor(pl.mp));
+      pl.mp -= ab; dmg -= ab;
+      if (ab > 0 && Math.random() < 0.3) G.particles.push({ x: pl.x, y: pl.y, z: 30, vx: 0, vy: 0, vz: 20, life: 0.4, max: 0.4, color: '#80b0ff', size: 4 });
+      if (dmg <= 0) return;
+    }
+  }
   if (tgt === pl && src && src.kind === 'townguard') {
     if (G.t <= (pl.guardSafeT || 0)) return;
     pl.guardSafeT = G.t + GUARD_COOLDOWN;
@@ -576,7 +588,7 @@ function dealDamage(src, tgt, dmg, opt = {}) {
   if (src) {
     if (tgt !== pl) {
       if (src === pl) tgt.hitByPlayer = true;
-      tgt.grudge.add(src.id, tgt.faction === 'fighter' && src === pl ? FIGHTER_GRUDGE : 60);
+      if (tgt.grudge) tgt.grudge.add(src.id, tgt.faction === 'fighter' && src === pl ? FIGHTER_GRUDGE : 60);
       if (!tgt.target || tgt.target.dead || (tgt.state !== 'chase' && !tgt.struct)) { tgt.target = src; tgt.state = 'chase'; tgt.thinkT = 0; }
       if (tgt.boss && !tgt.roared) { tgt.roared = true; SFX.play('roar', tgt.x, tgt.y); }
       // 被攻擊的冒險者會呼叫附近的同伴
@@ -845,13 +857,20 @@ function updatePlayer(dt) {
     }
     if (wp < 50) p.weightWarned = false;
   }
+  if (p.buffs.holyfield) {
+    p.hfT = (p.hfT || 0) + dt;
+    if (p.hfT >= 1) {
+      p.hfT = 0; const h = 20 + p.d.sp * 2;
+      for (const t of [p, ...G.map.actors.filter((a) => !a.dead && (a.companion || a.kind === 'ally' || a.kind === 'merc') && dist(a.x, a.y, p.x, p.y) < 6)]) { t.hp = Math.min(t.maxHp, t.hp + h); if (Math.random() < 0.5) floatText(t.x, t.y, '+' + h, '#60ff80', 50, 12); }
+    }
+  }
   if (p.buffs.sanctuary) { p.sancT = (p.sancT || 0) + dt; if (p.sancT >= 1) { p.sancT = 0; const h = 5 + p.d.sp; p.hp = Math.min(p.maxHp, p.hp + h); } }
   let changed = false;
   for (const k in p.buffs) {
     p.buffs[k] -= dt;
     if (p.buffs[k] <= 0) {
       delete p.buffs[k]; changed = true;
-      const msg = { haste: '你的動作恢復正常速度。', holy: '武器上神聖的氣息消失了。', shield: '防護術的效果消失了。', glow: '身邊的光芒消失了。', might: '力量祝福的效果消失了。', fireres: '抗火的力量消失了。', expboost: '經驗祝福的效果結束了。', warcry: '戰吼的效果消失了。', earthskin: '大地之膚的效果消失了。', blessarmor: '祝福鎧甲的效果消失了。', sanctuary: '神聖光環消失了。' }[k];
+      const msg = { haste: '你的動作恢復正常速度。', holy: '武器上神聖的氣息消失了。', shield: '防護術的效果消失了。', glow: '身邊的光芒消失了。', might: '力量祝福的效果消失了。', fireres: '抗火的力量消失了。', expboost: '經驗祝福的效果結束了。', warcry: '戰吼的效果消失了。', earthskin: '大地之膚的效果消失了。', blessarmor: '祝福鎧甲的效果消失了。', sanctuary: '神聖光環消失了。', manashield: '魔力護盾消失了。', divineshield: '神聖護盾消失了。', berserk: '你從狂暴中冷靜下來。', eagleeye: '鷹眼的效果消失了。', holyfield: '聖域消失了。', miracle: '神蹟的庇護結束了。' }[k];
       if (msg) log(msg, 'sys');
     }
   }
@@ -964,10 +983,10 @@ function playerStrike(t, mul = 1) {
   const roll = (extraMul = 1) => {
     if (t.dead) return;
     const statB = w.ranged ? Math.floor(statMod(st.dex) * 0.8) : statMod(st.str);
-    let base = randi(w.dmg[0], w.dmg[1]) + p.d.dmgB + Math.floor(p.level / 4) + Math.max(-2, statB) + (p.buffs.holy ? 2 : 0) + (p.buffs.might ? 3 : 0);
+    let base = randi(w.dmg[0], w.dmg[1]) + p.d.dmgB + Math.floor(p.level / 4) + Math.max(-2, statB) + (p.buffs.holy ? 2 : 0) + (p.buffs.might ? 3 : 0) + (p.buffs.berserk ? 6 : 0) + (p.buffs.eagleeye && w.ranged ? 4 : 0);
     if (t.undead) base += (w.undeadB || 0) + (p.buffs.holy ? 3 : 0);
     if (arrow) { const ad = ITEMS[arrow.id]; base += ad.dmgB || 0; if (t.undead) base += ad.undeadB || 0; }
-    const hitB = (p.d.hit + (w.ranged ? statMod(st.dex) : statMod(st.str)) + (p.buffs.holy ? 2 : 0) + ench * 0.5) * 0.02;
+    const hitB = (p.d.hit + (w.ranged ? statMod(st.dex) : statMod(st.str)) + (p.buffs.holy ? 2 : 0) + (p.buffs.eagleeye && w.ranged ? 6 : 0) + ench * 0.5) * 0.02;
     physHit(p, t, strikeMul * extraMul, { base, hit: hitB, ranged: w.ranged, crit: 0.05 + Math.max(0, statMod(st.dex)) * 0.01 });
     if (w.slow && !t.dead && Math.random() < w.slow) { t.slowT = 3; burst(t.x, t.y, 24, '#c8f0ff', 8, 1.5, 0.5, 2, 1); }
   };
@@ -1116,7 +1135,7 @@ function autoBuffTick(dt) {
   if (p.castCd > G.t || G.targeting) return;
   for (const id in p.autoBuff) {
     if (!p.autoBuff[id] || !autoBuffable(id) || !p.spells.includes(id)) continue;
-    if ((p.buffs[id] || 0) > 1.5) continue;
+    if ((p.buffs[id] || 0) > 1.5 || (p.spellCd && (p.spellCd[id] || 0) > G.t)) continue;
     if (p.mp < SPELLS[id].mp) continue;
     doCast(id, null);
     return;
@@ -1141,7 +1160,10 @@ function doCast(id, target) {
   if (p.mp < s.mp) { log('魔力不足。', 'warn'); SFX.play('error'); return; }
   if (s.bow && !p.weaponDef.ranged) { log('需要裝備弓。', 'warn'); SFX.play('error'); return; }
   if (inSafe(p) && s.target === 'enemy') { log('安全區域內無法攻擊。', 'warn'); return; }
-  p.castCd = G.t + 0.8;
+  p.spellCd = p.spellCd || {};
+  if (s.cd && (p.spellCd[id] || 0) > G.t) { log('「' + s.name + '」冷卻中（還有 ' + Math.ceil(p.spellCd[id] - G.t) + ' 秒）。', 'warn'); SFX.play('error'); return; }
+  if (s.cd) p.spellCd[id] = G.t + s.cd;
+  p.castCd = G.t + (s.circle >= 8 ? 1.2 : 0.8);
   p.mp -= s.mp;
   p.atkAnim = 0; p.atkDur = 0.35;
   if (target) p.face(target.x, target.y);
@@ -1267,6 +1289,98 @@ function doCast(id, target) {
       for (const a of G.map.actors) if (!a.dead && a.kind === 'monster' && dist(a.x, a.y, p.x, p.y) < 5 && !inSafe(a)) { a.target = p; a.state = 'chase'; a.grudge.add(p.id); }
       break;
     }
+    // ===== 第 6～10 階 =====
+    case 'manashield': buff('manashield', '一層魔力護盾包圍了你。（傷害一半由魔力承受）', '#80b0ff'); break;
+    case 'divineshield': buff('divineshield', '神聖之光化為護盾。（防禦 +8、魔防 +20）', '#ffe880'); break;
+    case 'berserk': buff('berserk', '你陷入了狂暴！（傷害 +6、防禦 -5）', '#ff5030'); SFX.play('roar'); break;
+    case 'eagleeye': buff('eagleeye', '你的視野變得像老鷹一樣銳利。', '#d0f080'); break;
+    case 'holyfield': buff('holyfield', '聖域展開了！（每秒治療周圍同伴、受到傷害 -30%）', '#fff0a0'); G.rings = G.rings || []; G.rings.push({ x: p.x, y: p.y, t: 0, r: 6, col: '255,240,160' }); break;
+    case 'firestorm': {
+      const tx = target.x, ty = target.y;
+      SFX.play('fire'); G.rings = G.rings || []; G.rings.push({ x: tx, y: ty, t: 0, r: s.aoe, col: '255,120,40' });
+      for (let w = 0; w < 4; w++) later(0.25 + w * 0.5, () => {
+        for (let i = 0; i < 3; i++) burst(tx + rand(-1.5, 1.5), ty + rand(-1.5, 1.5), 5, i ? '#ffb040' : '#ff5010', 18, 3.5, 0.6, 3, 3);
+        SFX.play(w ? 'fire' : 'boom', tx, ty); if (!w) shake(6);
+        aoeHit(tx, ty, s.aoe, () => (w === 0 ? randi(55, 80) + sp * 5 : randi(18, 28) + sp * 2));
+      });
+      break;
+    }
+    case 'thunderstorm': {
+      const tx = target.x, ty = target.y;
+      SFX.play('thunder'); G.rings = G.rings || []; G.rings.push({ x: tx, y: ty, t: 0, r: s.aoe, col: '255,240,120' });
+      for (let k = 0; k < 7; k++) later(0.15 + k * 0.18, () => {
+        const vs = G.map.actors.filter((a) => !a.dead && dist(a.x, a.y, tx, ty) <= s.aoe && playerCanAttack(a, false));
+        const v = pick(vs); const bx = v ? v.x : tx + rand(-2, 2), by = v ? v.y : ty + rand(-2, 2);
+        G.bolts = G.bolts || []; G.bolts.push({ x: bx, y: by, t: 0 }); SFX.play('thunder', bx, by);
+        if (v) magicHit(p, v, randi(40, 60) + sp * 4, { element: 'wind' });
+      });
+      break;
+    }
+    case 'greaterheal': {
+      const n = 120 + sp * 8 + randi(0, 20);
+      healOne(p, n);
+      for (const a of G.map.actors) if (!a.dead && (a.companion || a.kind === 'ally' || a.kind === 'merc') && dist(a.x, a.y, p.x, p.y) < 8) healOne(a, n);
+      G.rings = G.rings || []; G.rings.push({ x: p.x, y: p.y, t: 0, r: 8, col: '160,255,190' });
+      burst(p.x, p.y, 30, '#c8ffd0', 40, 3, 1, 3, 4); SFX.play('heal'); break;
+    }
+    case 'earthquake': {
+      SFX.play('boom'); shake(14);
+      G.rings = G.rings || []; G.rings.push({ x: p.x, y: p.y, t: 0, r: s.aoe, col: '200,150,90' });
+      for (let i = 0; i < 24; i++) { const a2 = Math.random() * 7, r = rand(0.5, s.aoe); burst(p.x + Math.cos(a2) * r, p.y + Math.sin(a2) * r, 2, '#8a6a40', 4, 2, 0.6, 3, 2); }
+      const base = p.cls === 'knight' ? () => randi(50, 80) + statMod(p.d.st.str) * 4 + Math.floor(p.level / 2) : () => randi(50, 80) + sp * 4;
+      later(0.15, () => { for (const a of G.map.actors.slice()) if (!a.dead && dist(a.x, a.y, p.x, p.y) <= s.aoe && playerCanAttack(a, false)) { magicHit(p, a, base(), { element: 'earth' }); a.slowT = 3; } });
+      break;
+    }
+    case 'deathcloud': {
+      SFX.play('cast'); G.clouds = G.clouds || [];
+      G.clouds.push({ x: target.x, y: target.y, r: s.aoe, t: 0, dur: 8, tick: 0, dmg: () => randi(20, 30) + sp * 2, dark: true });
+      break;
+    }
+    case 'holyjudgment': {
+      const t = target;
+      G.rings = G.rings || []; G.rings.push({ x: t.x, y: t.y, t: 0, r: 1.5, col: '255,250,200' });
+      for (let i = 0; i < 40; i++) G.particles.push({ x: t.x + rand(-0.5, 0.5), y: t.y + rand(-0.5, 0.5), z: rand(0, 160), vx: 0, vy: 0, vz: -rand(60, 160), life: 0.6, max: 0.6, color: i % 2 ? '#fffbe0' : '#ffe070', size: 3 });
+      SFX.play('heal'); later(0.35, () => { if (t.dead) return; SFX.play('boom', t.x, t.y); shake(5); magicHit(p, t, (randi(130, 180) + sp * 8) * (t.undead ? 2 : 1)); });
+      break;
+    }
+    case 'arrowstorm': {
+      const tx = target.x, ty = target.y; let n = 0;
+      for (let i = 0; i < 12; i++) { const ar = pickArrow(target); if (!ar) break; removeItem(ar, 1); n++; }
+      if (!n) { log('沒有箭了！', 'warn'); p.mp += s.mp; break; }
+      SFX.play('bow');
+      for (let wv = 0; wv < 3; wv++) {
+        for (let i = 0; i < 14; i++) later(wv * 0.5 + i * 0.03, () => { const ax = tx + rand(-2.6, 2.6), ay = ty + rand(-2.6, 2.6); G.projectiles.push({ kind: 'arrow', x: ax - 2.5, y: ay - 2.5, z: 150, target: { x: ax, y: ay, dead: false, rain: true }, speed: 17, onHit: () => burst(ax, ay, 2, '#c8b890', 3, 1, 0.3, 2, 1) }); });
+        later(wv * 0.5 + 0.5, () => { for (const a of G.map.actors.slice()) if (!a.dead && dist(a.x, a.y, tx, ty) <= s.aoe && playerCanAttack(a, false)) physHit(p, a, 0.7 + n * 0.06, { base: randi(p.weaponDef.dmg[0], p.weaponDef.dmg[1]) + p.d.dmgB + statMod(p.d.st.dex) + Math.floor(p.level / 3), hit: 0.15, ranged: true }); });
+      }
+      break;
+    }
+    case 'timestop': {
+      SFX.play('ice'); SFX.play('cast');
+      G.rings = G.rings || []; G.rings.push({ x: p.x, y: p.y, t: 0, r: s.aoe, col: '160,240,255' });
+      let n = 0;
+      for (const a of G.map.actors) if (!a.dead && dist(a.x, a.y, p.x, p.y) <= s.aoe && playerCanAttack(a, true) && !a.struct) { const d2 = a.boss ? 2 : 5; a.stunT = G.t + d2; a.slowT = d2; a.target = a.target || p; n++; burst(a.x, a.y, 30, '#c8f4ff', 10, 1, 0.6, 2, 2); }
+      log('時間凍結了！' + n + ' 個敵人無法行動。', 'level');
+      break;
+    }
+    case 'armageddon': {
+      const tx = target.x, ty = target.y;
+      G.meteors = G.meteors || []; G.rings = G.rings || [];
+      G.rings.push({ x: tx, y: ty, t: 0, r: s.aoe, col: '255,60,20' });
+      SFX.play('fire');
+      for (let wv = 0; wv < 3; wv++) {
+        for (let i = 0; i < 8; i++) G.meteors.push({ x: tx + rand(-s.aoe * 0.8, s.aoe * 0.8), y: ty + rand(-s.aoe * 0.8, s.aoe * 0.8), t: -wv * 0.7 - i * 0.06, dur: 0.7, big: true });
+        later(0.9 + wv * 0.7, () => { SFX.play('boom', tx, ty); shake(10); aoeHit(tx, ty, s.aoe, () => randi(90, 130) + sp * 6); });
+      }
+      break;
+    }
+    case 'miracle': {
+      p.hp = p.maxHp; p.buffs.miracle = 5; recalc();
+      for (const a of G.map.actors) if (!a.dead && (a.companion || a.kind === 'ally' || a.kind === 'merc') && dist(a.x, a.y, p.x, p.y) < 10) { a.hp = a.maxHp; floatText(a.x, a.y, 'FULL', '#60ff80', 50); }
+      G.rings = G.rings || []; G.rings.push({ x: p.x, y: p.y, t: 0, r: 10, col: '255,255,230' });
+      for (let i = 0; i < 60; i++) G.particles.push({ x: p.x + rand(-2, 2), y: p.y + rand(-2, 2), z: rand(0, 40), vx: 0, vy: 0, vz: rand(40, 100), life: 1.4, max: 1.4, color: i % 3 ? '#fffbe0' : '#ffd040', size: 3 });
+      SFX.play('levelup'); log('神蹟降臨！你與同伴的體力完全恢復，5 秒內不受任何傷害。', 'level');
+      break;
+    }
     case 'blink': {
       const mw = screenToWorld(G.mouse.x, G.mouse.y);
       let tx = mw.x, ty = mw.y;
@@ -1356,6 +1470,7 @@ function updateActor(a, dt) {
   const pl = G.player, W = G.world;
   if (a.dead) { a.deadT += dt; return; }
   if (a.kind === 'struct') return;
+  if (a.stunT && G.t < a.stunT) { a.moving = false; a.path = []; a.atkAnim = -1; a.hurtT -= dt; return; }
   if (a.companion) {
     if (a.atkAnim >= 0) { a.atkAnim += dt / 0.45; if (a.atkAnim >= 1) a.atkAnim = -1; }
     return updateCompanion(a, dt);
@@ -1726,7 +1841,7 @@ Net.on('portal', (d) => setAction({ type: 'portal', portal: d.portal }));
 function enterWorld(saveData) {
   const p = loadPlayer(saveData);
   G.player = p;
-  G.maps = {}; G.siege = null; G.raid = null; G.raidT = undefined; G.autoHunt = false; G.realmInit = false; G.npcDecl = null; G.formT = undefined;
+  G.maps = {}; G.timers.length = 0; G.hazards = []; G.siege = null; G.raid = null; G.raidT = undefined; G.autoHunt = false; G.realmInit = false; G.npcDecl = null; G.formT = undefined;
   // 電腦角色避開所有玩家角色與血盟成員的名字
   const taken = [p.name];
   try { const db = LocalBackend.db(); for (const a of Object.values(db.accounts)) taken.push(...Object.keys(a.chars)); } catch (e) { /* */ }

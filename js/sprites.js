@@ -610,6 +610,19 @@ function drawSkillIcon(ctx, id, x, y, s) {
       ctx.strokeStyle = '#ffd36a'; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.arc(16, 16, 9, 0.3, Math.PI * 1.7); ctx.stroke();
       ctx.fillStyle = '#ffd36a'; ctx.beginPath(); ctx.moveTo(25, 6); ctx.lineTo(26, 14); ctx.lineTo(18, 11); ctx.fill();
       ctx.beginPath(); ctx.moveTo(13, 11); ctx.lineTo(21, 16); ctx.lineTo(13, 21); ctx.closePath(); ctx.fill(); break;
+    default:
+      // 高階魔法：「rune:字:顏色」符文圖示
+      if (typeof id === 'string' && id.startsWith('rune:')) {
+        const [, ch, col] = id.split(':');
+        const gr = ctx.createRadialGradient(16, 14, 2, 16, 16, 15);
+        gr.addColorStop(0, shade(col, 0.35)); gr.addColorStop(0.6, col); gr.addColorStop(1, shade(col, -0.6));
+        glow(col, 8); ctx.fillStyle = gr; ctx.beginPath(); ctx.arc(16, 16, 13, 0, 7); ctx.fill();
+        ctx.shadowBlur = 0; ctx.strokeStyle = 'rgba(255,240,200,0.8)'; ctx.lineWidth = 1.2; ctx.beginPath(); ctx.arc(16, 16, 13, 0, 7); ctx.stroke();
+        ctx.strokeStyle = 'rgba(255,255,255,0.35)'; ctx.beginPath(); ctx.arc(16, 16, 10, 0, 7); ctx.stroke();
+        for (let i = 0; i < 8; i++) { const a = i * Math.PI / 4; ctx.fillStyle = 'rgba(255,250,220,0.85)'; ctx.fillRect(16 + Math.cos(a) * 11.5 - 0.7, 16 + Math.sin(a) * 11.5 - 0.7, 1.4, 1.4); }
+        ctx.fillStyle = '#ffffff'; ctx.font = 'bold 13px "Microsoft JhengHei", "PingFang TC", serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.lineWidth = 2.5; ctx.strokeStyle = 'rgba(0,0,0,0.6)'; ctx.strokeText(ch, 16, 17); ctx.fillText(ch, 16, 17);
+      }
   }
   ctx.restore();
 }

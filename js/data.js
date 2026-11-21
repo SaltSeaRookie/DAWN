@@ -538,3 +538,44 @@ SHOPS.oren_general = [...SHOPS.general, 'pet_feast'];
 SHOPS.oren_smith = ['frost_blade', 'glacier_bow', 'frost_staff', 'frost_mail', 'snow_boots', 'yeti_cloak', ...SHOPS.smith.slice(0, 8)];
 SHOPS.oren_jewel = ['frost_ring', ...SHOPS.jewel];
 QUESTS.push({ target: 'frost_king', count: 1, gold: 16000, exp: 24000, item: ['bew_scroll', 2], text: '北境歐瑞城外的冰河峽谷，霜冠巨人王正帶著雪怪群逼近城牆。去冰河峽谷深處討伐牠吧！' });
+
+// ===== 魔法擴充到第 10 階（v2.13）=====
+// 第 6～10 階的魔法書：第 5～6 階可在城堡御用商人與歐瑞城魔法商人買到，更高階只能從頭目身上取得。
+// rune 圖示：「rune:字:顏色」
+const HIGH_SPELLS = {
+  // 第 6 階
+  firestorm:   { name: '烈焰風暴', circle: 6, mp: 50, target: 'enemy', aoe: 3, icon: 'rune:焰:#ff6a20', learn: { mage: 22 }, desc: '在目標處掀起火焰風暴，爆炸後持續燃燒範圍內的敵人' },
+  manashield:  { name: '魔力護盾', circle: 6, mp: 30, target: 'self', dur: 180, icon: 'rune:盾:#6ab0ff', learn: { mage: 22, cleric: 25 }, desc: '受到的傷害有一半改由魔力承受（3 分鐘）' },
+  divineshield:{ name: '神聖護盾', circle: 6, mp: 35, target: 'self', dur: 60, icon: 'rune:護:#ffe070', learn: { cleric: 22, knight: 28 }, desc: '防禦 +8、魔法防禦 +20（60 秒）' },
+  berserk:     { name: '狂暴', circle: 6, mp: 20, target: 'self', dur: 60, icon: 'rune:狂:#e03020', learn: { knight: 22 }, desc: '物理傷害 +6，但防禦 -5（60 秒）' },
+  eagleeye:    { name: '鷹眼', circle: 6, mp: 20, target: 'self', dur: 300, icon: 'rune:鷹:#c0e060', learn: { ranger: 22 }, desc: '遠程命中與傷害大幅提升（5 分鐘）' },
+  // 第 7 階
+  thunderstorm:{ name: '雷霆風暴', circle: 7, mp: 65, target: 'enemy', aoe: 3.5, icon: 'rune:雷:#ffe040', learn: { mage: 26 }, desc: '召喚雷雲，落雷連續轟擊範圍內的敵人' },
+  greaterheal: { name: '大治癒之光', circle: 7, mp: 55, target: 'self', icon: 'rune:癒:#80ffa0', learn: { cleric: 26, mage: 32 }, desc: '大量恢復自己與周圍所有夥伴、盟友、傭兵的體力' },
+  earthquake:  { name: '大地震', circle: 7, mp: 55, target: 'self', aoe: 4, icon: 'rune:震:#c09050', learn: { mage: 28, knight: 30 }, desc: '撼動大地，重創並減速身邊所有敵人' },
+  // 第 8 階
+  deathcloud:  { name: '死亡之雲', circle: 8, mp: 75, target: 'enemy', aoe: 3.5, icon: 'rune:瘴:#9a50e0', learn: { mage: 30 }, desc: '劇毒雲霧籠罩目標區域 8 秒，持續造成大量傷害' },
+  holyjudgment:{ name: '神聖審判', circle: 8, mp: 65, target: 'enemy', icon: 'rune:審:#fff6c0', learn: { cleric: 30 }, desc: '降下光柱，對單一敵人造成巨大傷害，對亡靈加倍' },
+  arrowstorm:  { name: '萬箭齊發', circle: 8, mp: 45, target: 'enemy', aoe: 3.5, bow: true, icon: 'rune:箭:#d8c890', learn: { ranger: 30 }, desc: '三波箭雨覆蓋目標區域（最多消耗 12 支箭）' },
+  // 第 9 階
+  timestop:    { name: '時間凍結', circle: 9, mp: 90, target: 'self', aoe: 7, cd: 30, icon: 'rune:時:#a0f0ff', learn: { mage: 34 }, desc: '凍結周圍所有敵人的時間 5 秒（頭目 2 秒）。冷卻 30 秒' },
+  holyfield:   { name: '聖域', circle: 9, mp: 80, target: 'self', dur: 30, cd: 30, icon: 'rune:聖:#fff0a0', learn: { cleric: 34 }, desc: '30 秒內每秒治療你與周圍的同伴，你受到的傷害 -30%' },
+  // 第 10 階
+  armageddon:  { name: '天崩地裂', circle: 10, mp: 150, target: 'enemy', aoe: 6, cd: 6, icon: 'rune:滅:#ff3010', learn: { mage: 38 }, desc: '三波隕石雨轟炸廣大範圍，最強的攻擊魔法' },
+  miracle:     { name: '神蹟', circle: 10, mp: 120, target: 'self', cd: 90, icon: 'rune:蹟:#ffffff', learn: { cleric: 38 }, desc: '完全恢復你與周圍同伴的體力，並在 5 秒內不受任何傷害。冷卻 90 秒' },
+};
+const BOOK_PRICE = [0, 100, 600, 2500, 9000, 25000, 50000, 80000, 120000, 180000, 250000];
+for (const id in HIGH_SPELLS) {
+  SPELLS[id] = HIGH_SPELLS[id];
+  const s = SPELLS[id];
+  ITEMS['book_' + id] = { name: '魔法書（' + s.name + '）', type: 'book', spell: id, icon: 'book', w: 5, price: BOOK_PRICE[s.circle], rare: s.circle >= 7, desc: '第 ' + s.circle + ' 階魔法。使用後學會「' + s.name + '」' };
+}
+// 第 5～6 階魔法書：城堡御用商人與歐瑞城的魔法商人
+const BOOKS_C5 = Object.keys(SPELLS).filter((s) => SPELLS[s].circle === 5).map((s) => 'book_' + s);
+const BOOKS_C6 = Object.keys(SPELLS).filter((s) => SPELLS[s].circle === 6).map((s) => 'book_' + s);
+SHOPS.castleshop.push(...BOOKS_C5, ...BOOKS_C6);
+SHOPS.oren_magic = [...SHOPS.magic, ...BOOKS_C5];
+// 高階魔法書由頭目掉落
+const bookDrop = (mon, circles, ch) => { if (!MONSTERS[mon]) return; for (const id in SPELLS) if (circles.includes(SPELLS[id].circle)) MONSTERS[mon].loot.push(['book_' + id, ch]); };
+bookDrop('wyvern', [6], 0.04); bookDrop('lich', [6], 0.05); bookDrop('pirate_captain', [6], 0.05); bookDrop('sea_serpent', [6, 7], 0.04);
+bookDrop('iron_colossus', [6, 7, 8], 0.05); bookDrop('frost_king', [7, 8, 9], 0.06); bookDrop('flame_dragon', [8, 9, 10], 0.07);

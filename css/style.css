@@ -403,3 +403,4 @@ input.vaultamt { width: 72px; padding: 3px 5px; background: #12100d; color: #eee
 .rarityhead.r1, .rn1 { color: #8fd0ff; }
 .rarityhead.r2, .rn2 { color: #c89aff; }
 .rarityhead.r3, .rn3 { color: #ffcf60; }
+.circlehead { grid-column: 1 / -1; font-size: 11px; color: #c9a55a; border-bottom: 1px solid #3a3228; padding: 4px 2px 1px; margin-top: 2px; }
