@@ -161,7 +161,7 @@ body:not(.in-game) #hud, body:not(.in-game) #minimapWrap, body:not(.in-game) #bu
 .emblem::before { content: ""; position: absolute; left: 50%; top: 50%; width: 30px; height: 30px; transform: translate(-50%, -50%) rotate(45deg); background: radial-gradient(circle at 35% 35%, #f0d080, #8a6a2a 60%, #3a2a10); border: 2px solid #2a2010; box-shadow: 0 0 8px rgba(255,200,100,0.4); }
 .emblem::after { content: "✦"; position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: #3a2a10; font-size: 16px; }
 #chatLog { flex: 1; overflow-y: auto; font-size: 13px; line-height: 1.45; padding: 0 4px; min-height: 0; scrollbar-width: thin; scrollbar-color: #5a4a2a #111; user-select: text; }
-#chatLog .ln { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#chatLog .ln { white-space: normal; overflow-wrap: anywhere; line-height: 1.45; }
 #chatLog .sys { color: #e8e8e8; }
 #chatLog .npc { color: #ffe9a0; }
 #chatLog .chat { color: #c8d8ff; }
@@ -264,13 +264,15 @@ body:not(.in-game) #hud, body:not(.in-game) #minimapWrap, body:not(.in-game) #bu
 .npc-text { font-size: 14px; line-height: 1.7; margin-bottom: 8px; }
 .reward { margin-top: 8px; color: #ffd76a; font-size: 13px; }
 .tabs { display: flex; gap: 4px; margin-bottom: 6px; }
-.tab { flex: 1; height: 28px; background: #1a1815; border: 1px solid #4a4030; color: var(--dim); border-radius: 3px; cursor: pointer; }
+.tab { flex: 1; min-height: 28px; padding: 3px 4px; line-height: 1.2; font-size: 12px; background: #1a1815; border: 1px solid #4a4030; color: var(--dim); border-radius: 3px; cursor: pointer; }
 .tab.on { background: linear-gradient(#5a4a2a, #3a2e18); color: #fff; border-color: var(--gold); }
 .list { display: flex; flex-direction: column; gap: 3px; }
 .li { display: flex; align-items: center; gap: 8px; padding: 4px 6px; background: rgba(0,0,0,0.25); border: 1px solid rgba(255,255,255,0.05); border-radius: 3px; }
 .li.bad { opacity: 0.55; }
 .li-n { flex: 1; display: flex; flex-direction: column; min-width: 0; font-size: 13px; }
-.li-n span { font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.li-n span { font-size: 11px; line-height: 1.4; white-space: normal; overflow-wrap: anywhere; }
+.li-n b { overflow-wrap: anywhere; }
+.li > .btn, .li > button { flex-shrink: 0; }
 .price { color: #ffd76a; font: bold 13px Georgia, serif; min-width: 44px; text-align: right; }
 .clan-head { display: flex; gap: 10px; align-items: center; margin-bottom: 8px; }
 .cname { font-size: 18px; color: #b8e0a8; }
