@@ -81,6 +81,10 @@ python3 -m http.server 8000
 
 ## 多人連線（第一階段）
 
+**推薦：用 Supabase（免費方案即可）**——不需要自己的伺服器，遊戲網頁放在 GitHub Pages，帳號、存檔與即時同步交給 Supabase。完整教學見 **[docs/SUPABASE.md](docs/SUPABASE.md)**：建立專案 → 關閉信箱驗證 → 執行 `supabase/schema.sql` → 把 Project URL 與金鑰填進 `js/config.js`。
+
+以下是另一種做法：自架 Node 伺服器。
+
 目前可以「看得到彼此、共享聊天」：伺服器只負責帳號、角色存檔、聊天，以及同步玩家的位置與外觀；怪物、NPC、戰鬥與掉寶仍由每位玩家的瀏覽器各自計算（所以玩家之間不能互相攻擊或組隊）。
 
 啟動伺服器（需要 Node.js 18 以上）：
@@ -127,6 +131,10 @@ js/story.js     主線故事「失落的月之碑」
 js/talk.js      冒險者與村民之間的對話系統
 js/dragon.js    炎皇火龍技能、燃燒地面、火山熱氣
 js/online.js    多人連線：其他玩家的顯示、位置同步、聊天、斷線重連
+js/supabase-backend.js  Supabase 後端（帳號、存檔、Realtime）
+js/config.js    Supabase 連線設定
+js/vendor/      supabase-js（MIT 授權）
+supabase/schema.sql  Supabase 資料表與安全規則
 js/names.js     名字不重複
 js/scenes.js    登入、選擇角色、建立角色
 js/game.js      遊戲邏輯：戰鬥、AI、魔法、負重、PK、血盟、攻城

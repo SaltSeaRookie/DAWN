@@ -13,7 +13,7 @@ const Scenes = {
     $('#btnEnter').onclick = () => this.enter();
     $('#btnNewChar').onclick = () => this.show('create');
     $('#btnDelChar').onclick = () => this.del();
-    $('#btnLogout').onclick = () => { Net.session = null; this.show('login'); };
+    $('#btnLogout').onclick = () => { if (Net.mode === 'supabase') SupabaseBackend.logout(); Net.session = null; this.show('login'); };
     $('#btnImport').onclick = () => Backup.openImport(() => this.refreshChars());
     $('#btnBackupAll').onclick = () => { const all = this.chars.map((c) => Net.chars.load(Net.session, c.name)); if (!all.length) { alert('沒有角色可以備份。'); return; } Backup.download(all, Net.session.account + '_all'); };
     // 建立角色
@@ -32,19 +32,34 @@ const Scenes = {
     const ok = await Net.autoConnect();
     this.netUI(ok);
   },
+  // 在登入畫面填入 Supabase 的網址與金鑰（存在這台裝置的瀏覽器，方便測試；正式發布請改寫 js/config.js）
+  supabaseSetup() {
+    const cur = sbConfig() || {};
+    const url = prompt('Supabase 的 Project URL（例如 https://xxxx.supabase.co）\n留空並按確定＝清除這台裝置的設定', cur.url || '');
+    if (url === null) return;
+    if (!url.trim()) { try { localStorage.removeItem('dawnlands_supabase'); } catch (e) { /* */ } location.reload(); return; }
+    const key = prompt('Supabase 的 anon public key（很長的一串，以 eyJ 開頭）', cur.key || '');
+    if (!key) return;
+    try { localStorage.setItem('dawnlands_supabase', JSON.stringify({ url: url.trim(), key: key.trim() })); } catch (e) { /* */ }
+    location.reload();
+  },
   netUI(ok) {
     const st = $('#netStatus');
     if (ok) {
       st.className = 'netstatus on';
-      st.innerHTML = '● 線上模式：已連線到伺服器（目前 ' + RemoteBackend.online + ' 人在線）<a id="netLocal">改用本機模式</a>';
+      st.innerHTML = '● 線上模式：已連線到' + (Net.mode === 'supabase' ? ' Supabase' : '伺服器') + '（目前 ' + Net.remote.online + ' 人在線）<a id="netLocal">改用本機模式</a>';
       $('#modeNote').textContent = '線上模式：帳號與角色儲存在伺服器，可以看到其他玩家並一起聊天';
       $('#netLocal').onclick = () => { Net.useLocal(); this.netUI(false); };
+      if (Net.mode === 'supabase') st.insertAdjacentHTML('beforeend', '<a id="sbSetup">Supabase 設定</a>');
     } else {
       st.className = 'netstatus';
       st.innerHTML = '○ 本機模式' + (Net.serverUrl() ? '（沒有連上伺服器）<a id="netRetry">重新連線</a>' : '');
       $('#modeNote').textContent = '本機模式：帳號與角色儲存在這台裝置的瀏覽器中';
+      if (SupabaseBackend.setupError && sbConfig()) st.innerHTML += '<div class="bad small">' + esc(SupabaseBackend.setupError) + '</div>';
+      st.insertAdjacentHTML('beforeend', '<a id="sbSetup">Supabase 設定</a>');
       const b = $('#netRetry'); if (b) b.onclick = () => this.connect();
     }
+    const sbl = $('#sbSetup'); if (sbl) sbl.onclick = () => this.supabaseSetup();
   },
   show(name) {
     this.cur = name;

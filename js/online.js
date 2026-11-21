@@ -39,20 +39,22 @@ class RemotePlayer extends Entity {
 const Online = {
   players: new Map(),   // 伺服器 id -> RemotePlayer
   myId: null, inWorld: false, sendT: 0, beatT: 0, last: '', lastLook: '', retrying: false,
-  get active() { return Net.online && RemoteBackend.connected && this.inWorld; },
+  get active() { return Net.online && Net.remote.connected && this.inWorld; },
   init() {
-    const R = RemoteBackend;
+    for (const R of [RemoteBackend, SupabaseBackend]) this.bind(R);
+  },
+  bind(R) {
     R.on('join', (m) => { this.add(m.p); if (G.running) UI.log('★ ' + m.p.name + ' 上線了。', 'sys'); });
     R.on('part', (m) => { this.players.delete(m.id); if (G.running && !m.quiet) UI.log(m.name + ' 下線了。', 'sys'); });
     R.on('st', (m) => {
       const r = this.players.get(m.id);
-      if (!r) { this.add(Object.assign({ id: m.id, look: m.look }, m.s)); return; }
+      if (!r) { if (m.name) this.add(Object.assign({ id: m.id, look: m.look, name: m.name }, m.s)); return; }
       if (m.mapChange) { r.x = m.s.x; r.y = m.s.y; }
       r.apply(m.s, m.look);
     });
     R.on('chat', (m) => this.onChat(m));
     R.on('relay', (m) => { if (!G.running || !m.data) return; Trade.onRelay(m.from, m.fromName, m.data); Stall.onRelay(m.from, m.fromName, m.data); });
-    R.on('kicked', (m) => { RemoteBackend.token = null; alert(m.reason || '你已被伺服器中斷連線。'); location.reload(); });
+    R.on('kicked', (m) => { R.token = null; this.inWorld = false; alert(m.reason || '你已被伺服器中斷連線。'); location.reload(); });
     R.on('close', () => this.onClose());
   },
   add(d) {
@@ -75,14 +77,14 @@ const Online = {
       map: G.map.id, x: Math.round(p.x * 100) / 100, y: Math.round(p.y * 100) / 100, dir: Math.round(p.dir * 100), moving: !!p.moving,
       atk: p.atkAnim >= 0 && p.atkAnim < 1, dead: !!p.dead, level: p.level, cls: p.cls, align: p.align, pink: p.pinkT > 0,
       crown: typeof ownsCastle === 'function' && ownsCastle(), clan: p.clan ? p.clan.name : null, emblem: p.clan ? p.clan.emblem : null,
-      hp: Math.round(p.hp / p.maxHp * 100) / 100,
+      hp: Math.round(p.hp / p.maxHp * 20) / 20,
       stall: p.stall && p.stall.open ? { title: p.stall.title, items: p.stall.items.map((it) => ({ k: it.k, id: it.id, qty: it.qty, ench: it.ench, price: it.price })) } : null,
     };
   },
   async enter() {
     if (!Net.online) return;
     this.players.clear(); this.inWorld = false;
-    const r = await RemoteBackend.call('enter', { name: G.player.name, state: this.snapshot(), look: playerLook(G.player) });
+    const r = await Net.remote.call('enter', { name: G.player.name, state: this.snapshot(), look: playerLook(G.player) });
     if (!r.ok) { UI.log('無法進入線上世界：' + r.error, 'warn'); return; }
     this.myId = r.id; this.inWorld = true;
     this.lastLook = JSON.stringify(playerLook(G.player));
@@ -94,37 +96,39 @@ const Online = {
   leave() {
     if (!Net.online) return;
     this.inWorld = false; this.players.clear();
-    RemoteBackend.call('leave', {});
+    Net.remote.call('leave', {});
   },
   tick(dt) {
     for (const r of this.players.values()) r.update(dt);
     if (!this.active) return;
     this.sendT -= dt; this.beatT -= dt;
     if (this.sendT > 0) return;
-    this.sendT = 0.12;
+    // Supabase 免費方案有每月訊息上限，所以傳送頻率較低（畫面上會平滑補間）
+    const sb = Net.mode === 'supabase';
+    this.sendT = sb ? 0.3 : 0.12;
     const s = this.snapshot(), key = JSON.stringify(s);
     const lookKey = JSON.stringify(playerLook(G.player));
     const lookChanged = lookKey !== this.lastLook;
     if (key === this.last && !lookChanged && this.beatT > 0) return;
-    this.last = key; this.beatT = 3;
+    this.last = key; this.beatT = sb ? 10 : 3;
     const msg = { s };
     if (lookChanged) { this.lastLook = lookKey; msg.look = JSON.parse(lookKey); }
-    RemoteBackend.post('state', msg);
+    Net.remote.post('state', msg);
   },
-  relay(to, data) { if (this.active) RemoteBackend.post('relay', { to, data }); },
+  relay(to, data) { if (this.active) Net.remote.post('relay', { to, data }); },
   // ---------- 聊天 ----------
-  say(text) { if (this.active) RemoteBackend.post('chat', { ch: 'say', text }); },
+  say(text) { if (this.active) Net.remote.post('chat', { ch: 'say', text }); },
   world(text) {
     if (!this.active) { UI.log('全頻聊天需要連線到伺服器。', 'warn'); return; }
-    RemoteBackend.post('chat', { ch: 'world', text });
+    Net.remote.post('chat', { ch: 'world', text });
     UI.log('[全頻] ' + G.player.name + '：' + text, 'world');
   },
   whisper(name, text) {
     if (!this.active) return false;
-    RemoteBackend.post('chat', { ch: 'whisper', to: name, text });
+    Net.remote.post('chat', { ch: 'whisper', to: name, text });
     return true;
   },
-  clan(text) { if (this.active && G.player.clan) RemoteBackend.post('chat', { ch: 'clan', text }); },
+  clan(text) { if (this.active && G.player.clan) Net.remote.post('chat', { ch: 'clan', text }); },
   onChat(m) {
     if (!G.running) return;
     if (m.ch === 'sys') { UI.log(m.text, 'warn'); return; }
@@ -135,7 +139,7 @@ const Online = {
     else if (m.ch === 'clan') UI.log('[血盟] ' + m.from + '：' + m.text, 'clan');
   },
   async who() {
-    const r = await RemoteBackend.call('who', {});
+    const r = await Net.remote.call('who', {});
     if (!r.ok) return null;
     return r.players;
   },
@@ -150,7 +154,7 @@ const Online = {
     if (G.running) UI.log('與伺服器的連線中斷了，正在重新連線…（遊戲可以繼續，存檔會在連上後上傳）', 'warn');
     for (let i = 0; i < 20; i++) {
       await new Promise((res) => setTimeout(res, Math.min(15000, 1500 * (i + 1))));
-      if (await RemoteBackend.reconnect()) {
+      if (await Net.remote.reconnect()) {
         this.retrying = false;
         if (G.running && G.player) {
           UI.log('已重新連線到伺服器。', 'sys');

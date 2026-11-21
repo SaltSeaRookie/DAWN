@@ -185,7 +185,10 @@ const RemoteBackend = {
 const Net = {
   backend: LocalBackend,
   session: null,
-  get online() { return this.backend === RemoteBackend; },
+  get online() { return this.backend !== LocalBackend; },
+  // 目前使用的多人連線後端（Supabase 或自架伺服器）
+  get remote() { return this.backend !== LocalBackend ? this.backend : RemoteBackend; },
+  get mode() { return this.backend === LocalBackend ? 'local' : this.backend.name; },
   // 尋找伺服器：網址參數 ?server=wss://… 優先；用 http(s) 開啟時嘗試同一台主機的 /ws；?offline 強制本機模式
   serverUrl() {
     const q = new URLSearchParams(location.search);
@@ -196,12 +199,16 @@ const Net = {
     return (location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + '/ws';
   },
   async autoConnect() {
+    // 1. Supabase（js/config.js、網址參數或登入畫面的設定）
+    const sb = typeof sbConfig === 'function' ? sbConfig() : null;
+    if (sb) { if (await SupabaseBackend.open(sb)) { this.backend = SupabaseBackend; return true; } this.backend = LocalBackend; return false; }
+    // 2. 自架的 Node 伺服器
     const url = this.serverUrl();
     if (url && await RemoteBackend.open(url)) { this.backend = RemoteBackend; return true; }
     this.backend = LocalBackend;
     return false;
   },
-  useLocal() { this.backend = LocalBackend; try { if (RemoteBackend.ws) RemoteBackend.ws.close(); } catch (e) { /* */ } },
+  useLocal() { const B = this.backend; this.backend = LocalBackend; try { if (RemoteBackend.ws) RemoteBackend.ws.close(); if (B === SupabaseBackend && B.channel) { B.sb.removeChannel(B.channel); B.channel = null; } } catch (e) { /* */ } },
   get auth() { return this.backend.auth; },
   get chars() { return this.backend.chars; },
   get meta() { return this.backend.meta; },

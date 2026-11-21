@@ -588,7 +588,7 @@ const UI = {
     const b2 = el('button', 'btn', '選擇角色'); b2.onclick = () => { exitWorld(); this.leaveGame(); Scenes.show('select'); };
     row.appendChild(b0); row.appendChild(b1); row.appendChild(b2);
     w.body.appendChild(row);
-    w.body.appendChild(el('div', 'dim small', '版本 v' + GAME_VERSION + (Net.online ? '・模式：線上（資料儲存在伺服器' + (RemoteBackend.connected ? '' : '，目前斷線中') + '）。帳號：' : '・模式：本機（資料儲存在這個瀏覽器）。帳號：') + esc(Net.session ? Net.session.account : '')));
+    w.body.appendChild(el('div', 'dim small', '版本 v' + GAME_VERSION + (Net.online ? '・模式：線上（資料儲存在' + (Net.mode === 'supabase' ? ' Supabase' : '伺服器') + (Net.remote.connected ? '' : '，目前斷線中') + '）。帳號：' : '・模式：本機（資料儲存在這個瀏覽器）。帳號：') + esc(Net.session ? Net.session.account : '')));
     const vb = el('button', 'btn sm link', '檢查更新'); vb.onclick = async () => { await Version.check(); if (!Version.remote) this.log('目前已是最新版本 v' + GAME_VERSION + '。', 'sys'); }; w.body.appendChild(vb);
   },
 
