@@ -10,7 +10,30 @@ const BIOME_INFO = [
   { name: '北境雪原' }, { name: '霜松林' }, { name: '冰河峽谷' },
   { name: '月影遺跡' }, { name: '月鏡湖' }, { name: '暮光林' },
 ];
+const OW_K = 2;   // 大陸地圖的放大倍率
 const WATER_TILES = new Set([TILE.WATER, TILE.SEA, TILE.LAVA]);   // 不能走的液體地形
+
+// ===== 村莊主題（v2.24）=====
+// ground/street/edge：地面、街道、村莊邊緣的地形；house：房屋樣式；byHouse：擺在房屋旁的道具；scatter：散布在村內的道具
+const TOWN_THEMES = {
+  dawn:  { ground: TILE.GRASS, street: TILE.COBBLE, edge: TILE.GRASS, house: 'dawn', center: 'fountain', plazaName: '噴泉廣場', market: 5, marketName: '晨風市集',
+    byHouse: [['barrel', 1], ['hay', 1]], scatter: [['well', 2], ['cart', 2], ['tree', 6], ['bench', 4]], deco: ['flower', 0.1], deco2: ['grass', 0.08], subs: [['老水井', 'well']] },
+  leaf:  { ground: TILE.DARKGRASS, street: TILE.DIRT, edge: TILE.DARKGRASS, house: 'leaf', lamp: 'lantern', plazaName: '古樹廣場',
+    byHouse: [['logpile', 1], ['beehive', 1]], scatter: [['tree', 14], ['shrine', 1], ['bench', 2]], deco: ['mushroom', 0.06], deco2: ['flower', 0.08], subs: [['森之祠', 'shrine']] },
+  port:  { ground: TILE.SAND, street: TILE.COBBLE, edge: TILE.SAND, house: 'port', center: 'fountain', plazaName: '海港廣場', harbor: true, market: 4, marketName: '魚貨攤',
+    byHouse: [['barrel', 2], ['crate', 1]], scatter: [['netrack', 4], ['anchor', 2], ['fishrack', 3], ['bench', 2]], deco: ['pebble', 0.06], subs: [['曬網場', 'netrack']] },
+  anvil: { ground: TILE.DIRT, street: TILE.COBBLE, edge: TILE.CANYON, house: 'anvil', plazaName: '熔爐廣場',
+    byHouse: [['anvilobj', 1], ['barrel', 1]], scatter: [['forge', 3], ['orecart', 3], ['rock', 4], ['crate', 3]], deco: ['rubble', 0.08], subs: [['鍛造坊', 'forge'], ['礦車站', 'orecart']] },
+  oasis: { ground: TILE.DESERT, street: TILE.SAND, edge: TILE.DESERT, house: 'oasis', plazaName: '商隊廣場', pond: true, market: 6, marketName: '駱駝市集',
+    byHouse: [['pots', 1]], scatter: [['tent', 4], ['palm', 6], ['pots', 3]], deco: ['pebble', 0.05], subs: [['商隊帳篷', 'tent']] },
+  ridge: { ground: TILE.SNOW, street: TILE.DIRT, edge: TILE.SNOW, house: 'ridge', plazaName: '爐火廣場',
+    byHouse: [['logpile', 1]], scatter: [['pine', 8], ['huntrack', 2], ['well', 1], ['snowrock', 3]], deco: ['pebble', 0.05], subs: [['獵人小屋', 'huntrack']] },
+  oren:  { ground: TILE.SNOW, street: TILE.COBBLE, edge: TILE.SNOW, house: 'oren', center: 'statue', plazaName: '王冠廣場', market: 4, marketName: '冬市',
+    byHouse: [['barrel', 1], ['logpile', 1]], scatter: [['pine', 6], ['bench', 3], ['well', 1]], deco: ['pebble', 0.04] },
+  coral: { ground: TILE.SAND, street: TILE.COBBLE, edge: TILE.SAND, house: 'coral', plazaName: '珊瑚廣場', market: 3, marketName: '貝殼市集',
+    byHouse: [['pots', 1]], scatter: [['palm', 8], ['netrack', 2], ['tent', 1]], deco: ['pebble', 0.06] },
+};
+const PROP_VARIANTS = { tree: 3, stall: 3, boat: 2, tent: 2, palm: 2, pine: 3, rock: 3, barrel: 2 };
 
 function toScreen(x, y) { return { x: (x - y) * HW, y: (x + y) * HH }; }
 function toWorld(sx, sy) { return { x: (sx / HW + sy / HH) / 2, y: (sy / HH - sx / HW) / 2 }; }
@@ -35,9 +58,10 @@ class World {
   blocked(x, y) { x |= 0; y |= 0; return !this.inBounds(x, y) || this.blockArr[y * this.w + x] !== 0; }
   isSafe(x, y) { x |= 0; y |= 0; return this.inBounds(x, y) && this.safe[y * this.w + x] === 1; }
   biomeAt(x, y) { x |= 0; y |= 0; return this.inBounds(x, y) ? this.biome[y * this.w + x] : BIOME.MEADOW; }
-  townAt(x, y) { for (const t of this.towns) if (dist(x, y, t.x, t.y) < t.r + 1) return t; return null; }
+  townAt(x, y) { for (const t of this.towns) if (dist(x, y, t.x, t.y) < t.r + 1 || (t.subs && this.isSafe(x, y) && t.subs.some((q) => dist(x, y, q.x, q.y) < q.r + 2))) return t; return null; }
   zoneName(x, y) {
-    const t = this.townAt(x, y); if (t) return t.name;
+    const t = this.townAt(x, y);
+    if (t) { const sub = (t.subs || []).find((q) => dist(x, y, q.x, q.y) < q.r); return sub ? t.name + '・' + sub.name : t.name; }
     for (const p of this.places) if (p.zone && dist(x, y, p.x, p.y) < p.zone) return p.name;
     return BIOME_INFO[this.biomeAt(x, y)].name;
   }
@@ -112,6 +136,12 @@ class World {
     }
     return null;
   }
+  // 兩點之間是否沒有障礙（每 0.2 格取樣一次）
+  clearLine(x0, y0, x1, y1) {
+    const n = Math.ceil(Math.hypot(x1 - x0, y1 - y0) / 0.2);
+    for (let k = 1; k < n; k++) { const t = k / n; if (this.blocked(x0 + (x1 - x0) * t, y0 + (y1 - y0) * t)) return false; }
+    return true;
+  }
   nearestFree(x, y) {
     x |= 0; y |= 0;
     for (let r = 0; r < 8; r++) for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++)
@@ -121,8 +151,11 @@ class World {
 
   // ================= 大陸 =================
   genOverworld() {
-    this.alloc(200, 200);
+    // v2.24：大陸放大為 2 倍（OW_K），地形與地點座標都乘上 K，雜訊取樣除以 K 讓地形同比例放大
+    const K = OW_K;
+    this.alloc(200 * K, 200 * K);
     const S = this.seed, W = this.w, H = this.h, R = mulberry32(S);
+    const CX = 100 * K, CY = 100 * K;
     const seeds = [
       [BIOME.MEADOW, 100, 100], [BIOME.MEADOW, 86, 118], [BIOME.MEADOW, 118, 94], [BIOME.MEADOW, 108, 128], [BIOME.MEADOW, 124, 112],
       [BIOME.FOREST, 60, 82], [BIOME.FOREST, 70, 56], [BIOME.FOREST, 44, 100], [BIOME.FOREST, 48, 64], [BIOME.FOREST, 84, 70],
@@ -131,9 +164,9 @@ class World {
       [BIOME.PLAIN, 148, 72], [BIOME.PLAIN, 170, 84], [BIOME.PLAIN, 132, 82],
       [BIOME.DESERT, 172, 126], [BIOME.DESERT, 186, 152], [BIOME.DESERT, 160, 150], [BIOME.DESERT, 182, 104],
       [BIOME.BONE, 130, 162], [BIOME.BONE, 110, 174], [BIOME.BONE, 146, 182],
-    ];
+    ].map(([b, x, y]) => [b, x * K, y * K]);
     // 河流折線
-    this.river = [[70, 2], [78, 24], [83, 48], [80, 70], [86, 86], [80, 104], [70, 122], [60, 140], [50, 160]];
+    this.river = [[70, 2], [78, 24], [83, 48], [80, 70], [86, 86], [80, 104], [70, 122], [60, 140], [50, 160]].map(([x, y]) => [x * K, y * K]);
     const segDist = (x, y) => {
       let best = 1e9;
       for (let i = 0; i < this.river.length - 1; i++) {
@@ -146,13 +179,14 @@ class World {
     for (let y = 0; y < H; y++)
       for (let x = 0; x < W; x++) {
         const i = y * W + x;
-        const wx = x + (fbm(x * 0.03, y * 0.03, S + 1) - 0.5) * 30, wy = y + (fbm(x * 0.03, y * 0.03, S + 2) - 0.5) * 30;
+        const ux = x / K, uy = y / K;   // 原本 200×200 的座標
+        const wx = x + (fbm(ux * 0.03, uy * 0.03, S + 1) - 0.5) * 30 * K, wy = y + (fbm(ux * 0.03, uy * 0.03, S + 2) - 0.5) * 30 * K;
         let best = 0, bd = 1e9;
         for (const [b, sx, sy] of seeds) { const d = Math.hypot(wx - sx, wy - sy); if (d < bd) { bd = d; best = b; } }
-        const coast = (y - x) + (fbm(x * 0.05, y * 0.05, S + 3) - 0.5) * 16;
+        const coast = (uy - ux) + (fbm(ux * 0.05, uy * 0.05, S + 3) - 0.5) * 16;
         if (coast > 96) best = BIOME.COAST;
         this.biome[i] = best;
-        const n1 = fbm(x * 0.08, y * 0.08, S + 11);
+        const n1 = fbm(ux * 0.08, uy * 0.08, S + 11);
         let t;
         switch (best) {
           case BIOME.MEADOW: t = TILE.GRASS; break;
@@ -165,26 +199,27 @@ class World {
           case BIOME.COAST: t = coast > 104 ? TILE.SEA : TILE.SAND; break;
         }
         // 河流
-        const rd = segDist(x + 0.5, y + 0.5) + (fbm(x * 0.1, y * 0.1, S + 7) - 0.5) * 1.5;
+        const rd = segDist(x + 0.5, y + 0.5) / K + (fbm(ux * 0.1, uy * 0.1, S + 7) - 0.5) * 1.5;
         if (best !== BIOME.COAST && rd < 1.9) t = TILE.WATER;
         else if (best !== BIOME.COAST && best !== BIOME.DESERT && rd < 3 && t !== TILE.SNOW) t = TILE.SAND;
         // 草原的湖
-        if (best === BIOME.MEADOW && fbm(x * 0.045, y * 0.045, S + 9) > 0.7 && Math.hypot(x - 100, y - 100) > 20) t = TILE.WATER;
+        if (best === BIOME.MEADOW && fbm(ux * 0.045, uy * 0.045, S + 9) > 0.7 && Math.hypot(ux - 100, uy - 100) > 20 && Math.hypot(ux - 70, uy - 62) > 12 && Math.hypot(ux - 140, uy - 150) > 10) t = TILE.WATER;
         // 綠洲
-        if (best === BIOME.DESERT && Math.hypot(x - 178, y - 138) < 4 + fbm(x * 0.2, y * 0.2, S) * 2) t = TILE.WATER;
+        if (best === BIOME.DESERT && Math.hypot(ux - 178, uy - 132) < 3 + fbm(ux * 0.2, uy * 0.2, S) * 1.5) t = TILE.WATER;
         this.tiles[i] = t;
-        this.variant[i] = clamp(Math.floor(fbm(x * 0.12, y * 0.12, S + 77) * 6 + (R() - 0.5) * 1.6), 0, 5);
+        this.variant[i] = clamp(Math.floor(fbm(ux * 0.24, uy * 0.24, S + 77) * 6 + (R() - 0.5) * 1.6), 0, 5);
         if (WATER_TILES.has(t)) this.blockArr[i] = 1;
       }
 
     // 村莊與重要地點
     const town = (id, name, x, y, r, npcs, houses) => {
-      const t = { id, name, x: x + 0.5, y: y + 0.5, r, npcs, houses };
+      x *= K; y *= K; r *= K;
+      const t = { id, name, x: x + 0.5, y: y + 0.5, r, npcs, houses: houses * 2 + 2 };
       this.towns.push(t);
       for (let yy = y - r - 1; yy <= y + r + 1; yy++) for (let xx = x - r - 1; xx <= x + r + 1; xx++) {
         if (!this.inBounds(xx, yy)) continue;
         const d = dist(xx, yy, x, y), k = this.idx(xx, yy);
-        if (d <= r + 0.5) { this.safe[k] = 1; this.biome[k] = BIOME.TOWN; this.tiles[k] = d < r - 2 ? TILE.COBBLE : TILE.GRASS; this.blockArr[k] = 0; }
+        if (d <= r + 0.5 && this.tiles[k] !== TILE.SEA) { this.safe[k] = 1; this.biome[k] = BIOME.TOWN; this.tiles[k] = d < r - 2 ? TILE.COBBLE : TILE.GRASS; this.blockArr[k] = 0; }
       }
       this.places.push({ name, x, y, kind: 'town' });
       return t;
@@ -192,18 +227,20 @@ class World {
     const towns = [
       town('dawn', '晨風村', 100, 100, 12, ['general', 'smith', 'magic', 'teleport', 'quest', 'clan', 'warehouse', 'pet', 'guard', 'guard'], 6),
       town('leaf', '林語村', 52, 74, 9, ['general', 'magic', 'teleport', 'warehouse', 'guard'], 4),
-      town('port', '銀風港', 74, 146, 10, ['general', 'smith', 'jewel', 'teleport', 'warehouse', 'pet', 'captain', 'guard'], 5),
+      town('port', '銀風港', 68, 154, 10, ['general', 'smith', 'jewel', 'teleport', 'warehouse', 'pet', 'captain', 'guard'], 5),
       town('anvil', '鐵砧鎮', 158, 118, 9, ['general', 'smith', 'jewel', 'teleport', 'warehouse', 'guard'], 4),
+      // v2.24 新城鎮
+      town('oasis', '綠洲鎮', 178, 140, 9, ['general', 'jewel', 'magic', 'teleport', 'warehouse', 'pet', 'guard'], 4),
+      town('ridge', '霜嶺村', 46, 44, 8, ['general', 'smith', 'teleport', 'warehouse', 'guard'], 4),
     ];
     // 灰岩城
-    const C = this.castle = { x0: 140, y0: 60, size: 22, name: '灰岩城' };
+    const C = this.castle = { x0: 140 * K, y0: 60 * K, size: 34, name: '灰岩城' };
     C.cx = C.x0 + C.size / 2; C.cy = C.y0 + C.size / 2;
-    this.places.push({ name: '灰岩城', x: C.cx, y: C.cy, kind: 'castle', zone: 14 });
+    this.places.push({ name: '灰岩城', x: C.cx, y: C.cy, kind: 'castle', zone: 22 });
     // 其他地點
-    this.crypt = { x: 132, y: 166 };
+    this.crypt = { x: 132 * K, y: 166 * K };
     this.places.push({ name: '地下墓穴', x: this.crypt.x, y: this.crypt.y, kind: 'dungeon' });
-    this.places.push({ name: '綠洲', x: 178, y: 138, kind: 'spot' });
-    this.places.push({ name: '霜嶺高地', x: 30, y: 34, kind: 'spot' });
+    this.places.push({ name: '霜嶺高地', x: 30 * K, y: 34 * K, kind: 'spot' });
 
     // 道路
     const D = towns[0];
@@ -213,9 +250,11 @@ class World {
     this.carveRoad(D.x, D.y, C.x0 - 4, C.cy, R);
     this.carveRoad(towns[3].x, towns[3].y, C.cx, C.y0 + C.size + 3, R);
     this.carveRoad(D.x, D.y, this.crypt.x - 2, this.crypt.y - 2, R);
-    this.carveRoad(D.x, D.y, 118, 42, R);
-    this.carveRoad(towns[1].x, towns[1].y, 36, 36, R);
+    this.carveRoad(D.x, D.y, 118 * K, 42 * K, R);
+    this.carveRoad(towns[1].x, towns[1].y, towns[5].x, towns[5].y, R);
+    this.carveRoad(towns[5].x, towns[5].y, 36 * K, 36 * K, R);
     this.carveRoad(towns[1].x, towns[1].y, towns[2].x, towns[2].y, R);
+    this.carveRoad(towns[3].x, towns[3].y, towns[4].x, towns[4].y, R);
 
     // 物件
     for (let y = 0; y < H; y++)
@@ -227,6 +266,7 @@ class World {
         if (border) { if (t !== TILE.SEA) this.addObj({ kind: 'cliff', tx: x, ty: y, v: (R() * 4) | 0, style: b === BIOME.HIGHLAND ? 3 : b === BIOME.CANYON ? 0 : 1 }); continue; }
         const r = R();
         if (t === TILE.SAND) { if (r < 0.03) this.addDeco(x, y, 'pebble', 0); continue; }
+        const ux = x / K, uy = y / K;
         switch (b) {
           case BIOME.MEADOW: case BIOME.PLAIN:
             if (r < 0.022) this.addObj({ kind: 'tree', tx: x, ty: y, v: (R() * 3) | 0 });
@@ -235,7 +275,7 @@ class World {
             else if (r < 0.15) this.addDeco(x, y, 'flower', (R() * 3) | 0);
             break;
           case BIOME.FOREST: {
-            const dens = fbm(x * 0.09, y * 0.09, S + 41);
+            const dens = fbm(ux * 0.09, uy * 0.09, S + 41);
             if (dens > 0.55 && r < 0.3) this.addObj({ kind: 'tree', tx: x, ty: y, v: 3 + ((R() * 3) | 0) });
             else if (r < 0.04) this.addObj({ kind: 'tree', tx: x, ty: y, v: 3 + ((R() * 3) | 0) });
             else if (r < 0.2) this.addDeco(x, y, 'grass', (R() * 3) | 0);
@@ -250,8 +290,8 @@ class World {
             else if (r < 0.1) this.addDeco(x, y, 'bones', (R() * 3) | 0);
             break;
           case BIOME.CANYON: {
-            const ridge = Math.abs(fbm(x * 0.05, y * 0.05, S + 21) - 0.5), ridge2 = Math.abs(fbm(x * 0.07, y * 0.07, S + 91) - 0.5);
-            if (ridge < 0.028 || ridge2 < 0.014) this.addObj({ kind: 'cliff', tx: x, ty: y, v: (R() * 4) | 0, style: 0 });
+            const ridge = Math.abs(fbm(ux * 0.05, uy * 0.05, S + 21) - 0.5), ridge2 = Math.abs(fbm(ux * 0.07, uy * 0.07, S + 91) - 0.5);
+            if (ridge < 0.028 / K || ridge2 < 0.014 / K) this.addObj({ kind: 'cliff', tx: x, ty: y, v: (R() * 4) | 0, style: 0 });
             else if (r < 0.02) this.addObj({ kind: 'rock', tx: x, ty: y, v: (R() * 3) | 0 });
             else if (r < 0.025) this.addObj({ kind: 'deadtree', tx: x, ty: y, v: (R() * 3) | 0 });
             else if (r < 0.11) this.addDeco(x, y, 'rubble', (R() * 3) | 0);
@@ -264,8 +304,8 @@ class World {
             else if (r < 0.08) this.addDeco(x, y, 'pebble', 0);
             break;
           case BIOME.HIGHLAND: {
-            const ridge = Math.abs(fbm(x * 0.06, y * 0.06, S + 55) - 0.5);
-            if (ridge < 0.03) this.addObj({ kind: 'cliff', tx: x, ty: y, v: (R() * 4) | 0, style: 3 });
+            const ridge = Math.abs(fbm(ux * 0.06, uy * 0.06, S + 55) - 0.5);
+            if (ridge < 0.03 / K) this.addObj({ kind: 'cliff', tx: x, ty: y, v: (R() * 4) | 0, style: 3 });
             else if (r < 0.03) this.addObj({ kind: 'snowrock', tx: x, ty: y, v: 0 });
             else if (r < 0.05) this.addObj({ kind: 'deadtree', tx: x, ty: y, v: (R() * 3) | 0 });
             break;
@@ -277,24 +317,24 @@ class World {
     for (const t of towns) this.buildTown(t, R);
     this.buildCastle(R);
     // 港口的船
-    this.addObj({ kind: 'ship', tx: 58, ty: 168, v: 0 }, false);
+    // 港口的船由 buildHarbor 擺放
     // 地下墓穴入口
     this.clearArea(this.crypt.x + 0.5, this.crypt.y + 0.5, 3, TILE.SOIL);
     this.addObj({ kind: 'stairs', tx: this.crypt.x, ty: this.crypt.y, v: 0 }, false);
     this.portals.push({ x: this.crypt.x + 0.5, y: this.crypt.y + 0.5, to: 'crypt', label: '地下墓穴' });
     // 飛龍巢穴：峽谷最遠處
     let best = null, bd = 0;
-    for (let y = 8; y < H - 8; y++) for (let x = 8; x < W - 8; x++)
-      if (this.biome[y * W + x] === BIOME.CANYON) { const d = dist(x, y, 100, 100); if (d > bd) { bd = d; best = { x, y }; } }
+    for (let y = 8 * K + 6; y < H - 8 * K - 6; y++) for (let x = 8 * K + 6; x < W - 8 * K - 6; x++)
+      if (this.biome[y * W + x] === BIOME.CANYON) { const d = dist(x, y, CX, CY); if (d > bd) { bd = d; best = { x, y }; } }
     this.nest = best;
-    this.clearArea(best.x + 0.5, best.y + 0.5, 6, TILE.CANYON);
-    this.carveRoad(best.x, best.y, 118, 42, R);
-    this.places.push({ name: '飛龍巢穴', x: best.x, y: best.y, kind: 'boss', zone: 9 });
+    this.clearArea(best.x + 0.5, best.y + 0.5, 6 * K, TILE.CANYON);
+    this.carveRoad(best.x, best.y, 118 * K, 42 * K, R);
+    this.places.push({ name: '飛龍巢穴', x: best.x, y: best.y, kind: 'boss', zone: 9 * K });
     // 火山隘口：在峽谷靠近飛龍巢穴的地方
     let gate = null, gd = 1e9;
     for (let y = 8; y < H - 8; y++) for (let x = 8; x < W - 8; x++) {
       if (this.biome[y * W + x] !== BIOME.CANYON || this.blockArr[y * W + x]) continue;
-      const d = Math.abs(dist(x, y, best.x, best.y) - 13) + Math.abs(dist(x, y, 100, 100) - dist(best.x, best.y, 100, 100) + 4) * 0.5;
+      const d = Math.abs(dist(x, y, best.x, best.y) - 13 * K) + Math.abs(dist(x, y, CX, CY) - dist(best.x, best.y, CX, CY) + 4 * K) * 0.5;
       if (d < gd) { gd = d; gate = { x, y }; }
     }
     this.volcanoGate = gate;
@@ -303,10 +343,10 @@ class World {
     for (let y = 10; y < H - 10; y += 2) for (let x = 10; x < W - 10; x += 2) {
       const k = y * W + x;
       if (this.biome[k] !== BIOME.FOREST || this.blockArr[k] || this.safe[k]) continue;
-      let ok = true; for (const t of towns) if (dist(x, y, t.x, t.y) < 24) ok = false;
+      let ok = true; for (const t of towns) if (dist(x, y, t.x, t.y) < 24 * K) ok = false;
       if (!ok) continue;
       // 找森林裡最深（離森林邊緣最遠）的地方
-      let depth = 0; for (let r = 1; r < 12; r++) { let all = true; for (const [dx, dy] of [[r, 0], [-r, 0], [0, r], [0, -r]]) if (this.biome[this.idx(clamp(x + dx, 0, W - 1), clamp(y + dy, 0, H - 1))] !== BIOME.FOREST) all = false; if (!all) break; depth = r; }
+      let depth = 0; for (let r = 1; r < 12 * K; r += K) { let all = true; for (const [dx, dy] of [[r, 0], [-r, 0], [0, r], [0, -r]]) if (this.biome[this.idx(clamp(x + dx, 0, W - 1), clamp(y + dy, 0, H - 1))] !== BIOME.FOREST) all = false; if (!all) break; depth = r; }
       if (depth > md) { md = depth; mg = { x, y }; }
     }
     if (mg) {
@@ -322,7 +362,7 @@ class World {
     let ng = null, nd = 1e9;
     for (let y = 8; y < H - 8; y++) for (let x = 8; x < W - 8; x++) {
       if (this.biome[y * W + x] !== BIOME.HIGHLAND || this.blockArr[y * W + x] || !this.road) continue;
-      const d = dist(x, y, 30, 22);
+      const d = dist(x, y, 30 * K, 22 * K);
       if (d < nd) { nd = d; ng = { x, y }; }
     }
     if (ng) {
@@ -339,59 +379,179 @@ class World {
     this.portals.push({ x: gate.x + 0.5, y: gate.y + 0.5, to: 'volcano', label: '火山隘口' });
     this.places.push({ name: '火山隘口', x: gate.x, y: gate.y, kind: 'dungeon' });
     this.lights.push({ x: gate.x + 0.5, y: gate.y + 0.5, r: 200 });
-    for (let k = 0; k < 14; k++) this.addDeco(best.x + randi(-5, 5), best.y + randi(-5, 5), 'bones', randi(0, 2));
+    for (let k = 0; k < 30; k++) this.addDeco(best.x + randi(-10, 10), best.y + randi(-10, 10), 'bones', randi(0, 2));
     // 可達性
-    this.floodReach(100, 103);
+    this.floodReach(CX, CY + 3);
   }
 
+  // ===== 村莊佈置（v2.24：依村莊主題擺設，每個村莊都有自己的街道、建築與道具）=====
   buildTown(t, R) {
-    const cx = Math.floor(t.x), cy = Math.floor(t.y);
-    // 房屋：繞中心擺放
-    const placed = [];
-    let tries = 0;
-    while (placed.length < t.houses && tries++ < 400) {
-      const a = R() * Math.PI * 2, d = t.r * (0.45 + R() * 0.35);
-      const hx = Math.round(cx + Math.cos(a) * d) - 1, hy = Math.round(cy + Math.sin(a) * d) - 1;
-      let ok = true;
-      for (let y = hy - 1; y < hy + 4 && ok; y++) for (let x = hx - 1; x < hx + 4 && ok; x++) {
-        const k = this.idx(x, y);
-        if (!this.safe[k] || this.road[k] || this.blockArr[k] || WATER_TILES.has(this.tiles[k])) ok = false;
+    const cx = Math.floor(t.x), cy = Math.floor(t.y), th = TOWN_THEMES[t.id] || TOWN_THEMES.dawn;
+    t.theme = t.id; t.subs = [];
+    const inTown = (x, y) => this.inBounds(x, y) && this.safe[this.idx(x, y)] && dist(x, y, cx, cy) <= t.r - 0.5;
+    const plaza = Math.max(4, Math.round(t.r * 0.28));
+    // ---- 地面：廣場、街道與主題地面 ----
+    const street = new Uint8Array(this.w * this.h);
+    const nStreets = t.r > 14 ? 6 : 4, a0 = R() * Math.PI;
+    for (let k = 0; k < nStreets; k++) {
+      const a = a0 + k * Math.PI * 2 / nStreets;
+      for (let d = 0; d <= t.r; d += 0.5) {
+        const x = Math.round(cx + Math.cos(a) * d), y = Math.round(cy + Math.sin(a) * d);
+        for (const [ox, oy] of [[0, 0], [1, 0], [0, 1]]) if (inTown(x + ox, y + oy)) street[this.idx(x + ox, y + oy)] = 1;
       }
-      for (const p of placed) if (Math.abs(p[0] - hx) < 5 && Math.abs(p[1] - hy) < 5) ok = false;
-      if (dist(hx + 1, hy + 1, cx, cy) < 4) ok = false;
-      if (!ok) continue;
+    }
+    // 環狀街道
+    const ringR = Math.round(t.r * 0.62);
+    for (let k = 0; k < 360; k++) { const a = k * Math.PI / 180, x = Math.round(cx + Math.cos(a) * ringR), y = Math.round(cy + Math.sin(a) * ringR); if (inTown(x, y)) street[this.idx(x, y)] = 1; }
+    for (let y = cy - t.r - 1; y <= cy + t.r + 1; y++) for (let x = cx - t.r - 1; x <= cx + t.r + 1; x++) {
+      if (!this.inBounds(x, y)) continue;
+      const k = this.idx(x, y);
+      if (!this.safe[k] || this.biome[k] !== BIOME.TOWN || WATER_TILES.has(this.tiles[k]) || this.tiles[k] === TILE.BRIDGE) continue;
+      const d = dist(x, y, cx, cy);
+      if (d <= plaza + 0.5) this.tiles[k] = TILE.COBBLE;
+      else if (street[k] || this.road[k]) { this.tiles[k] = th.street; this.road[k] = 1; }
+      else this.tiles[k] = d > t.r - 1.5 ? th.edge : th.ground;
+      this.decoGrid[k] = -1;
+    }
+    // ---- 港口：碼頭與燈塔 ----
+    if (th.harbor) this.buildHarbor(t, R);
+    // ---- 綠洲：水池 ----
+    if (th.pond) {
+      const pa = R() * 7, px = Math.round(cx + Math.cos(pa) * (plaza + 4)), py = Math.round(cy + Math.sin(pa) * (plaza + 4));
+      for (let y = py - 3; y <= py + 3; y++) for (let x = px - 3; x <= px + 3; x++) {
+        if (!inTown(x, y) || this.road[this.idx(x, y)]) continue;
+        const d = dist(x, y, px, py); if (d > 2.6) continue;
+        this.removeObjAt(x, y); this.setTile(x, y, TILE.WATER);
+      }
+      for (let k = 0; k < 6; k++) { const a = k / 6 * 7, x = Math.round(px + Math.cos(a) * 3.6), y = Math.round(py + Math.sin(a) * 3.6); if (inTown(x, y) && !this.blocked(x, y) && !this.road[this.idx(x, y)]) this.addObj({ kind: 'palm', tx: x, ty: y, v: k % 2 }); }
+      t.subs.push({ name: '綠洲泉水', x: px, y: py, r: 5 });
+    }
+    // ---- 房屋：沿著街道兩側 ----
+    const placed = [];
+    const canHouse = (hx, hy) => {
+      for (let y = hy - 1; y < hy + 4; y++) for (let x = hx - 1; x < hx + 4; x++) {
+        if (!inTown(x, y)) return false;
+        const k = this.idx(x, y);
+        if (this.road[k] || this.blockArr[k] || WATER_TILES.has(this.tiles[k]) || this.tiles[k] === TILE.BRIDGE) return false;
+      }
+      for (const p of placed) if (Math.abs(p[0] - hx) < 5 && Math.abs(p[1] - hy) < 5) return false;
+      return dist(hx + 1, hy + 1, cx, cy) > plaza + 3;
+    };
+    let tries = 0;
+    while (placed.length < t.houses && tries++ < 1500) {
+      const a = R() * Math.PI * 2, d = t.r * (0.3 + R() * 0.6);
+      const hx = Math.round(cx + Math.cos(a) * d) - 1, hy = Math.round(cy + Math.sin(a) * d) - 1;
+      if (!canHouse(hx, hy)) continue;
       placed.push([hx, hy]);
       for (let y = hy; y < hy + 3; y++) for (let x = hx; x < hx + 3; x++) { this.removeObjAt(x, y); this.blockArr[this.idx(x, y)] = 1; }
-      const o = { kind: 'house', tx: hx + 1, ty: hy + 1, v: (R() * 3) | 0 };
+      const o = { kind: 'house', tx: hx + 1, ty: hy + 1, v: (R() * 3) | 0, theme: th.house };
       this.objGrid[this.idx(hx + 1, hy + 1)] = this.objs.length; this.objs.push(o);
     }
-    // 中央篝火與路燈
+    t.houseSpots = placed.map(([x, y]) => ({ x: x + 1, y: y + 1 }));
+    // ---- 廣場中心 ----
     this.removeObjAt(cx, cy);
-    this.addObj({ kind: 'brazier', tx: cx, ty: cy, v: 0 });
+    this.addObj({ kind: th.center || 'brazier', tx: cx, ty: cy, v: 0 });
     this.lights.push({ x: cx + 0.5, y: cy + 0.5, r: 260 });
-    for (const [lx, ly] of [[-4, -1], [4, 1], [1, -4], [-1, 4]]) {
-      if (this.blocked(cx + lx, cy + ly)) continue;
-      this.addObj({ kind: 'lamp', tx: cx + lx, ty: cy + ly, v: 0 });
-      this.lights.push({ x: cx + lx + 0.5, y: cy + ly + 0.5, r: 170 });
-    }
-    // 告示板（只有晨風村）
+    t.subs.push({ name: th.plazaName || '中央廣場', x: cx, y: cy, r: plaza + 1 });
     if (t.id === 'dawn' && !this.blocked(cx + 2, cy - 2)) this.addObj({ kind: 'board', tx: cx + 2, ty: cy - 2, v: 0 });
-    // 木箱點綴
-    for (let k = 0; k < 3; k++) {
-      const a = R() * 7, d = t.r - 2;
-      const x = Math.round(cx + Math.cos(a) * d), y = Math.round(cy + Math.sin(a) * d);
-      if (!this.blocked(x, y) && !this.road[this.idx(x, y)]) this.addObj({ kind: 'crate', tx: x, ty: y, v: 0 });
+    // 道具只放在四周都空著的格子，避免把路堵死
+    const free8 = (x, y) => { for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) { const k = this.idx(x + dx, y + dy); if (!inTown(x + dx, y + dy) || this.blockArr[k] || this.tiles[k] === TILE.BRIDGE) return false; } return !this.road[this.idx(x, y)]; };
+    const putProp = (kind, x, y, v = 0, blocks = true) => { if (!free8(x, y)) return false; this.addObj({ kind, tx: x, ty: y, v }, blocks); return true; };
+    const near = (x, y, r, kind, n, vMax = 1) => { let c = 0; for (let k = 0; k < n * 6 && c < n; k++) { const a = R() * 7, d = 1.5 + R() * r; if (putProp(kind, Math.round(x + Math.cos(a) * d), Math.round(y + Math.sin(a) * d), (R() * vMax) | 0)) c++; } return c; };
+    // 路燈：沿著街道
+    for (let k = 0; k < nStreets; k++) {
+      const a = a0 + k * Math.PI * 2 / nStreets + 0.12;
+      for (let d = plaza + 2; d < t.r - 1; d += 5) {
+        const x = Math.round(cx + Math.cos(a) * d + Math.cos(a + 1.57) * 2), y = Math.round(cy + Math.sin(a) * d + Math.sin(a + 1.57) * 2);
+        if (putProp(th.lamp || 'lamp', x, y)) this.lights.push({ x: x + 0.5, y: y + 0.5, r: 170 });
+      }
     }
-    // NPC 站位：在廣場周圍找空格
+    // 市集：廣場旁的攤棚
+    if (th.market) {
+      const a = R() * 7, mx = Math.round(cx + Math.cos(a) * (plaza + 3)), my = Math.round(cy + Math.sin(a) * (plaza + 3));
+      const n = near(mx, my, 3, 'stall', th.market, 3);
+      if (n) t.subs.push({ name: th.marketName || '市集', x: mx, y: my, r: 5 });
+    }
+    // 主題道具：每間房屋旁邊擺一些，其餘散布在村內
+    for (const [hx, hy] of placed) for (const [kind, n] of th.byHouse || []) if (R() < 0.7) near(hx + 1, hy + 1, 3, kind, n, PROP_VARIANTS[kind] || 1);
+    for (const [kind, n] of th.scatter || []) for (let k = 0; k < n; k++) for (let tr = 0; tr < 12; tr++) { const a = R() * 7, d = plaza + 2 + R() * (t.r - plaza - 3); if (putProp(kind, Math.round(cx + Math.cos(a) * d), Math.round(cy + Math.sin(a) * d), (R() * (PROP_VARIANTS[kind] || 1)) | 0)) break; }
+    // 地面點綴
+    for (let y = cy - t.r; y <= cy + t.r; y++) for (let x = cx - t.r; x <= cx + t.r; x++) {
+      if (!inTown(x, y)) continue; const k = this.idx(x, y);
+      if (this.blockArr[k] || this.road[k] || this.objGrid[k] >= 0 || dist(x, y, cx, cy) < plaza + 1) continue;
+      const r = R(); if (th.deco && r < th.deco[1]) this.addDeco(x, y, th.deco[0], (R() * 3) | 0); else if (th.deco2 && r < th.deco[1] + th.deco2[1]) this.addDeco(x, y, th.deco2[0], (R() * 3) | 0);
+    }
+    // 地點名稱（走進去時顯示，例如「銀風港・漁市場」）
+    for (const [name, kind] of th.subs || []) { const o = this.objs.find((q) => q && q.kind === kind && dist(q.tx, q.ty, cx, cy) < t.r); if (o) t.subs.push({ name, x: o.tx, y: o.ty, r: 4 }); }
+    // ---- NPC 站位：廣場外圈 ----
     t.spots = [];
     const ring = [];
-    for (let y = cy - 6; y <= cy + 6; y++) for (let x = cx - 6; x <= cx + 6; x++) {
+    const r0 = plaza + 0.5, r1 = plaza + 4;
+    for (let y = cy - r1; y <= cy + r1; y++) for (let x = cx - r1; x <= cx + r1; x++) {
       const d = dist(x, y, cx, cy);
-      if (d >= 2.5 && d <= 6 && !this.blocked(x, y) && !this.blocked(x + 1, y) && !this.blocked(x, y + 1)) ring.push({ x: x + 0.5, y: y + 0.5, a: Math.atan2(y - cy, x - cx), d });
+      if (d >= r0 && d <= r1 && !this.blocked(x, y) && !this.blocked(x + 1, y) && !this.blocked(x, y + 1) && this.tiles[this.idx(x, y)] !== TILE.BRIDGE) ring.push({ x: x + 0.5, y: y + 0.5, a: Math.atan2(y - cy, x - cx), d });
     }
     ring.sort((a, b) => a.a - b.a);
     const step = Math.max(1, Math.floor(ring.length / t.npcs.length));
     for (let k = 0; k < t.npcs.length; k++) t.spots.push(ring[(k * step) % ring.length]);
+  }
+  // 港口：往海的方向蓋碼頭、停船，碼頭盡頭有燈塔
+  buildHarbor(t, R) {
+    const cx = Math.floor(t.x), cy = Math.floor(t.y);
+    let best = null, bd = 1e9;
+    for (let a = 0; a < 64; a++) {
+      const ang = a / 64 * Math.PI * 2;
+      for (let d = t.r * 0.5; d < t.r + 60; d++) {
+        const x = Math.round(cx + Math.cos(ang) * d), y = Math.round(cy + Math.sin(ang) * d);
+        if (!this.inBounds(x, y)) break;
+        if (this.tiles[this.idx(x, y)] === TILE.SEA) { if (d < bd) { bd = d; best = ang; } break; }
+      }
+    }
+    if (best === null) return;
+    const dirX = Math.cos(best), dirY = Math.sin(best), px = -dirY, py = dirX;
+    const piers = [[-4, 14, '第一碼頭'], [4, 10, '第二碼頭']];
+    for (const [off, len, name] of piers) {
+      let sx = cx + dirX * (t.r * 0.55) + px * off, sy = cy + dirY * (t.r * 0.55) + py * off;
+      let inSea = 0, last = null;
+      for (let d = 0; d < 60 && inSea < len; d += 0.5) {
+        const x = Math.round(sx + dirX * d), y = Math.round(sy + dirY * d);
+        if (!this.inBounds(x, y)) break;
+        for (const [ox, oy] of [[0, 0], [Math.round(px), Math.round(py)]]) {
+          const tx = x + ox, ty = y + oy; if (!this.inBounds(tx, ty)) continue;
+          const k = this.idx(tx, ty);
+          const wasSea = WATER_TILES.has(this.tiles[k]);
+          this.removeObjAt(tx, ty); this.tiles[k] = wasSea ? TILE.BRIDGE : this.tiles[k] === TILE.BRIDGE ? TILE.BRIDGE : TILE.COBBLE;
+          this.blockArr[k] = 0; this.safe[k] = 1; this.biome[k] = BIOME.TOWN; this.road[k] = 1; this.decoGrid[k] = -1;
+          if (wasSea && ox === 0) { inSea += 0.5; last = { x: tx, y: ty }; }
+        }
+      }
+      if (!last) continue;
+      t.subs.push({ name, x: last.x - dirX * len / 2, y: last.y - dirY * len / 2, r: 5 });
+      // 碼頭兩側的小船與繫船柱
+      for (let k = 3; k < len; k += 4) {
+        for (const side of [-1, 2]) {
+          const bx = Math.round(last.x - dirX * k + px * side), by = Math.round(last.y - dirY * k + py * side);
+          if (this.inBounds(bx, by) && this.tiles[this.idx(bx, by)] === TILE.SEA && this.objGrid[this.idx(bx, by)] < 0) this.addObj({ kind: 'boat', tx: bx, ty: by, v: (R() * 2) | 0 }, false);
+        }
+      }
+      if (name === '第一碼頭') {
+        this.harborEnd = { x: last.x + 0.5, y: last.y + 0.5 };
+        const lx = Math.round(last.x + dirX), ly = Math.round(last.y + dirY);
+        for (const [ox, oy] of [[0, 0], [1, 0], [0, 1], [1, 1]]) { const k = this.idx(lx + ox, ly + oy); if (this.inBounds(lx + ox, ly + oy)) { this.tiles[k] = TILE.COBBLE; this.blockArr[k] = 0; this.safe[k] = 1; this.biome[k] = BIOME.TOWN; } }
+        this.addObj({ kind: 'lighthouse', tx: lx, ty: ly, v: 0 });
+        this.lights.push({ x: lx + 0.5, y: ly + 0.5, r: 320 });
+        t.subs.push({ name: '燈塔', x: lx, y: ly, r: 4 });
+      } else {
+        // 大船停在第二碼頭旁
+        const sxp = Math.round(last.x - dirX * 3 + px * 4), syp = Math.round(last.y - dirY * 3 + py * 4);
+        this.addObj({ kind: 'ship', tx: sxp, ty: syp, v: 0 }, false);
+        this.harbor = { x: sxp, y: syp };
+      }
+    }
+    // 漁市場：碼頭入口
+    const fx = Math.round(cx + dirX * (t.r * 0.5)), fy = Math.round(cy + dirY * (t.r * 0.5));
+    t.subs.push({ name: '漁市場', x: fx, y: fy, r: 5 });
+    t.fishMarket = { x: fx, y: fy };
   }
 
   buildCastle(R) {
@@ -469,9 +629,9 @@ class World {
     };
     link(cx, cy, 118, 34); link(cx, cy, 62, 124); link(cx, cy, 30, 40);
     // 村莊
-    const t = { id: 'coral', name: '珊瑚鎮', x: cx + 0.5, y: cy + 0.5, r: 9, npcs: ['coral', 'warehouse', 'pet', 'captain', 'jewel', 'guard'], houses: 4 };
+    const t = { id: 'coral', name: '珊瑚鎮', x: cx + 0.5, y: cy + 0.5, r: 16, npcs: ['coral', 'warehouse', 'pet', 'captain', 'jewel', 'guard'], houses: 9 };
     this.towns.push(t);
-    for (let yy = cy - 10; yy <= cy + 10; yy++) for (let xx = cx - 10; xx <= cx + 10; xx++) {
+    for (let yy = cy - 17; yy <= cy + 17; yy++) for (let xx = cx - 17; xx <= cx + 17; xx++) {
       const d = dist(xx, yy, cx, cy), k = this.idx(xx, yy);
       if (d <= t.r + 0.5) { this.safe[k] = 1; this.biome[k] = BIOME.TOWN; this.tiles[k] = d < t.r - 2 ? TILE.COBBLE : TILE.SAND; this.blockArr[k] = 0; }
     }
@@ -538,15 +698,15 @@ class World {
       if (e < 3 || (e < 6 && fbm(x * 0.2, y * 0.2, S + 21) > 0.55)) this.addObj({ kind: 'cliff', tx: x, ty: y, v: (R() * 4) | 0, style: 3 });
     }
     // 歐瑞城：石牆圍起來的城市
-    const half = 15;
-    const t = { id: 'oren', name: '歐瑞城', x: cx + 0.5, y: cy + 0.5, r: 12, houses: 8,
+    const half = 25;
+    const t = { id: 'oren', name: '歐瑞城', x: cx + 0.5, y: cy + 0.5, r: 22, houses: 16,
       npcs: ['general', 'smith', 'magic', 'jewel', 'warehouse', 'pet', 'teleport', 'clan', 'guard', 'guard'],
       names: { general: '艾莉卡', smith: '伯恩', magic: '菲歐娜', jewel: '娜塔莎', warehouse: '奧拉夫', pet: '斯諾', teleport: '英格麗', clan: '雷納德' } };
     this.towns.push(t); this.city = { x: cx + 0.5, y: cy + 0.5 };
     for (let y = cy - half; y <= cy + half; y++) for (let x = cx - half; x <= cx + half; x++) {
       const k = this.idx(x, y); this.removeObjAt(x, y);
       this.safe[k] = 1; this.biome[k] = BIOME.TOWN; this.blockArr[k] = 0;
-      this.tiles[k] = dist(x, y, cx, cy) < 11 ? TILE.COBBLE : TILE.SNOW;
+      this.tiles[k] = dist(x, y, cx, cy) < 21 ? TILE.COBBLE : TILE.SNOW;
     }
     const gates = [];
     for (let i = -half; i <= half; i++) {

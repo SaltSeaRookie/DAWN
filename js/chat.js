@@ -245,7 +245,7 @@ const GM = {
     tp(a, say) {
       if (!a.length) return say('用法：/tp 地點名稱｜x y｜crypt｜overworld', 'warn');
       if (a[0] === 'crypt' || a[0] === '地下墓穴內') { const w = getMap('crypt').world; changeMap('crypt', w.entry.x + 1, w.entry.y); return; }
-      if (a[0] === 'overworld') { changeMap('overworld', 100, 103); return; }
+      if (a[0] === 'overworld') { const t0 = getMap('overworld').world.towns[0]; changeMap('overworld', t0.x, t0.y + 3); return; }
       if (a[0] === 'moonruins' || a[0] === '月影遺跡') { const w = getMap('moonruins').world; changeMap('moonruins', w.entry.x + 1, w.entry.y); return; }
       if (a[0] === 'oren' || a[0] === '歐瑞城') { const w = getMap('oren').world; changeMap('oren', w.city.x, w.city.y + 3); return; }
       if (a[0] === 'volcano' || a[0] === '熾焰火山') { const w = getMap('volcano').world; changeMap('volcano', w.entry.x + 1, w.entry.y); return; }

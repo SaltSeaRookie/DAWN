@@ -34,8 +34,10 @@ class Entity {
     const n = this.path[0];
     const dx = n.x - this.x, dy = n.y - this.y, d = Math.hypot(dx, dy);
     const sp = this.speed * dt * mul;
-    if (d <= sp) { this.x = n.x; this.y = n.y; this.path.shift(); }
-    else { this.x += (dx / d) * sp; this.y += (dy / d) * sp; }
+    const nx = d <= sp ? n.x : this.x + (dx / d) * sp, ny = d <= sp ? n.y : this.y + (dy / d) * sp;
+    const W = G.world;
+    if (W && W.blocked(nx, ny) && !W.blocked(this.x, this.y) && !this.struct) { this.path = []; this.moving = false; return true; }
+    this.x = nx; this.y = ny; if (d <= sp) this.path.shift();
     if (d > 0.01) this.dir = Math.atan2(dy, dx);
     this.moving = true; this.walk += dt * this.speed * 3 * mul;
     return false;
@@ -215,6 +217,40 @@ const NPC_NAMES = {
   quest: ['雷恩'], clan: ['莫里斯'], warehouse: ['湯姆', '貝拉', '班恩', '漢克'], jewel: ['莉莉', '卡門'], pet: ['芙蘿', '傑克'], guard: ['村莊守衛'],
 };
 const NPC_TITLES = { stall: '攤販', general: '雜貨商人', smith: '武器防具商', magic: '魔法商人', teleport: '傳送師', quest: '守備隊長', clan: '血盟管理員', warehouse: '倉庫管理員', jewel: '飾品商人', pet: '寵物商人', guard: '守衛', herald: '攻城傳令官', coral: '島嶼商人', captain: '船長' };
+// ===== 各村莊的專屬語彙（v2.24）=====
+// titles：該村 NPC 的職稱；lines：NPC 閒聊（覆蓋一般台詞）；villager：村民閒聊；greet：打開商店時的招呼
+const TOWN_FLAVOR = {
+  dawn: { titles: { general: '雜貨商人', smith: '武器防具商' },
+    villager: ['市集今天的蘋果特別甜', '噴泉旁邊是約會的好地方喔', '老水井的水最清涼了', '晨風村的麵包是全大陸最好吃的', '守備隊長雷恩又在找人幫忙了', '新來的冒險者都從這裡出發'],
+    lines: { general: ['新鮮的麵包和藥水喔～', '出門前記得帶回村卷軸！', '晨風市集什麼都有'], smith: ['新手的第一把劍就在這裡買吧', '盾牌也別忘了'] },
+    greet: '歡迎來到晨風村！' },
+  leaf: { titles: { general: '森之雜貨', magic: '森之藥師', teleport: '林間傳送師' },
+    villager: ['森之祠的守護靈會保佑我們', '別在林子裡大聲喧嘩，會吵醒樹精', '今年的蜂蜜特別香', '燈籠一點亮，森林就安心了', '長老說月影之門最近在發光…', '小心幽影森林深處的狼人'],
+    lines: { general: ['蜂蜜和草藥，要不要帶一點？', '林語村的東西都是森林的恩賜'], magic: ['草藥與魔法，本來就是同一回事', '森林會教你聆聽'] },
+    greet: '願森林庇佑你。' },
+  port: { titles: { general: '船具雜貨商', smith: '船錨鐵匠', jewel: '珍珠商人', warehouse: '碼頭倉庫管理員', teleport: '港口傳送師' },
+    villager: ['今天的漁獲是鯖魚和鯛魚！', '燈塔的光整晚都不會熄', '第一碼頭的船剛靠岸', '起風了，該收網了', '聽說翡翠群島有海盜寶藏', '碼頭邊的魚貨攤一早就賣光了', '海鷗又來偷魚了！', '看這雲，明天會有好浪'],
+    lines: { general: ['繩索、魚鉤、乾糧，出海前都備齊了嗎？', '剛到貨的鹹魚乾喔～', '帆布破了也能在這補'], smith: ['船錨和魚叉我都能打', '海風會讓鐵生鏽，記得保養'], captain: ['要出海嗎？今天浪不大', '升帆！往翡翠群島出發！', '老船長的船從沒翻過'], jewel: ['這顆珍珠可是潛水好手撈上來的', '海裡的寶石最有靈氣'], warehouse: ['貨物都堆在碼頭倉庫', '小心別被海水打濕了'] },
+    greet: '歡迎來到銀風港，海風今天很溫柔。' },
+  anvil: { titles: { general: '礦工雜貨', smith: '鍛造大師', jewel: '寶石切割師', teleport: '礦坑傳送師' },
+    villager: ['熔爐又燒了一整夜', '礦車今天運了三車鐵礦', '叮噹叮噹，鐵砧鎮的聲音從不停', '沙漠的風把煤灰吹得到處都是', '好劍要經過千次敲打', '礦坑深處好像有怪聲'],
+    lines: { general: ['礦工的必需品都在這', '十字鎬斷了嗎？'], smith: ['這把劍我敲了三天三夜', '火候對了，鐵才會聽話', '鐵砧鎮的鋼是全大陸最硬的'], jewel: ['原石要切得好，才會發光', '這顆紅寶石是從礦坑最深處挖出來的'] },
+    greet: '小心火星，這裡到處都是熔爐。' },
+  oasis: { titles: { general: '商隊雜貨', jewel: '沙漠寶石商', magic: '星象術士', teleport: '沙漠傳送師', pet: '駱駝販子', warehouse: '商隊倉庫' },
+    villager: ['商隊明天就要啟程了', '泉水是沙漠的生命', '駱駝市集今天很熱鬧', '晚上的星空美得像寶石', '沙暴要來了，快把帳篷收好', '聽說灰燼沙漠深處有古代的墓', '一杯薄荷茶，消暑又解渴'],
+    lines: { general: ['香料、乾果、薄荷茶～', '在沙漠裡，水比金子還珍貴'], jewel: ['這是沙漠玫瑰石，只有這裡有', '星光寶石，晚上會發亮喔'], magic: ['星星告訴我，你的旅程還很長', '沙漠的夜空最適合研究魔法'], pet: ['駱駝我是不賣的，牠們是家人', '沙漠的動物都很堅強'] },
+    greet: '旅人啊，先喝口水吧，綠洲歡迎你。' },
+  ridge: { titles: { general: '山居雜貨', smith: '獵具鐵匠', teleport: '山道傳送師', warehouse: '木屋倉庫' },
+    villager: ['柴火要多劈一點，今晚會很冷', '獵人們帶回了一頭鹿', '山上的雪化了，路比較好走', '爐火旁邊最溫暖了', '北境山道往歐瑞城，路上很危險', '高地的岩石巨像別去惹牠'],
+    lines: { general: ['毛毯、熱湯、火種，上山必備', '天冷了，來碗熱湯吧'], smith: ['獵刀和弓箭都在這', '在山上，好的靴子比好的劍重要'] },
+    greet: '快進來烤烤火，外面冷吧。' },
+  oren: { titles: {},
+    villager: ['王冠廣場的雕像是第一代國王', '冬市的熱可可最好喝', '城牆擋住了雪原的風', '霜王的傳說你聽過嗎？', '北境的冬天很長，但大家都很溫暖'],
+    lines: {}, greet: '歡迎來到北境的歐瑞城。' },
+  coral: { titles: {},
+    villager: ['貝殼市集的項鍊很漂亮', '椰子水最解渴了', '海盜又在海盜灣出沒了', '蛇礁那邊的海蛇好可怕', '珊瑚鎮的夕陽是群島最美的'],
+    lines: {}, greet: '歡迎來到珊瑚鎮！' },
+};
 const NPC_LOOKS = {
   general: { body: '#8a3a4a', robe: true, hair: '#6a3a1a', longHair: true, skin: '#f0cfa8' },
   smith: { body: '#5a4a3a', legs: '#3a2e24', hair: '#2a1a10', skin: '#d8a880', belt: '#2a1a10', weapon: 'axe' },
@@ -249,7 +285,8 @@ function populateTowns(m) {
       }
       const names = NPC_NAMES[role]; used[role] = (used[role] || 0) + 1;
       const nm = (t.names && t.names[role]) || names[(W.towns.indexOf(t) + used[role] - 1) % names.length];
-      m.npcs.push(new NPC(sp.x, sp.y, nm, NPC_TITLES[role], role, NPC_LOOKS[role], t.id));
+      const TF = TOWN_FLAVOR[t.id];
+      m.npcs.push(new NPC(sp.x, sp.y, nm, (TF && TF.titles[role]) || NPC_TITLES[role], role, NPC_LOOKS[role], t.id));
     });
     // 擺攤的冒險者（攤販）
     // 攤販擺在村莊外圈，和其他 NPC、篝火、告示板保持距離，避免擋住對話
@@ -257,7 +294,7 @@ function populateTowns(m) {
     // 主線故事 NPC 的位置（之後才會放上去）
     if (t.id === 'dawn') taken.push({ x: t.x - 3.5, y: t.y + 3.5, r: 3.2 });
     if (t.id === 'leaf') taken.push({ x: t.x + 2.5, y: t.y - 3.5, r: 3.2 });
-    for (let k = 0; k < (t.id === 'dawn' || t.id === 'oren' ? 3 : 2); k++) {
+    for (let k = 0; k < (t.id === 'dawn' || t.id === 'oren' ? 4 : t.r > 12 ? 3 : 2); k++) {
       let q = null;
       for (let tries = 0; tries < 60 && !q; tries++) {
         const a = rand(0, 7), r = rand(t.r * 0.62, t.r * 0.92);
@@ -272,9 +309,9 @@ function populateTowns(m) {
       m.npcs.push(vn);
     }
     // 村民（可招募）
-    const n = t.id === 'dawn' ? 7 : 3;
+    const n = t.id === 'dawn' ? 12 : t.r > 12 ? 7 : 3;
     for (let i = 0; i < n; i++) {
-      const p = { x: t.x + rand(-5, 5), y: t.y + rand(-5, 5) };
+      const p = { x: t.x + rand(-t.r * 0.6, t.r * 0.6), y: t.y + rand(-t.r * 0.6, t.r * 0.6) };
       if (W.blocked(p.x, p.y)) continue;
       const cls = pick(FIGHTER_CLS);
       const v = new Actor({ x: p.x, y: p.y, kind: 'villager', faction: 'villager', name: Names.take(FIGHTER_NAMES), cls, level: randi(3, 25), look: Object.assign({}, pick(FIGHTER_LOOKS[cls])), speed: rand(2.2, 3), town: t });
@@ -335,13 +372,14 @@ function populateField(m) {
     { b: BIOME.DESERT, type: 'mummy', dmin: 70, dmax: 999, n: 8, max: 2 },
     { b: BIOME.DESERT, type: 'sandworm', dmin: 85, dmax: 999, n: 6, max: 1 },
   ];
+  // 地圖放大為 OW_K 倍：距離條件以原本的比例計算，出生點數量隨面積增加
   for (const s of table)
-    for (let i = 0; i < s.n; i++) {
+    for (let i = 0; i < Math.round(s.n * OW_K * 1.5); i++) {
       const p = W.randomFreeTile((x, y) => {
         if (W.biomeAt(x, y) !== s.b) return false;
-        const d = dist(x, y, 100, 100);
+        const d = dist(x, y, 100 * OW_K, 100 * OW_K) / OW_K;
         if (d < s.dmin || d > s.dmax) return false;
-        if (dist(x, y, W.nest.x, W.nest.y) < 12 || dist(x, y, C.cx, C.cy) < 18) return false;
+        if (dist(x, y, W.nest.x, W.nest.y) < 12 * OW_K || dist(x, y, C.cx, C.cy) < 18 * OW_K) return false;
         for (const t of W.towns) if (dist(x, y, t.x, t.y) < t.r + 6) return false;
         return true;
       });
@@ -350,8 +388,8 @@ function populateField(m) {
   m.spawners.push({ type: 'wyvern', x: W.nest.x + 0.5, y: W.nest.y + 0.5, max: 1, alive: 0, timer: 0, respawn: MONSTERS.wyvern.respawn });
   for (const sp of m.spawners) for (let i = 0; i < sp.max; i++) spawnFrom(m, sp);
   m.fighterT = 0;
-  for (let i = 0; i < 20; i++) spawnFighter(m, false);
-  for (let i = 0; i < 5; i++) spawnFighter(m, true);
+  for (let i = 0; i < 36; i++) spawnFighter(m, false);
+  for (let i = 0; i < 8; i++) spawnFighter(m, true);
 }
 function populateIsle(m) {
   const W = m.world;
@@ -454,7 +492,7 @@ function spawnFighter(m, evil) {
   const p = W.randomFreeTile((x, y) => {
     const b = W.biomeAt(x, y);
     if (!FIELD_LEVELS[b]) return false;
-    if (evil && (b === BIOME.MEADOW || dist(x, y, 100, 100) < 40)) return false;
+    if (evil && (b === BIOME.MEADOW || (m.id === 'overworld' && dist(x, y, 100 * OW_K, 100 * OW_K) < 40 * OW_K))) return false;
     if (m.id === 'isle' && dist(x, y, 75, 75) < 14) return false;
     for (const t of W.towns) if (dist(x, y, t.x, t.y) < t.r + 4) return false;
     if (G.player && dist(x, y, G.player.x, G.player.y) < 15) return false;
@@ -499,7 +537,7 @@ function serializePlayer(p) {
     baseMaxHp: p.baseMaxHp, baseMaxMp: p.baseMaxMp, hp: Math.ceil(p.hp), mp: Math.floor(p.mp), gold: p.gold, align: p.align,
     // 交易中與擺攤中的物品也算在背包裡（避免中途離線時遺失）
     inv: [...p.inv, ...(typeof Trade !== 'undefined' && Trade.s && G.player === p ? Trade.s.mine.items : []), ...(p.stall ? p.stall.items.map((it) => ({ id: it.id, qty: it.qty, ench: it.ench })) : [])], wh: p.wh, equip: p.equip, spells: p.spells, hotbar: p.hotbar, quest: p.quest, kills: p.kills, pkCount: p.pkCount, petMode: p.petMode,
-    clan: p.clan, castle: p.castle, homeTown: p.homeTown, autoBuff: p.autoBuff || {}, realm: p.realm || null, story: p.story || null, title: p.title || null, mapId: p.mapId, x: p.x, y: p.y, day: G.day, created: p.created, playTime: p.playTime || 0,
+    clan: p.clan, castle: p.castle, homeTown: p.homeTown, autoBuff: p.autoBuff || {}, realm: p.realm || null, story: p.story || null, title: p.title || null, mapId: p.mapId, x: p.x, y: p.y, owScale: OW_K, day: G.day, created: p.created, playTime: p.playTime || 0,
   };
 }
 function loadPlayer(d) {
@@ -583,7 +621,7 @@ function isHostile(a, b) {
       if (!siegeOn()) return false;
       if (bf === 'castle') return !b.struct || (b.struct === 'gate' ? !b.open && !b.broken : true);
       if (bf === 'player' || bf === 'ally') return !bSafe && ownsCastle();
-      if (bf === 'besieger') return false;
+      if (bf === 'besieger') return b.besieger !== a.besieger;   // 不同血盟的攻城軍也會互相廝殺
       return bf === 'monster' && b.target === a;   // 只反擊攻擊自己的怪物，不在路上分心
     case 'townguard': return bf === 'pker' || (bf === 'player' && pl.align < 0 && G.t > (pl.guardSafeT || 0));
     case 'castle':
@@ -1578,7 +1616,7 @@ function updateActor(a, dt) {
   if (dp > 36 && !a.target && a.kind !== 'ally' && !a.follow && a.kind !== 'besieger' && !((a.faction === 'castle' || a.kind === 'merc') && siegeOn())) return;
   const spMul = a.slowT > 0 ? 0.5 : 1;
   // 冒險者喝水
-  if ((a.kind === 'fighter' || a.kind === 'pker' || a.kind === 'ally' || a.kind === 'besieger' || a.kind === 'merc') && a.hp < a.maxHp * 0.35 && G.t > a.potT && (!a.life || a.life.pots > 0)) {
+  if ((a.kind === 'fighter' || a.kind === 'pker' || a.kind === 'ally' || a.kind === 'besieger' || a.kind === 'castledef' || a.kind === 'merc') && a.hp < a.maxHp * 0.35 && G.t > a.potT && (!a.life || a.life.pots > 0)) {
     a.potT = G.t + 6; if (a.life) a.life.pots--; a.hp = Math.min(a.maxHp, a.hp + Math.round(a.maxHp * 0.3)); burst(a.x, a.y, 20, '#ff8080', 8, 1, 0.5, 2, 2);
   }
   // 盟友時效
@@ -1618,7 +1656,7 @@ function updateActor(a, dt) {
     } else {
       if (a.thinkT <= 0 || !a.path.length) {
         a.thinkT = 0.5 + Math.random() * 0.3;
-        if (dt2 < 2.5 && !W.blocked(t.x, t.y)) a.path = [{ x: t.x, y: t.y }];
+        if (dt2 < 2.5 && !W.blocked(t.x, t.y) && W.clearLine(a.x, a.y, t.x, t.y)) a.path = [{ x: t.x, y: t.y }];
         else a.path = Path.find(W, a.x, a.y, t.x, t.y, 700, a.kind !== 'townguard' && a.kind !== 'ally') || [];
       }
       a.moveAlong(dt, spMul);
@@ -1701,13 +1739,13 @@ function updateSpawners(dt) {
     if (m.fighterT <= 0) {
       m.fighterT = 20;
       const nF = m.actors.filter((a) => a.kind === 'fighter' && !a.dead).length, nP = m.actors.filter((a) => a.kind === 'pker' && !a.dead && !a.raider).length;
-      if (nF < (m.id === 'isle' ? 6 : m.id === 'oren' ? 7 : 20)) spawnFighter(m, false);
-      if (m.id === 'overworld' && nP < 5) spawnFighter(m, true);
+      if (nF < (m.id === 'isle' ? 6 : m.id === 'oren' ? 7 : 36)) spawnFighter(m, false);
+      if (m.id === 'overworld' && nP < 8) spawnFighter(m, true);
     }
   }
   for (let i = m.actors.length - 1; i >= 0; i--) {
     const a = m.actors[i];
-    if (a.dead && a.deadT > 3 && a.kind !== 'struct') { if ((a.kind === 'fighter' || a.kind === 'pker' || a.kind === 'besieger') && !a.clanMember) Names.release(a.name); m.actors.splice(i, 1); }
+    if (a.dead && a.deadT > 3 && a.kind !== 'struct') { if ((a.kind === 'fighter' || a.kind === 'pker' || a.kind === 'besieger' || a.kind === 'castledef') && !a.clanMember) Names.release(a.name); m.actors.splice(i, 1); }
   }
 }
 
@@ -1774,7 +1812,7 @@ const NPC_LINES = {
 function updateNPCs(dt) {
   for (const n of G.map.npcs) {
     n.lineT -= dt; n.sayT -= dt;
-    if (n.lineT <= 0) { n.lineT = rand(16, 34); if (dist(n.x, n.y, G.player.x, G.player.y) < 12) n.speak(pick(NPC_LINES[n.role] || ['…']), 4); }
+    if (n.lineT <= 0) { n.lineT = rand(16, 34); const TF = TOWN_FLAVOR[n.town], own = TF && TF.lines[n.role]; if (dist(n.x, n.y, G.player.x, G.player.y) < 12) n.speak(pick(own && Math.random() < 0.7 ? own : NPC_LINES[n.role] || ['…']), 4); }
   }
 }
 
@@ -1951,7 +1989,10 @@ function enterWorld(saveData) {
   G.day = saveData.day || 0.3;
   setMap(['crypt', 'isle', 'volcano', 'oren', 'moonruins'].includes(saveData.mapId) || (saveData.mapId === 'keep' && saveData.castle && saveData.castle.owned) ? saveData.mapId : 'overworld');
   recalc(p);
+  // v2.24 大陸放大：舊存檔在大陸上的座標乘上放大倍率
+  if (saveData.x && G.map.id === 'overworld' && (saveData.owScale || 1) !== OW_K) { saveData.x *= OW_K / (saveData.owScale || 1); saveData.y *= OW_K / (saveData.owScale || 1); }
   if (saveData.x && !G.world.blocked(saveData.x, saveData.y)) { p.x = saveData.x; p.y = saveData.y; }
+  else if (saveData.x && G.world.inBounds(saveData.x | 0, saveData.y | 0)) { const q = G.world.nearestFree(saveData.x, saveData.y); if (!G.world.blocked(q.x, q.y)) { p.x = q.x; p.y = q.y; } else { const t = G.world.towns[0]; const q2 = G.world.nearestFree(t.x + 1, t.y + 2); p.x = q2.x; p.y = q2.y; } }
   else { const t = G.world.towns[0] || { x: G.world.entry.x, y: G.world.entry.y - 2 }; const q = G.world.nearestFree(t.x + 1, t.y + 2); p.x = q.x; p.y = q.y; }
   if (ownsCastle()) { const m = getMap('overworld'); m.tower.ownerColor = '#7ad0ff'; }
   if (p.clan) { spawnClanMembers(G.map); if (p.clan.notice) later(1, () => clanLog('公告：' + p.clan.notice)); }
@@ -1993,7 +2034,7 @@ window.addEventListener('load', () => {
   window.addEventListener('pointerdown', () => Snd.unlock(), true);
   window.addEventListener('keydown', () => Snd.unlock(), true);
   window.addEventListener('beforeunload', () => { if (G.running) saveGame(true); });
-  buildTileTextures(); buildObjectSprites(); buildExtraSprites();
+  buildTileTextures(); buildObjectSprites(); buildExtraSprites(); buildTownSprites();
   UI.init();
   Online.init();
   Scenes.init();

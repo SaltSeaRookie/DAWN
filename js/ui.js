@@ -628,7 +628,8 @@ const UI = {
     const w = this.windows.shop; if (!w) return;
     const p = G.player, npc = w.npc;
     const greet = { castleshop: '城主大人，這些都是城堡御用的珍品。', coral: '歡迎來到珊瑚鎮！島上的特產都在這裡。', general: '歡迎光臨！藥水、卷軸、箭都在這裡。', smith: '看看我的武器和盔甲吧！', magic: '魔法的奧秘就在書頁之間。', jewel: '每一件飾品都是精心挑選的。' }[npc.role];
-    w.body.innerHTML = this.dialogHead(npc, greet);
+    const TF = typeof TOWN_FLAVOR !== 'undefined' && TOWN_FLAVOR[npc.town];
+    w.body.innerHTML = this.dialogHead(npc, (TF && TF.greet ? TF.greet + ' ' : '') + greet);
     const tabs = el('div', 'tabs');
     for (const [k, l] of [['buy', '購買'], ['sell', '販賣']]) {
       const b = el('button', 'tab' + (w.tab === k ? ' on' : ''), l);
@@ -727,11 +728,11 @@ const UI = {
     this.close('tp');
     const w = this.win('tp', npc.title, 16, 60, 320);
     const W = getMap('overworld').world;
-    const dests = W.towns.filter((t) => t.id !== npc.town).map((t) => ({ name: t.name, sub: '村莊', cost: Math.round(dist(t.x, t.y, npc.x, npc.y) * 4), x: t.x, y: t.y + 3 }));
+    const dests = W.towns.filter((t) => t.id !== npc.town).map((t) => ({ name: t.name, sub: '村莊', cost: Math.round(dist(t.x, t.y, npc.x, npc.y) / OW_K * 4), x: t.x, y: t.y + 3 }));
     if (npc.town !== 'castle') dests.push({ name: '灰岩城', sub: '城堡前', cost: 300, x: W.castle.x0 - 4, y: W.castle.cy });
     dests.push({ name: '地下墓穴入口', sub: '骸骨荒原・建議 Lv 10+', cost: 350, x: W.crypt.x - 2, y: W.crypt.y - 2 });
-    dests.push({ name: '霜嶺高地', sub: '建議 Lv 15+', cost: 400, x: 36, y: 38 });
-    dests.push({ name: '赤岩峽谷', sub: '建議 Lv 12+', cost: 380, x: 118, y: 44 });
+    dests.push({ name: '霜嶺高地', sub: '建議 Lv 15+', cost: 400, x: 36 * OW_K, y: 38 * OW_K });
+    dests.push({ name: '赤岩峽谷', sub: '建議 Lv 12+', cost: 380, x: 118 * OW_K, y: 44 * OW_K });
     dests.push({ name: '火山隘口', sub: '熾焰火山・建議 Lv 23+', cost: 600, x: W.volcanoGate.x + 1, y: W.volcanoGate.y + 2 });
     if (G.map.id !== 'overworld') for (const d of dests) { d.map = 'overworld'; d.cost = Math.max(d.cost, 800); }
     if (Story.ruinsOpen()) { const M = getMap('moonruins').world; dests.push({ name: '月影遺跡', sub: '主線故事・建議 Lv 22+', cost: 1200, x: M.entry.x + 1, y: M.entry.y, map: 'moonruins' }); }

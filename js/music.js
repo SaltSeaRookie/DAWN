@@ -21,6 +21,8 @@ const AREA_MUSIC = {
   town_anvil: { name: '鐵砧鎮・熔爐與沙', bpm: 96, root: 57, mode: 'phrygdom', meter: 4, A: [1, 2, 1, 7, 1, 2, 3, 1], B: [4, 3, 2, 1, 6, 7, 2, 1], inst: [104, 68, 49, 105, 33], acc: 'arp', bass: 'pulse', perc: 'tribal', seed: 41 },
   town_coral: { name: '珊瑚鎮・椰影與浪花', bpm: 106, root: 60, mode: 'major', meter: 4, A: [1, 4, 5, 1, 6, 4, 5, 1], B: [4, 5, 3, 6, 2, 5, 1, 1], inst: [114, 73, null, 12, 33], acc: 'arp', bass: 'walk', perc: 'island', seed: 53 },
   town_oren:  { name: '歐瑞城・雪夜燈火', bpm: 70, root: 64, mode: 'minor', meter: 3, A: [1, 6, 3, 7, 1, 4, 5, 1], B: [6, 7, 3, 6, 4, 1, 5, 5], inst: [10, 68, 49, 46, 42], acc: 'waltz', bass: 'root', perc: 'none', seed: 61 },
+  town_oasis: { name: '綠洲鎮・駝鈴與市集', bpm: 100, root: 62, mode: 'phrygdom', meter: 4, A: [1, 2, 1, 7, 1, 4, 2, 1], B: [4, 2, 7, 1, 6, 7, 2, 1], inst: [73, 104, 49, 46, 32], acc: 'arp', bass: 'drone', perc: 'tambourine', seed: 83 },
+  town_ridge: { name: '霜嶺村・爐火與松風', bpm: 80, root: 60, mode: 'mixo', meter: 3, A: [1, 7, 4, 1, 1, 4, 5, 1], B: [4, 7, 1, 5, 4, 1, 7, 1], inst: [71, 75, 48, 24, 32], acc: 'waltz', bass: 'root', perc: 'soft', seed: 89 },
   castle:     { name: '灰岩城・石壁與旗幟', bpm: 88, root: 58, mode: 'major', meter: 4, A: [1, 4, 5, 1, 6, 4, 5, 5], B: [4, 1, 6, 5, 4, 5, 1, 1], inst: [56, 60, 48, null, 58], acc: 'brass', bass: 'march', perc: 'snare', seed: 71 },
   // ===== 晨曦大陸的野外 =====
   meadow:     { name: '碧波草原・旅途的開始', bpm: 112, root: 60, mode: 'major', meter: 4, A: [1, 5, 6, 4, 1, 5, 4, 5], B: [6, 4, 1, 5, 6, 4, 2, 5], inst: [60, 73, 48, 24, 33], acc: 'arp', bass: 'walk', perc: 'adventure', seed: 101 },
@@ -148,7 +150,7 @@ function drumBar(type, t0, beat, M, b, part, note, R) {
 }
 
 // 各曲的整體音量（實際渲染後量測，讓每首聽起來差不多大聲）
-const AREA_GAIN = { town_dawn: 0.95, town_leaf: 0.8, town_port: 1.25, town_anvil: 1.3, town_coral: 1.1, town_oren: 1.7, castle: 1.65, meadow: 1.1, forest: 1.5, bone: 1.6, canyon: 1.3, desert: 1.3, highland: 0.78, coast: 0.82, isle: 0.8, crypt: 1.4, keep: 1.5, volcano: 1.0, snowfield: 1.3, moonruins: 1.15, battle: 0.88 };
+const AREA_GAIN = { town_oasis: 1.2, town_ridge: 1.0, town_dawn: 0.95, town_leaf: 0.8, town_port: 1.25, town_anvil: 1.3, town_coral: 1.1, town_oren: 1.7, castle: 1.65, meadow: 1.1, forest: 1.5, bone: 1.6, canyon: 1.3, desert: 1.3, highland: 0.78, coast: 0.82, isle: 0.8, crypt: 1.4, keep: 1.5, volcano: 1.0, snowfield: 1.3, moonruins: 1.15, battle: 0.88 };
 
 // ---------- 依照所在位置選曲 ----------
 const BIOME_MUSIC = () => ({

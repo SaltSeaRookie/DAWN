@@ -201,6 +201,8 @@ const Talk = {
   villagerLine(o) {
     const n = this.news(), night = daylight() < 0.3;
     if (n && Math.random() < 0.25) { n.used = (n.used || 0) + 1; return '聽說' + n.text + '，好厲害'; }
+    const TF = o.town && TOWN_FLAVOR[o.town.id];
+    if (TF && Math.random() < 0.6) return pick(TF.villager);
     return pick([
       night ? '天黑了，早點回家吧' : '今天天氣真好',
       '聽說灰岩城現在是「' + castleOwnerName() + '」的',

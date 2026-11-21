@@ -83,7 +83,7 @@ function pickWeighted(list) {
 // 攻城時間開始時，電腦血盟決定要不要宣戰
 function planNpcSiege() {
   const pool = siegeAttackerPool();
-  const roll = Math.random(), n = roll < 0.15 ? 0 : roll < 0.75 ? 1 : 2;
+  const roll = Math.random(), n = Math.min(pool.length, roll < 0.45 ? 1 : roll < 0.85 ? 2 : 3);
   const chosen = [];
   for (let i = 0; i < n && pool.length; i++) { const c = pickWeighted(pool); chosen.push(c); pool.splice(pool.indexOf(c), 1); }
   if (!chosen.length) { worldLog('這次的攻城時間沒有血盟向灰岩城宣戰。'); return; }
@@ -109,9 +109,10 @@ function beginSiege(playerAtk) {
   if (ownsCastle() && G.map === m) for (const a of summonAllies(4 + clanLevel(), SIEGE_LEN, { x: C.cx, y: C.cy })) a.siegeAlly = true;
   return G.siege;
 }
-function spawnBesiegers(c) {
+const BESIEGER_SHOUTS = ['為了「%」！衝啊！', '撞開城門！', '守護之塔就在前面！', '「%」的勇士們，跟我上！', '今天灰岩城就是我們的！', '別讓其他血盟搶先了！'];
+function spawnBesiegers(c, wave) {
   const m = getMap('overworld'), C = m.world.castle, p = G.player;
-  const n = Math.min(10, 4 + Math.floor((c.power || 1) / 2));
+  const n = Math.min(12, (wave ? 3 : 5) + Math.floor((c.power || 1) / (wave ? 3 : 2)));
   const emblem = clanEmblemFor(c.name);
   for (let i = 0; i < n; i++) {
     const q = m.world.nearestFree(C.x0 - 9 + rand(-3, 2), C.cy + rand(-5, 5));
@@ -121,9 +122,60 @@ function spawnBesiegers(c) {
     a.clan = c.name; a.emblem = emblem; a.aggroR = 10; a.leash = 120; a.align = 500;
     a.maxHp = a.hp = Math.round(a.maxHp * 1.3);
     a.home = { x: C.cx, y: C.cy };
+    if (i === 0) a.speak(BESIEGER_SHOUTS[wave ? 1 + randi(0, 4) : 0].replace('%', c.name), 4);
     m.actors.push(a);
   }
-  G.siege.attackers.push(c.name);
+  const S = G.siege;
+  if (!S.attackers.includes(c.name)) S.attackers.push(c.name);
+  S.npcClans = S.npcClans || {};
+  const e = S.npcClans[c.name] = S.npcClans[c.name] || { c, waves: 0, max: 2 + Math.floor((c.power || 1) / 3) };
+  if (wave) e.waves++;
+  e.nextT = G.t + rand(60, 90);
+  if (wave) log('⚔ 血盟「' + c.name + '」的增援抵達城下！（第 ' + e.waves + ' 波）', ownsCastle() ? 'warn' : 'sys');
+}
+// 攻城中：電腦血盟陸續派出增援、喊話，城主的血盟也會派人守城
+function siegeNpcTick(dt) {
+  const S = G.siege, m = G.maps.overworld; if (!S || !S.active || !m) return;
+  for (const name in (S.npcClans || {})) {
+    const e = S.npcClans[name];
+    if (G.t < e.nextT || e.waves >= e.max) continue;
+    const alive = m.actors.filter((a) => a.besieger === name && !a.dead).length;
+    if (alive < 6) spawnBesiegers(e.c, true); else e.nextT = G.t + 20;
+  }
+  // 戰場上的喊話
+  S.shoutT = (S.shoutT || rand(6, 12)) - dt;
+  if (S.shoutT <= 0) {
+    S.shoutT = rand(7, 14);
+    const pool = m.actors.filter((a) => !a.dead && (a.kind === 'besieger' || (a.faction === 'castle' && !a.struct)) && dist(a.x, a.y, G.player.x, G.player.y) < 18);
+    if (pool.length) {
+      const a = pick(pool);
+      if (a.kind === 'besieger') a.speak(pick(BESIEGER_SHOUTS).replace('%', a.besieger), 3.5);
+      else a.speak(pick(['守住城門！', '不准再前進一步！', '弓箭手，放箭！', '為了「' + S.defender + '」！', '援軍馬上就到！']), 3.5);
+    }
+  }
+  // 電腦血盟擁有城堡時，會派盟員守城
+  const R = realm();
+  if (!ownsCastle() && R.owner && !S.ownerSent) {
+    S.ownerSent = true;
+    const C = m.world.castle, em = R.owner.emblem;
+    for (let i = 0; i < 6; i++) {
+      const q = m.world.nearestFree(C.cx + rand(-4, 4), C.cy + rand(-4, 4));
+      const a = makeFighter(q.x, q.y, randi(20, 32), false);
+      a.kind = 'castledef'; a.faction = 'castle'; a.life = null; a.clan = R.owner.name; a.emblem = em; a.home = { x: q.x, y: q.y }; a.aggroR = 9; a.leash = 30;
+      a.maxHp = a.hp = Math.round(a.maxHp * 1.2);
+      m.actors.push(a);
+    }
+    log('血盟「' + R.owner.name + '」的盟員趕來守城了！', 'sys');
+  }
+}
+// 你宣戰時，其他電腦血盟也會趁機出兵
+function rivalsJoin() {
+  const pool = siegeAttackerPool().filter((c) => !(G.siege.attackers || []).includes(c.name));
+  if (!pool.length || Math.random() < 0.25) return;
+  const n = Math.random() < 0.6 ? 1 : 2, chosen = [];
+  for (let i = 0; i < n && pool.length; i++) { const c = pickWeighted(pool); chosen.push(c); pool.splice(pool.indexOf(c), 1); }
+  G.npcDecl = { at: G.t + rand(25, 50), clans: chosen };
+  for (const c of chosen) worldLog('血盟「' + c.name + '」也向灰岩城宣戰，準備趁亂攻城！');
 }
 function startNpcSiege(clans) {
   const s = beginSiege(false);
@@ -153,6 +205,7 @@ function declareSiege() {
   const C = m.world.castle;
   for (const a of summonAllies(6 + clanLevel(), 0, { x: C.x0 - 4, y: C.cy })) a.siegeAlly = true;
   log('⚔ 血盟「' + p.clan.name + '」向灰岩城宣戰！摧毀城門，擊破守護之塔！', 'level');
+  if (!G.npcDecl) rivalsJoin();
   SFX.play('roar'); UI.refresh();
   return null;
 }
@@ -188,7 +241,7 @@ function gateClick(g) {
 function endSiege() {
   const s = G.siege; if (s) s.active = false;
   const m = G.maps.overworld; if (!m) return;
-  for (const a of m.actors) if ((a.faction === 'castle' && !a.struct && !a.garrison) || a.siegeAlly || a.kind === 'besieger') { a.dead = true; a.deadT = 9; }
+  for (const a of m.actors) if ((a.faction === 'castle' && !a.struct && !a.garrison) || a.siegeAlly || a.kind === 'besieger' || a.kind === 'castledef') { a.dead = true; a.deadT = 9; }
   m.gate.open = true; m.gate.broken = false; m.gate.dead = false; m.gate.hp = m.gate.maxHp;
   m.tower.dead = false; m.tower.hp = m.tower.maxHp; setGateBlock(false);
   m.tower.ownerColor = ownsCastle() ? '#7ad0ff' : realm().owner ? '#ffb040' : null;
@@ -245,6 +298,7 @@ function updateSiege(dt) {
     if (gateClosedPref() && !(G.siege && G.siege.active)) { m.gate.open = false; setGateBlock(true); }
   }
   clanFormTick(dt);
+  siegeNpcTick(dt);
   const sc = siegeSchedule();
   // 攻城時間開始
   if (sc.open && R.lastWindow !== sc.start) {

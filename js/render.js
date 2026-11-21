@@ -284,7 +284,7 @@ function drawObj(o, S) {
     case 'rock': s = SPR['rock' + o.v]; break;
     case 'tomb': s = SPR['tomb' + o.v]; break;
     case 'cross': s = SPR.cross0; break;
-    case 'house': s = SPR['house' + o.v]; break;
+    case 'house': s = SPR[(o.theme ? 'house_' + o.theme : 'house') + o.v] || SPR['house' + o.v]; break;
     case 'lamp': s = SPR.lamp0; break;
     case 'board': s = SPR.board0; break;
     case 'brazier': s = SPR.brazier0; break;
@@ -301,6 +301,7 @@ function drawObj(o, S) {
     case 'crystal': s = SPR['crystal' + o.v]; break;
     case 'palm': s = SPR['palm' + o.v]; break;
     case 'cave': s = SPR.cave0; break;
+    default: s = SPR[o.kind + (o.v || 0)];
   }
   if (!s) return;
   if (sx < -s.c.width || sx > VW + s.c.width || sy < -40 || sy > VH + s.c.height) return;
@@ -321,6 +322,10 @@ function drawObj(o, S) {
   if (o.kind === 'crystal' || o.kind === 'moongate') glowUnder(sx, sy - (o.kind === 'moongate' ? 40 : 20), o.kind === 'moongate' ? 46 : 26 + Math.sin(G.t * 2 + o.tx) * 3, 'rgba(170,140,255,0.28)');
   if (o.kind === 'stele' && typeof Story !== 'undefined' && Story.steleLit(o.v)) { glowUnder(sx, sy - 40, 40 + Math.sin(G.t * 3) * 4, 'rgba(160,200,255,0.55)'); if (Math.random() < 0.3) G.particles.push({ x: o.tx + 0.5 + rand(-0.4, 0.4), y: o.ty + 0.5 + rand(-0.4, 0.4), z: rand(10, 60), vx: 0, vy: 0, vz: rand(20, 40), life: 1.2, max: 1.2, color: '#c8d8ff', size: 2 }); }
   if (o.kind === 'torch') drawFire(sx, sy - 40, 0.55);
+  if (o.kind === 'forge') { drawFire(sx, sy - 10, 0.5); if (Math.random() < 0.15) G.particles.push({ x: o.tx + 0.6, y: o.ty + 0.2, z: 100, vx: rand(-0.1, 0.1), vy: 0, vz: rand(20, 40), life: 2, max: 2, color: 'rgba(90,90,90,0.5)', size: 5 }); }
+  if (o.kind === 'lantern') { const f = 0.8 + Math.sin(G.t * 5 + o.tx) * 0.15; ctx.fillStyle = 'rgba(255,150,80,' + 0.22 * f + ')'; ctx.beginPath(); ctx.arc(sx + 9, sy - 50, 14, 0, 7); ctx.fill(); }
+  if (o.kind === 'lighthouse') { const a = G.t * 0.8, bx = sx, by = sy - 156; ctx.save(); ctx.globalCompositeOperation = 'lighter'; const gr = ctx.createRadialGradient(bx, by, 4, bx, by, 220); gr.addColorStop(0, 'rgba(255,240,170,0.35)'); gr.addColorStop(1, 'rgba(255,240,170,0)'); ctx.fillStyle = gr; ctx.beginPath(); ctx.moveTo(bx, by); ctx.arc(bx, by, 220, a - 0.18, a + 0.18); ctx.closePath(); ctx.fill(); ctx.restore(); }
+  if (o.kind === 'fountain' && Math.random() < 0.5) G.particles.push({ x: o.tx + 0.5 + rand(-0.15, 0.15), y: o.ty + 0.5 + rand(-0.15, 0.15), z: 62, vx: rand(-0.6, 0.6), vy: rand(-0.6, 0.6), vz: rand(30, 60), life: 0.7, max: 0.7, color: 'rgba(180,220,255,0.8)', size: 2 });
   if (o.kind === 'lamp') { const f = 0.8 + Math.sin(G.t * 9 + o.tx) * 0.1; ctx.fillStyle = 'rgba(255,210,120,' + 0.25 * f + ')'; ctx.beginPath(); ctx.arc(sx, sy - 68, 12, 0, 7); ctx.fill(); }
 }
 function drawFire(x, y, s) {
@@ -354,6 +359,7 @@ function nameColor(e) {
   if (e.kind === 'remote') return e.pink ? '#d070ff' : alignColor(e.align || 0);
   if (e.kind === 'merc') return '#8affa0';
   if (e.kind === 'besieger') return ownsCastle() ? '#ff7a4a' : '#ffd0a0';
+  if (e.kind === 'castledef') return '#ffb070';
   if (e.kind === 'pker') return '#ff4a3a';
   if (e.kind === 'fighter') return e.grudge.has(G.player.id) && G.player.pinkT > 0 ? '#ff9a5a' : e.align < 0 ? '#ff4a3a' : '#c8d8ff';
   if (e.kind === 'ally') return '#8affa0';
@@ -489,7 +495,7 @@ function drawEntity(e, S, labels) {
       }
     } else if (e.kind !== 'dog') {
       if (e === p) hpBar(sx, top - 2, 36, p.hp / p.maxHp, '#d02a20');
-      else if (e.kind === 'fighter' || e.kind === 'pker' || e.kind === 'ally' || e.kind === 'townguard' || e.kind === 'besieger' || e.kind === 'merc') { if (e.hp < e.maxHp) hpBar(sx, top - 2, 30, e.hp / e.maxHp, '#d02a20'); }
+      else if (e.kind === 'fighter' || e.kind === 'pker' || e.kind === 'ally' || e.kind === 'townguard' || e.kind === 'besieger' || e.kind === 'castledef' || e.kind === 'merc') { if (e.hp < e.maxHp) hpBar(sx, top - 2, 30, e.hp / e.maxHp, '#d02a20'); }
       else if (e.kind === 'remote' && e.hp < 1) hpBar(sx, top - 2, 30, e.hp, '#d02a20');
       const nm = e.name;
       const clan = e === p ? (p.clan ? p.clan.name : null) : e.clan;
