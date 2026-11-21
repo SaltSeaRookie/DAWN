@@ -315,6 +315,10 @@ function populateField(m) {
   const table = [
     { b: BIOME.MEADOW, type: 'wolf', dmin: 14, dmax: 40, n: 14, max: 2 },
     { b: BIOME.MEADOW, type: 'goblin', dmin: 25, dmax: 70, n: 8, max: 3 },
+    { b: BIOME.MEADOW, type: 'wild_boar', dmin: 35, dmax: 999, n: 6, max: 2 },
+    { b: BIOME.FOREST, type: 'wild_owl', dmin: 15, dmax: 60, n: 6, max: 2 },
+    { b: BIOME.FOREST, type: 'wild_bear', dmin: 45, dmax: 999, n: 5, max: 1 },
+    { b: BIOME.HIGHLAND, type: 'wild_hawk', dmin: 0, dmax: 999, n: 4, max: 1 },
     { b: BIOME.MEADOW, type: 'goblin_archer', dmin: 30, dmax: 70, n: 5, max: 2 },
     { b: BIOME.PLAIN, type: 'goblin', dmin: 0, dmax: 999, n: 6, max: 3 },
     { b: BIOME.PLAIN, type: 'werewolf', dmin: 50, dmax: 999, n: 4, max: 2 },
@@ -368,7 +372,7 @@ function populateIsle(m) {
 }
 function populateVolcano(m) {
   const W = m.world;
-  const table = [['lava_slime', 8, 50, 10, 3], ['hellhound', 10, 70, 9, 3], ['salamander', 20, 999, 10, 3], ['fire_spirit', 25, 999, 8, 2], ['magma_golem', 30, 999, 8, 2], ['draconian', 55, 999, 8, 2]];
+  const table = [['lava_slime', 8, 50, 10, 3], ['hellhound', 10, 70, 9, 3], ['wild_firefox', 25, 999, 5, 1], ['salamander', 20, 999, 10, 3], ['fire_spirit', 25, 999, 8, 2], ['magma_golem', 30, 999, 8, 2], ['draconian', 55, 999, 8, 2]];
   for (const [type, dmin, dmax, n, max] of table)
     for (let i = 0; i < n; i++) {
       const p = W.randomFreeTile((x, y) => { const d = dist(x, y, W.entry.x, W.entry.y); return d > dmin && d < dmax && dist(x, y, W.lair.x, W.lair.y) > 18; });
@@ -382,7 +386,7 @@ function populateOren(m) {
   populateTowns(m);
   // [怪物, 生物群系, 最近距離城市, 數量, 每點上限]
   const table = [['snow_wolf', BIOME.SNOWFIELD, 18, 14, 3], ['frost_wraith', BIOME.FROSTWOOD, 18, 10, 2], ['yeti', BIOME.FROSTWOOD, 25, 10, 2], ['snow_wolf', BIOME.FROSTWOOD, 18, 6, 3],
-    ['ice_golem', BIOME.GLACIER, 10, 9, 2], ['frost_troll', BIOME.GLACIER, 10, 9, 2], ['yeti', BIOME.SNOWFIELD, 35, 6, 2]];
+    ['ice_golem', BIOME.GLACIER, 10, 9, 2], ['frost_troll', BIOME.GLACIER, 10, 9, 2], ['yeti', BIOME.SNOWFIELD, 35, 6, 2], ['wild_snowfox', BIOME.SNOWFIELD, 14, 6, 2], ['wild_frostwolf', BIOME.GLACIER, 10, 5, 1]];
   for (const [type, b, dmin, n, max] of table)
     for (let i = 0; i < n; i++) {
       const p = W.randomFreeTile((x, y) => W.biomeAt(x, y) === b && dist(x, y, W.city.x, W.city.y) > dmin && dist(x, y, W.entry.x, W.entry.y) > 8 && dist(x, y, W.lair.x, W.lair.y) > 9);
@@ -401,7 +405,7 @@ function storyNpc(m, key, x, y, town) {
 function populateMoonruins(m) {
   const W = m.world;
   storyNpc(m, 'spirit', W.spiritSpot.x, W.spiritSpot.y, 'moonruins');
-  const table = [['moon_spider', 10, 50, 12, 3], ['moon_wraith', 14, 999, 12, 2], ['fallen_elf', 20, 999, 10, 2], ['ruin_golem', 30, 999, 8, 2], ['eclipse_knight', 45, 999, 8, 2]];
+  const table = [['moon_spider', 10, 50, 12, 3], ['wild_wisp', 20, 999, 5, 1], ['moon_wraith', 14, 999, 12, 2], ['fallen_elf', 20, 999, 10, 2], ['ruin_golem', 30, 999, 8, 2], ['eclipse_knight', 45, 999, 8, 2]];
   for (const [type, dmin, dmax, n, max] of table)
     for (let i = 0; i < n; i++) {
       const p = W.randomFreeTile((x, y) => { const d = dist(x, y, W.entry.x, W.entry.y); return d > dmin && d < dmax && dist(x, y, W.altar.x, W.altar.y) > 10 && W.steles.every((s) => dist(x, y, s.x, s.y) > 5); });
@@ -623,6 +627,7 @@ function dealDamage(src, tgt, dmg, opt = {}) {
     for (const a of G.map.actors) if (a.kind === 'townguard' && a.target === pl) { a.target = null; a.state = 'return'; }
     later(0.3, () => log('守衛：這次只是警告，邪惡之人！別在村裡惹事。', 'npc'));
   }
+  if (tgt.trait === 'tough') dmg = Math.max(1, Math.round(dmg * 0.75));
   if (tgt !== pl && tgt.kind === 'struct' && !siegeHostile() && !(src && (src.raider || src.besieger))) return;
   tgt.hp -= dmg; tgt.hurtT = 0.2;
   const big = tgt.boss || tgt.struct;
@@ -663,18 +668,29 @@ function physHit(att, tgt, mul = 1, extra = {}) {
   const tAc = tgt === pl ? pl.d.ac : tgt.ac;
   const tEr = tgt === pl ? pl.d.er : tgt.er || 0;
   let hitB = extra.hit || 0;
+  if (att.trait === 'keen') { hitB += 0.12; extra = Object.assign({ crit: 0.25 }, extra); }
   let chance = clamp(0.78 + (aLvl - tLvl) * 0.035 - tAc * 0.01 - (extra.ranged ? 0 : tEr * 0.01) + hitB, 0.15, 0.97);
+  if (tgt.trait === 'evasive' && Math.random() < 0.25) chance = 0;
   if (Math.random() > chance) { floatText(tgt.x, tgt.y, 'MISS', '#b8c0d0', 60, 13); SFX.play('miss'); return; }
   let dmg = (extra.base !== undefined ? extra.base : randi(att.dmg[0], att.dmg[1]));
   dmg = Math.round(dmg * mul);
   dmg -= tgt === pl ? Math.floor(tAc / 2) : Math.floor(tAc / 3);
   const crit = Math.random() < (extra.crit || 0.05);
   if (crit) dmg = Math.floor(dmg * 1.8);
-  dealDamage(att, tgt, Math.max(1, dmg), { crit });
+  dmg = Math.max(1, dmg);
+  dealDamage(att, tgt, dmg, { crit });
+  petTraitAfterHit(att, tgt, dmg, extra.ranged);
+}
+// 寵物特性：嗜血（吸血）、尖刺（反彈近戰傷害）
+function petTraitAfterHit(att, tgt, dmg, ranged) {
+  if (att.trait === 'bloodlust' && !att.dead && att.hp < att.maxHp) att.hp = Math.min(att.maxHp, att.hp + Math.max(1, Math.round(dmg * 0.12)));
+  if (tgt.trait === 'thorns' && !ranged && att !== tgt && !att.dead && !att.struct && dmg > 0) dealDamage(tgt, att, Math.max(1, Math.round(dmg * 0.25)), {});
 }
 function magicHit(att, tgt, base, opt = {}) {
   const mr = tgt === G.player ? G.player.d.mr : tgt.mr || 0;
+  if (att.trait === 'holy' && tgt.undead) base *= 1.6;
   let dmg = Math.round(base * (1 - clamp(mr, 0, 90) / 150));
+  if (att.trait === 'splash' && !opt.splash) for (const o of G.map.actors) if (o !== tgt && !o.dead && isHostile(att, o) && dist(o.x, o.y, tgt.x, tgt.y) < 1.8) magicHit(att, o, base * 0.5, Object.assign({}, opt, { splash: true }));
   if (opt.element && tgt === G.player) dmg = Math.round(dmg * (1 - clamp(G.player.d.res[opt.element] || 0, 0, 80) / 100));
   dealDamage(att, tgt, Math.max(1, dmg), { magic: true });
 }
@@ -1080,7 +1096,7 @@ function useItem(inst) {
     SFX.play('potion'); SFX.play('buff'); removeItem(inst, 1); return;
   }
   if (inst.id === 'summon_ring') { UI.openSummonRing(); return; }
-  if (inst.id === 'tame_jerky') { G.targeting = 'tame'; log('請點擊要馴服的野狼（體力需低於一半）。Esc 取消', 'sys'); return; }
+  if (inst.id === 'tame_jerky') { G.targeting = 'tame'; log('請點擊要馴服的野生動物（體力需低於一半）。Esc 取消', 'sys'); return; }
   if (d.type === 'book') {
     const s = SPELLS[d.spell], need = s.learn[p.cls];
     if (p.spells.includes(d.spell)) { log('你已經學會「' + s.name + '」了。', 'sys'); return; }
@@ -1528,7 +1544,7 @@ function actorAttack(a, t) {
     SFX.play('thunder', t.x, t.y);
     G.bolts = G.bolts || []; G.bolts.push({ x: t.x, y: t.y, t: 0 });
     later(0.08, () => { if (!t.dead) magicHit(a, t, randi(a.dmg[0], a.dmg[1]), { element: a.element }); });
-    if (Math.random() < 0.35) {
+    if (Math.random() < (a.trait === 'chain' ? 0.5 : 0.35)) {
       const t2 = G.map.actors.find((b) => b !== t && !b.dead && isHostile(a, b) && dist(b.x, b.y, t.x, t.y) < 4);
       if (t2) later(0.25, () => { if (t2.dead) return; G.bolts.push({ x: t2.x, y: t2.y, t: 0 }); magicHit(a, t2, Math.round(randi(a.dmg[0], a.dmg[1]) * 0.7), { element: a.element }); });
     }

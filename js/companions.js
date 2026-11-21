@@ -81,9 +81,11 @@ function revertCharm(t, msg, quiet) {
 // ---------- 寵物 ----------
 function petStats(pd) {
   const d = PETS[pd.kind], L = pd.level;
+  // curve：後期加速成長（灰狼），等級越高每級成長越多
+  const cv = d.curve || 0, g = (L - 1) * (1 + cv * (L - 1) / 59);
   return {
-    maxHp: Math.round(d.hp + (L - 1) * d.hpLv), ac: d.ac + Math.floor(L / 3), mr: L,
-    dmg: [Math.round(d.dmg[0] + (L - 1) * d.dmgLv * 0.6), Math.round(d.dmg[1] + (L - 1) * d.dmgLv)],
+    maxHp: Math.round(d.hp + g * d.hpLv / (1 + cv * 0.5)), ac: d.ac + Math.floor((L - 1) * (d.acLv !== undefined ? d.acLv : 1 / 3)), mr: (d.mr || 0) + L,
+    dmg: [Math.round(d.dmg[0] + g * d.dmgLv * 0.6), Math.round(d.dmg[1] + g * d.dmgLv)],
   };
 }
 function newPetData(kind, level = 1, name) {
@@ -110,7 +112,7 @@ function spawnPet(inst) {
     x: pos.x, y: pos.y, kind: 'companion', faction: 'ally', companion: 'pet', name: pd.name, level: pd.level, maxHp: st.maxHp, ac: st.ac, mr: st.mr,
     dmg: st.dmg, atkSpd: d.atkSpd, range: d.range, proj: d.proj || null, speed: d.speed, sprite: d.sprite, aggro: true, aggroR: 7, scale: 1, look: { color: d.color },
   });
-  a.pet = pd; a.hp = pd.hp ? Math.min(pd.hp, st.maxHp) : st.maxHp;
+  a.pet = pd; a.hp = pd.hp ? Math.min(pd.hp, st.maxHp) : st.maxHp; a.trait = d.trait || null;
   // 魔法寵物
   if (d.magic) {
     Object.assign(a, { magic: true, element: d.element, frost: !!d.frost, bolt: !!d.bolt, healer: !!d.healer });
@@ -159,18 +161,22 @@ function onCompanionDeath(a) {
 function tameTarget(t) {
   const p = G.player, inst = p.inv.find((i) => i.id === 'tame_jerky');
   if (!inst) { log('沒有馴獸肉乾了。', 'warn'); return; }
-  if (!t || t.dead || t.type !== 'wolf' || t.companion) { log('只能馴服野外的野狼。', 'warn'); SFX.play('error'); return; }
+  const kind = t && t.def && t.def.tame;
+  if (!t || t.dead || !kind || t.companion) { log('這個對象無法馴服。可以馴服的野生動物：' + Object.values(PETS).map((d) => d.where).join('、') + '。', 'warn'); SFX.play('error'); return; }
+  const P = PETS[kind];
   if (dist(p.x, p.y, t.x, t.y) > 4) { log('距離太遠了，靠近一點再試試。', 'warn'); return; }
-  if (t.hp > t.maxHp * 0.5) { log('野狼還太有精神了，先削弱牠（體力低於一半）。', 'warn'); return; }
+  if (p.level < t.level - 3) { log(t.name + ' 不把你放在眼裡……（需要等級 ' + (t.level - 3) + ' 以上）', 'warn'); return; }
+  if (t.hp > t.maxHp * 0.5) { log(t.name + ' 還太有精神了，先削弱牠（體力低於一半）。', 'warn'); return; }
   removeItem(inst, 1);
-  const chance = clamp(0.35 + statMod(p.d.st.cha) * 0.06 + p.level * 0.01, 0.1, 0.85);
-  if (Math.random() > chance) { log('野狼吃掉了肉乾，但沒有被馴服…', 'warn'); t.speak('嗚嚕…', 2); return; }
+  // 越強的動物越難馴服；魅力、等級差與牠剩下的體力會影響成功率
+  const chance = clamp(0.5 - P.tier * 0.04 + statMod(p.d.st.cha) * 0.05 + (p.level - t.level) * 0.015 + (0.5 - t.hp / t.maxHp) * 0.3, 0.05, 0.85);
+  if (Math.random() > chance) { log(t.name + ' 吃掉了肉乾，但沒有被馴服…（成功率約 ' + Math.round(chance * 100) + '%）', 'warn'); t.speak('……', 2); return; }
   if (p.inv.length >= INV_MAX) { log('背包已滿，無法放入寵物項圈。', 'warn'); return; }
   t.dead = true; t.deadT = 9;
   if (t.spawner) { t.spawner.alive--; t.spawner.timer = t.spawner.respawn; }
-  const pd = newPetData('graywolf', Math.max(1, t.level));
+  const pd = newPetData(kind, Math.max(1, t.level));
   const c = addPetCollar(pd);
-  log('馴服成功！你得到了寵物「灰狼」。點擊背包裡的寵物項圈可以召喚或收回。', 'level');
+  log('馴服成功！你得到了寵物「' + P.name + '」Lv.' + pd.level + '。點擊背包裡的寵物項圈可以召喚或收回。', 'level');
   SFX.play('levelup');
   if (c && companions('pet').length < MAX_PETS) spawnPet(c);
 }
@@ -199,6 +205,12 @@ function updateCompanion(a, dt) {
   a.atkCd -= dt; a.thinkT -= dt; a.hurtT -= dt; a.sayT -= dt; if (a.slowT > 0) a.slowT -= dt;
   if (a.expire && G.t > a.expire) { dismissCompanion(a, a.companion === 'summon' ? '召喚時間到了，' + a.name + ' 消散了。' : null); return; }
   if (a.companion === 'pet' && a.hp < a.maxHp && G.t > (a.regT || 0)) { a.regT = G.t + 3; a.hp = Math.min(a.maxHp, a.hp + Math.max(1, Math.round(a.maxHp * 0.03))); }
+  // 戰熊：吸引附近正在攻擊主人的敵人（頭目不受影響）
+  if (a.trait === 'tough' && G.t > (a.tauntT || 0)) {
+    a.tauntT = G.t + 4; let n = 0;
+    for (const o of G.map.actors) if (!o.dead && o.kind === 'monster' && !o.boss && o.target === p && dist(o.x, o.y, a.x, a.y) < 5) { o.target = a; n++; }
+    if (n) { a.speak('吼！', 1.2); SFX.play('roar', a.x, a.y); }
+  }
   // 光之精靈：主人受傷時治療主人
   if (a.healer && !p.dead && G.t > (a.healT || 0) && p.hp < p.maxHp * 0.7 && dist(a.x, a.y, p.x, p.y) < 8) {
     a.healT = G.t + 7;

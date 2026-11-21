@@ -454,3 +454,4 @@ body.in-scene #storyTrack { display: none !important; }
 .journal-done b { color: #8ef08a; }
 .journal-now b { color: #ffd870; }
 .journal-locked { opacity: 0.55; }
+.petwhere { text-align: right; min-width: 96px; line-height: 1.35; }

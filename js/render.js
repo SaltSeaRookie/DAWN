@@ -252,7 +252,7 @@ function render() {
   }
   ctx.globalAlpha = 1;
   if (vignette) ctx.drawImage(vignette, 0, 0, VW, viewH + 30);
-  if (G.targeting) { ctx.font = 'bold 14px sans-serif'; outlineText(G.targeting === 'tame' ? '選擇要馴服的野狼' : '選擇「' + SPELLS[G.targeting].name + '」的目標', VW / 2, 70, '#ffe08a'); }
+  if (G.targeting) { ctx.font = 'bold 14px sans-serif'; outlineText(G.targeting === 'tame' ? '選擇要馴服的野生動物' : '選擇「' + SPELLS[G.targeting].name + '」的目標', VW / 2, 70, '#ffe08a'); }
 }
 
 function drawProjectile(pr, S) {
@@ -384,6 +384,12 @@ function drawEntity(e, S, labels) {
     if (e.ringSummon) glowUnder(sx, sy, 30 + Math.sin(G.t * 4) * 3, 'rgba(180,140,255,0.45)');
     const H = (opts, h, w = 14) => { drawShadow(ctx, sx, sy, 11, 4); drawHumanoid(ctx, sx, sy, Object.assign(o, opts)); top = sy - h; bb = [sx - w, sy - h + 2, sx + w, sy + 4]; };
     switch (d.sprite) {
+      // 可馴服的野生動物（與寵物同樣的外觀）
+      case 'fox': drawShadow(ctx, sx, sy, 12, 4); drawFox(ctx, sx, sy, o); top = sy - 30; bb = [sx - 18, sy - 28, sx + 18, sy + 4]; break;
+      case 'bear': drawShadow(ctx, sx, sy, 20, 7); drawBear(ctx, sx, sy, o); top = sy - 42; bb = [sx - 24, sy - 40, sx + 24, sy + 4]; break;
+      case 'owl': { const h = drawOwl(ctx, sx, sy, o); top = sy - h - 24; bb = [sx - 14, sy - h - 22, sx + 14, sy + 4]; break; }
+      case 'boar': drawShadow(ctx, sx, sy, 15, 5); drawBoar(ctx, sx, sy, o); top = sy - 34; bb = [sx - 20, sy - 30, sx + 20, sy + 4]; break;
+      case 'wisp': { const h = drawWisp(ctx, sx, sy, o); top = sy - h - 16; bb = [sx - 14, sy - h - 16, sx + 14, sy + 4]; break; }
       case 'wolf': { const k = d.scaleUp || 1; drawShadow(ctx, sx, sy, 16 * k, 6 * k); drawWolf(ctx, sx, sy, Object.assign(o, { scale: e.scale * k, eye: d.eye })); top = sy - 34 * k; bb = [sx - 24 * k, sy - 34 * k, sx + 24 * k, sy + 4]; break; }
       case 'slime': drawSlime(ctx, sx, sy, o); top = sy - 40; bb = [sx - 22, sy - 38, sx + 22, sy + 4]; break;
       case 'firedragon': { o.breath = e.breathing || 0; drawFireDragon(ctx, sx, sy, o); top = sy - 210; bb = [sx - 110, sy - 200, sx + 110, sy + 20]; break; }

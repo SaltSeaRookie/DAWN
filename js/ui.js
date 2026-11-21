@@ -994,7 +994,7 @@ Object.assign(UI, {
       for (const c of collars) g.appendChild(this.slotEl(c, (it) => useCollar(it)));
       w.body.appendChild(g);
     }
-    w.body.appendChild(el('div', 'dim small', '召喚獸最多 ' + MAX_SUMMONS + ' 隻、迷魅最多 ' + MAX_CHARMS + ' 隻、寵物一次 1 隻。夥伴擊殺的經驗值一半歸你、一半歸夥伴。快捷鍵 T。'));
+    w.body.appendChild(el('div', 'dim small', '召喚獸最多 ' + MAX_SUMMONS + ' 隻、迷魅最多 ' + MAX_CHARMS + ' 隻、寵物一次 ' + MAX_PETS + ' 隻。夥伴擊殺的經驗值一半歸你、一半歸夥伴。快捷鍵 T。'));
   },
   openPetShop(npc) {
     this.close('petshop');
@@ -1005,9 +1005,9 @@ Object.assign(UI, {
   renderPetshop() {
     const w = this.windows.petshop; if (!w) return;
     const p = G.player;
-    w.body.innerHTML = this.dialogHead(w.npc, '要帶一隻寵物回家嗎？牠們會跟著你一起冒險、一起成長。');
+    w.body.innerHTML = this.dialogHead(w.npc, '寵物都得靠自己到野外馴服喔！把野生動物打到體力剩一半以下，再餵牠馴獸肉乾。越強的動物越難馴服。');
     const list = el('div', 'list');
-    for (const k in PETS) {
+    for (const k of Object.keys(PETS).sort((x, y) => PETS[x].tier - PETS[y].tier)) {
       const d = PETS[k];
       const row = el('div', 'li');
       const cv = makeCanvas(56, 48); const g = cv.getContext('2d'); g.translate(28, 42);
@@ -1015,18 +1015,8 @@ Object.assign(UI, {
       ({ pwolf: () => drawWolf(g, 0, 0, Object.assign(o, { scale: 0.7 })), fox: () => drawFox(g, 0, 0, o), bear: () => drawBear(g, 0, 4, o), owl: () => drawOwl(g, 0, 10, o), boar: () => drawBoar(g, 0, 0, o), wisp: () => drawWisp(g, 0, 6, o) })[d.sprite]();
       cv.style.width = '42px'; cv.style.height = '36px';
       row.appendChild(cv);
-      row.appendChild(el('div', 'li-n', '<b>' + d.name + '</b><span class="dim">' + d.desc + '</span>'));
-      if (d.price) {
-        row.appendChild(el('div', 'price', d.price.toLocaleString()));
-        const b = el('button', 'btn sm', '購買');
-        b.onclick = () => {
-          if (p.gold < d.price) { this.log('金幣不足。', 'warn'); SFX.play('error'); return; }
-          const n = prompt('幫你的' + d.name + '取個名字（1～8 字）：', d.name); if (n === null) return;
-          const c = addPetCollar(newPetData(k, 1, (n.trim() || d.name).slice(0, 8)));
-          if (c) { p.gold -= d.price; SFX.play('coin'); this.log('你買下了寵物「' + c.pet.name + '」！點擊背包裡的寵物項圈召喚牠。', 'level'); this.refresh(); }
-        };
-        row.appendChild(b);
-      } else row.appendChild(el('div', 'dim small', '野外馴服'));
+      row.appendChild(el('div', 'li-n', '<b>' + d.name + ' <span class="gold small">' + '★'.repeat(d.tier > 6 ? 3 : d.tier > 3 ? 2 : 1) + '</span></b><span class="dim">' + d.desc + '</span>'));
+      row.appendChild(el('div', 'dim small petwhere', '馴服地點<br>' + d.where + '<br>Lv.' + MONSTERS[d.wild].lvl));
       list.appendChild(row);
     }
     w.body.appendChild(list);

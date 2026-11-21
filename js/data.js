@@ -118,7 +118,7 @@ const ITEMS = {
   cew_scroll:    { name: '被詛咒的武器強化卷軸', type: 'consume', w: 1, price: 300, stack: true, cursed: true, desc: '被詛咒的卷軸。使用後武器的強化值 -1（最低 -7）' },
   cea_scroll:    { name: '被詛咒的防具強化卷軸', type: 'consume', w: 1, price: 250, stack: true, cursed: true, desc: '被詛咒的卷軸。使用後防具的強化值 -1（最低 -7）' },
   bea_scroll:    { name: '祝福防具強化卷軸', type: 'consume', w: 1, price: 3500, stack: true, rare: true, desc: '強化防具 +1～+3，風險同一般卷軸' },
-  tame_jerky:    { name: '馴獸肉乾', type: 'consume', icon: 'jerky', w: 1, price: 150, stack: true, desc: '對體力低於一半的野狼使用，有機會馴服牠成為寵物' },
+  tame_jerky:    { name: '馴獸肉乾', type: 'consume', icon: 'jerky', w: 1, price: 150, stack: true, desc: '對體力低於一半的野生動物使用，有機會馴服牠成為寵物。越強的動物越難馴服' },
   pet_collar:    { name: '寵物項圈', type: 'collar', icon: 'collar', w: 3, price: 200, desc: '裝著寵物的項圈。點擊召喚或收回寵物' },
   arrow:         { name: '箭', type: 'ammo', w: 0.1, price: 1, stack: true, desc: '弓的彈藥' },
   silver_arrow:  { name: '銀箭', type: 'ammo', w: 0.1, price: 4, stack: true, dmgB: 1, undeadB: 3, desc: '對亡靈額外傷害的箭' },
@@ -205,13 +205,7 @@ const SUMMONS = {
   fireelem:   { name: '火焰元素', sprite: 'fireelem', hp: [60, 9, 5], dmg: [6, 12, 0.5, 1, 1.5], ac: [3, 0.4], mr: 40, speed: 3.0, atkSpd: 1.3, range: 5.5, proj: 'fire', magic: true },
 };
 // 寵物（原創）
-const PETS = {
-  graywolf:  { name: '灰狼', sprite: 'pwolf', color: '#8a8a90', hp: 40, hpLv: 9, dmg: [2, 6], dmgLv: 0.8, ac: 2, speed: 3.7, atkSpd: 1.0, range: 1.25, price: 0, desc: '用馴獸肉乾在野外馴服野狼取得。忠誠又敏捷' },
-  snowfox:   { name: '雪狐', sprite: 'fox', hp: 32, hpLv: 7, dmg: [3, 7], dmgLv: 1.0, ac: 1, speed: 4.2, atkSpd: 0.8, range: 1.2, price: 2500, desc: '速度很快的小狐狸，攻擊頻繁' },
-  spikeboar: { name: '刺甲豬', sprite: 'boar', hp: 55, hpLv: 11, dmg: [3, 8], dmgLv: 0.9, ac: 5, speed: 3.2, atkSpd: 1.2, range: 1.3, price: 3500, desc: '背上長滿尖刺，皮糙肉厚' },
-  nightowl:  { name: '夜梟', sprite: 'owl', hp: 28, hpLv: 6, dmg: [2, 6], dmgLv: 0.9, ac: 1, speed: 3.8, atkSpd: 1.3, range: 5, proj: 'feather', price: 4500, desc: '從空中投出鋒利的羽毛，能遠程攻擊' },
-  warbear:   { name: '戰熊', sprite: 'bear', hp: 70, hpLv: 14, dmg: [3, 8], dmgLv: 0.8, ac: 4, speed: 3.0, atkSpd: 1.4, range: 1.4, price: 6000, desc: '穿著皮甲的大熊，體力最高的寵物' },
-};
+const PETS = {};   // 寵物定義在檔案後段（v2.23 重新設計）
 const PET_MODES = { assist: '攻擊我的目標', free: '自由攻擊', stay: '待命', follow: '跟隨' };
 // 魔法書道具
 for (const id in SPELLS) {
@@ -526,13 +520,7 @@ Object.assign(MONSTERS, {
   frost_king:  { name: '霜冠巨人王', lvl: 32, hp: 6000, dmg: [24, 42], ac: 22, mr: 50, exp: 10000, speed: 2.3, atkSpd: 1.7, range: 2.2, aggro: true, aggroR: 9, boss: true, frostKing: true, sprite: 'troll', big: 2, gold: [2500, 5000], respawn: 400,
     loot: [['ice_crystal', 1], ['ice_crystal', 1], ['exp_scroll', 0.4], ['bew_scroll', 0.5], ['bea_scroll', 0.5], ['frost_crown', 0.3], ['frost_blade', 0.2], ['glacier_bow', 0.2], ['frost_staff', 0.2], ['frost_mail', 0.2], ['yeti_cloak', 0.3], ['frost_ring', 0.3]] },
 });
-// 魔法寵物：會施放魔法攻擊（歐瑞城的寵物商人出售，各地寵物商人也買得到）
-Object.assign(PETS, {
-  firefox:   { name: '焰狐', sprite: 'fox', color: '#ff8a3a', hp: 34, hpLv: 7, dmg: [4, 9], dmgLv: 1.1, ac: 1, speed: 4.0, atkSpd: 1.3, range: 5, proj: 'fire', magic: true, element: 'fire', price: 9000, desc: '尾巴燃著火焰的狐狸，會吐出火球攻擊（魔法）' },
-  frostwolf: { name: '霜牙狼', sprite: 'pwolf', color: '#a8d8f0', hp: 46, hpLv: 9, dmg: [4, 8], dmgLv: 0.9, ac: 3, speed: 3.7, atkSpd: 1.4, range: 5, proj: 'ice', magic: true, element: 'water', frost: true, price: 10000, desc: '北境的狼，吐出冰錐並讓敵人減速（魔法）' },
-  stormhawk: { name: '雷鷹', sprite: 'owl', color: '#e8c840', hp: 30, hpLv: 6, dmg: [5, 11], dmgLv: 1.2, ac: 1, speed: 4.0, atkSpd: 1.6, range: 6, bolt: true, magic: true, element: 'wind', price: 12000, desc: '召喚雷電轟擊敵人，偶爾會連鎖到附近的敵人（魔法）' },
-  wisp:      { name: '光之精靈', sprite: 'wisp', color: '#fff2a0', hp: 26, hpLv: 6, dmg: [3, 7], dmgLv: 0.9, ac: 2, speed: 3.9, atkSpd: 1.4, range: 5.5, proj: 'magic', magic: true, healer: true, price: 15000, desc: '發射聖光攻擊，主人受傷時會為主人治療（魔法）' },
-});
+
 SHOPS.pet.push('pet_feast');
 // 城內商人：雜貨商人的所有品項＋城堡專屬商品
 SHOPS.castleshop = [...new Set([...SHOPS.general, ...SHOPS.castleshop, 'hot_cocoa', 'pet_feast', 'oren_scroll', 'fireres_potion', 'volcano_scroll', 'pet_haste', 'tame_jerky', 'bless_scroll', 'teleport_scroll', 'yeti_cloak', 'frost_ring', 'magma_ring'])].filter((id) => ITEMS[id]);
@@ -640,4 +628,41 @@ for (const id in ITEMS) {
   it.value = it.price;
   const np = it.price * (PRICE_MARKUP[id] || 1.5); it.price = np >= 100 ? Math.round(np / 10) * 10 : Math.max(1, Math.round(np));
 }
-for (const id in PETS) { const d = PETS[id]; d.value = d.price; if (d.price) d.price = Math.round(d.price * 1.5 / 10) * 10; }
+
+// ===== 寵物（v2.23 重新設計）=====
+// 所有寵物都只能在野外用馴獸肉乾馴服。越難馴服（等級越高、地點越遠）的寵物，同等級時越強；
+// 灰狼例外：初期能力普通，但成長率最高，練到後期是最強的寵物。
+// hp/dmg/ac 是 1 級的數值，hpLv/dmgLv/acLv 是每級成長；trait 是專屬特性。
+Object.assign(PETS, {
+  graywolf:  { name: '灰狼', tier: 1, sprite: 'pwolf', color: '#8a8a90', hp: 38, hpLv: 11, dmg: [3, 7], dmgLv: 0.5, ac: 2, acLv: 0.42, mr: 0, speed: 3.8, atkSpd: 1.0, range: 1.25, curve: 2.4, trait: 'bloodlust', wild: 'wolf', where: '碧波草原（野狼）',
+    desc: '初期能力普通，但成長率是所有寵物中最高的，練到後期最強。【嗜血】攻擊時吸取 12% 傷害恢復體力' },
+  spikeboar: { name: '刺甲豬', tier: 2, sprite: 'boar', color: '#7a5a3a', hp: 75, hpLv: 12, dmg: [4, 9], dmgLv: 0.72, ac: 6, acLv: 0.45, mr: 0, speed: 3.2, atkSpd: 1.2, range: 1.3, trait: 'thorns', wild: 'wild_boar', where: '碧波草原深處（野生刺甲豬）',
+    desc: '皮糙肉厚的前排。【尖刺】近戰攻擊牠的敵人會受到 25% 的反彈傷害' },
+  nightowl:  { name: '夜梟', tier: 3, sprite: 'owl', color: '#8a7a5a', hp: 46, hpLv: 7.5, dmg: [6, 11], dmgLv: 0.95, ac: 2, acLv: 0.3, mr: 5, speed: 3.9, atkSpd: 1.2, range: 5, proj: 'feather', trait: 'keen', wild: 'wild_owl', where: '幽影森林（林梟）',
+    desc: '從空中投出羽毛的遠程射手。【銳眼】命中率高，25% 機率造成爆擊' },
+  warbear:   { name: '戰熊', tier: 4, sprite: 'bear', color: '#6a4a30', hp: 160, hpLv: 17, dmg: [7, 13], dmgLv: 0.75, ac: 8, acLv: 0.5, mr: 5, speed: 3.0, atkSpd: 1.4, range: 1.4, trait: 'tough', wild: 'wild_bear', where: '幽影森林深處（棕熊）',
+    desc: '體力最高的守護者。【厚皮】受到的所有傷害 -25%，並會吸引附近敵人的攻擊' },
+  snowfox:   { name: '雪狐', tier: 5, sprite: 'fox', color: '#f0f4f8', hp: 95, hpLv: 8, dmg: [9, 15], dmgLv: 0.85, ac: 4, acLv: 0.35, mr: 10, speed: 4.5, atkSpd: 0.7, range: 1.2, trait: 'evasive', wild: 'wild_snowfox', where: '北境雪原（雪狐）',
+    desc: '最快的寵物，攻擊又快又頻繁。【靈巧】25% 機率完全閃避物理攻擊' },
+  frostwolf: { name: '霜牙狼', tier: 6, sprite: 'pwolf', color: '#a8d8f0', hp: 125, hpLv: 10, dmg: [12, 20], dmgLv: 1.5, ac: 6, acLv: 0.4, mr: 20, speed: 3.8, atkSpd: 1.3, range: 5, proj: 'ice', magic: true, element: 'water', frost: true, trait: 'frost', wild: 'wild_frostwolf', where: '北境冰河（霜牙狼）',
+    desc: '吐出冰錐的魔法寵物（無視防禦）。【寒霜】命中的敵人移動與攻擊都會變慢 3 秒' },
+  firefox:   { name: '焰狐', tier: 7, sprite: 'fox', color: '#ff8a3a', hp: 115, hpLv: 8, dmg: [16, 26], dmgLv: 1.35, ac: 5, acLv: 0.35, mr: 20, speed: 4.1, atkSpd: 1.3, range: 5, proj: 'fire', magic: true, element: 'fire', trait: 'splash', wild: 'wild_firefox', where: '熾焰火山（焰狐）',
+    desc: '吐出火球的魔法寵物（無視防禦）。【爆炎】火球爆炸，周圍的敵人受到 50% 傷害' },
+  stormhawk: { name: '雷鷹', tier: 8, sprite: 'owl', color: '#e8c840', hp: 125, hpLv: 7.5, dmg: [20, 34], dmgLv: 1.4, ac: 5, acLv: 0.35, mr: 25, speed: 4.2, atkSpd: 1.5, range: 6, bolt: true, magic: true, element: 'wind', trait: 'chain', wild: 'wild_hawk', where: '霜嶺高地（雷鷹）',
+    desc: '射程最遠的魔法寵物（無視防禦）。【連鎖雷】50% 機率再劈中附近另一個敵人' },
+  wisp:      { name: '光之精靈', tier: 9, sprite: 'wisp', color: '#fff2a0', hp: 140, hpLv: 8, dmg: [18, 30], dmgLv: 1.5, ac: 8, acLv: 0.4, mr: 35, speed: 4.0, atkSpd: 1.3, range: 5.5, proj: 'magic', magic: true, healer: true, trait: 'holy', wild: 'wild_wisp', where: '月影遺跡（迷途光靈）',
+    desc: '最難馴服的寵物。發射聖光（無視防禦，對亡靈傷害 ×1.6）。【聖癒】主人體力低於 70% 時為主人治療' },
+});
+// 可以馴服的野生動物（外觀與寵物相同，體力低於一半時用馴獸肉乾馴服）
+Object.assign(MONSTERS, {
+  wild_boar:      { name: '野生刺甲豬', lvl: 7, hp: 80, dmg: [3, 8], ac: 6, mr: 0, exp: 34, speed: 2.8, atkSpd: 1.3, range: 1.3, aggro: false, sprite: 'boar', color: '#7a5a3a', gold: [5, 14], tame: 'spikeboar', loot: [['red_potion', 0.1]] },
+  wild_owl:       { name: '林梟', lvl: 10, hp: 70, dmg: [4, 9], ac: 3, mr: 5, exp: 52, speed: 3.4, atkSpd: 1.4, range: 5, proj: 'feather', aggro: true, aggroR: 5, sprite: 'owl', color: '#8a7a5a', gold: [8, 20], tame: 'nightowl', loot: [['orange_potion', 0.08]] },
+  wild_bear:      { name: '棕熊', lvl: 14, hp: 260, dmg: [7, 16], ac: 9, mr: 5, exp: 120, speed: 2.8, atkSpd: 1.5, range: 1.4, aggro: true, aggroR: 4, sprite: 'bear', color: '#6a4a30', gold: [15, 35], tame: 'warbear', loot: [['wolf_pelt', 0.4], ['orange_potion', 0.1]] },
+  wild_snowfox:   { name: '雪狐', lvl: 17, hp: 170, dmg: [8, 15], ac: 8, mr: 10, exp: 150, speed: 4.0, atkSpd: 0.8, range: 1.2, aggro: false, sprite: 'fox', color: '#f0f4f8', gold: [18, 40], tame: 'snowfox', loot: [['yeti_fur', 0.2], ['hot_cocoa', 0.1]] },
+  wild_frostwolf: { name: '霜牙狼', lvl: 20, hp: 220, dmg: [10, 18], ac: 10, mr: 30, exp: 210, speed: 3.6, atkSpd: 1.4, range: 5, proj: 'ice', magic: true, element: 'water', aggro: true, aggroR: 6, sprite: 'wolf', color: '#a8d8f0', eye: '#60c0ff', gold: [25, 55], tame: 'frostwolf', loot: [['ice_crystal', 0.3], ['wolf_fang', 0.3]] },
+  wild_firefox:   { name: '焰狐', lvl: 23, hp: 260, dmg: [12, 22], ac: 9, mr: 35, exp: 280, speed: 3.8, atkSpd: 1.4, range: 5, proj: 'fire', magic: true, element: 'fire', aggro: true, aggroR: 6, sprite: 'fox', color: '#ff8a3a', gold: [35, 75], tame: 'firefox', loot: [['sulfur', 0.3], ['fireres_potion', 0.05]] },
+  wild_hawk:      { name: '雷鷹', lvl: 26, hp: 280, dmg: [14, 26], ac: 9, mr: 40, exp: 330, speed: 4.0, atkSpd: 1.6, range: 6, proj: 'magic', magic: true, element: 'wind', aggro: true, aggroR: 7, sprite: 'owl', color: '#e8c840', gold: [40, 85], tame: 'stormhawk', loot: [['clear_potion', 0.1], ['ring_dex', 0.004]] },
+  wild_wisp:      { name: '迷途光靈', lvl: 30, hp: 320, dmg: [15, 27], ac: 12, mr: 50, exp: 420, speed: 3.6, atkSpd: 1.4, range: 5.5, proj: 'magic', magic: true, aggro: false, sprite: 'wisp', color: '#fff2a0', gold: [45, 95], tame: 'wisp', loot: [['moon_dust', 0.4], ['clear_potion', 0.12]] },
+});
+MONSTERS.wolf.tame = 'graywolf';
+// 寵物商人不再販售寵物（只賣馴獸肉乾與寵物用品、復活寵物）
