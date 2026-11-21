@@ -539,7 +539,7 @@ function removeItem(inst, qty = 1) {
 }
 function itemName(inst) {
   const d = ITEMS[inst.id];
-  return (inst.ench ? '+' + inst.ench + ' ' : '') + d.name + (d.stack && inst.qty > 1 ? ' (' + inst.qty + ')' : '');
+  return enchTag(inst.ench || 0) + d.name + (d.stack && inst.qty > 1 ? ' (' + inst.qty + ')' : '');
 }
 
 // ---------- 訊息與特效 ----------
@@ -689,6 +689,8 @@ function killActor(a, src) {
   if (a.spawner) { a.spawner.alive--; a.spawner.timer = a.spawner.respawn * rand(0.8, 1.3); }
   const byComp = src && src.companion;
   const byPlayer = src === pl || (src && src.faction === 'ally') || a.hitByPlayer;
+  // 掉寶所有權：真實玩家（含他的寵物、召喚獸、盟友、傭兵）打倒的，5 秒內只有他能撿；NPC 打倒的不受限制
+  G.dropOwner = (src === pl || byComp || (src && (src.faction === 'ally' || src.kind === 'merc'))) ? pl.name : null;
   if (a.kind === 'monster') {
     noteKill(src, a);
     Story.onKill(a);
@@ -748,10 +750,14 @@ function dropItem(x, y, id, qty) {
   const W = G.world;
   let fx = x, fy = y;
   if (W.blocked(fx, fy)) { const p = W.nearestFree(x, y); fx = p.x; fy = p.y; }
-  G.map.items.push({ x: fx, y: fy, id, qty, t: 0, ench: 0 });
+  G.map.items.push({ x: fx, y: fy, id, qty, t: 0, ench: 0, owner: G.dropOwner || null });
 }
+const LOOT_OWN_SEC = 5;
+// 地上的道具是否仍在所有權保護中（who：撿取者名稱）
+function lootLocked(it, who) { return !!(it.owner && it.t < LOOT_OWN_SEC && it.owner !== who); }
 function pickup(it) {
   const items = G.map.items, k = items.indexOf(it); if (k < 0) return;
+  if (lootLocked(it, G.player.name)) { log('這是 ' + it.owner + ' 的戰利品，' + Math.ceil(LOOT_OWN_SEC - it.t) + ' 秒後才能撿取。', 'warn'); return; }
   if (it.pet) { if (addPetCollar(it.pet)) { items.splice(k, 1); SFX.play('pickup'); log('撿回了寵物項圈（' + it.pet.name + '）。', 'loot'); } return; }
   if (addItem(it.id, it.qty, it.ench)) {
     items.splice(k, 1);
@@ -985,9 +991,9 @@ const AUTO_PICK_RANGE = 10;   // 閒置時自動撿取的偵測範圍（格）
 function autoPickup(dt) {
   const p = G.player, items = G.map.items;
   G.pickFail = G.pickFail || new WeakSet();
-  const ok = (it) => !it.noAuto && !G.pickFail.has(it) && (it.id === 'gold' || canCarry(it.id, it.qty));
+  const ok = (it) => !it.noAuto && !G.pickFail.has(it) && !lootLocked(it, p.name) && (it.id === 'gold' || canCarry(it.id, it.qty));
   for (const it of items.slice()) {
-    if (dist(p.x, p.y, it.x, it.y) < 1.3) { if (ok(it)) pickup(it); else if (!it.noAuto) G.pickFail.add(it); }
+    if (dist(p.x, p.y, it.x, it.y) < 1.3) { if (ok(it)) pickup(it); else if (!it.noAuto && !lootLocked(it, p.name)) G.pickFail.add(it); }
   }
   const fighting = G.map.actors.some((a) => !a.dead && a.target === p && dist(a.x, a.y, p.x, p.y) < 4);
   if (!p.action && !p.moving && !fighting) {
@@ -1117,14 +1123,14 @@ function useItem(inst) {
       if (t) { teleportTo(t.x + 0.5, t.y + 0.5); log('你被傳送到了未知的地方。', 'sys'); }
       break;
     }
-    case 'ew_scroll': case 'bew_scroll': case 'ea_scroll': case 'bea_scroll': {
+    case 'ew_scroll': case 'bew_scroll': case 'ea_scroll': case 'bea_scroll': case 'cew_scroll': case 'cea_scroll': {
       // 可以強化身上裝備或背包裡的武器／防具
       const wantType = inst.id.includes('ew') ? 'weapon' : 'armor';
       const list = [];
       for (const s of SLOTS) if (p.equip[s] && ITEMS[p.equip[s].id].type === wantType) list.push({ inst: p.equip[s], where: SLOT_NAMES[s] + '（裝備中）' });
       for (const i of p.inv) if (ITEMS[i.id].type === wantType) list.push({ inst: i, where: '背包' });
       if (!list.length) { log(wantType === 'weapon' ? '沒有可以強化的武器。' : '沒有可以強化的防具。', 'warn'); return; }
-      const go = (t) => { if (!p.inv.includes(inst)) return; enchant(t, inst.id.startsWith('b')); removeItem(inst, 1); };
+      const go = (t) => { if (!p.inv.includes(inst)) return; if (ITEMS[inst.id].cursed) curseEnchant(t); else enchant(t, inst.id.startsWith('b')); removeItem(inst, 1); };
       if (list.length === 1) { go(list[0].inst); return; }
       UI.chooseEnchant(list, ITEMS[inst.id].name, go);
       return;
@@ -1133,6 +1139,16 @@ function useItem(inst) {
   removeItem(inst, 1);
   UI.refresh();
 }
+// 被詛咒的強化卷軸：強化值 -1（不會讓裝備消失）
+function curseEnchant(inst) {
+  const p = G.player, nm = ITEMS[inst.id].name, cur = inst.ench || 0;
+  if (cur <= -7) { log(enchTag(cur) + nm + ' 已經被詛咒到極限，卷軸化成了灰燼。', 'warn'); SFX.play('enchantFail'); return; }
+  inst.ench = cur - 1;
+  log(enchTag(cur) + nm + ' 籠罩在一陣黑色的光芒中……（' + enchTag(inst.ench).trim() + '）', 'warn');
+  SFX.play('enchantFail'); burst(p.x, p.y, 30, '#6a2a8a', 24, 2, 1, 3, 3);
+  recalc(); UI.refresh();
+}
+function enchTag(e) { return e > 0 ? '+' + e + ' ' : e < 0 ? e + ' ' : ''; }
 function enchant(inst, blessed) {
   const p = G.player, it = ITEMS[inst.id];
   const nm = it.name, cur = inst.ench || 0, safe = it.safe || 0;
@@ -1141,11 +1157,11 @@ function enchant(inst, blessed) {
   const ok = cur < safe || Math.random() < Math.max(0.1, 0.5 - (cur - safe) * 0.1);
   if (ok) {
     inst.ench = cur + add;
-    log('+' + cur + ' ' + nm + ' 發出了一陣' + (add > 1 ? '耀眼的' : '') + '藍色光芒。(+' + inst.ench + ')', 'level');
+    log(enchTag(cur) + nm + ' 發出了一陣' + (add > 1 ? '耀眼的' : '') + '藍色光芒。(' + enchTag(inst.ench).trim() + ')', 'level');
     SFX.play('enchantOk'); burst(p.x, p.y, 30, '#80c0ff', 24, 2, 1, 3, 3);
     if (inst.ench >= 9) log('★ ' + p.name + ' 成功將 ' + nm + ' 強化到了 +' + inst.ench + '！', 'loot');
   } else {
-    log('+' + cur + ' ' + nm + ' 發出強烈的光芒後就消失了…', 'warn');
+    log(enchTag(cur) + nm + ' 發出強烈的光芒後就消失了…', 'warn');
     SFX.play('enchantFail');
     for (const s of SLOTS) if (p.equip[s] === inst) p.equip[s] = null;
     { const k = p.inv.indexOf(inst); if (k >= 0) p.inv.splice(k, 1); }

@@ -134,7 +134,7 @@ const Online = {
     if (!G.running) return;
     if (m.ch === 'sys') { UI.log(m.text, 'warn'); return; }
     const r = this.players.get(m.id);
-    if (m.ch === 'say') { if (r) r.speak(m.text, 5); UI.log(m.from + '：' + m.text, 'chat'); }
+    if (m.ch === 'say') { if (r) r.speak(m.text, 5); UI.log(m.from + '：' + m.text, 'pchat'); }
     else if (m.ch === 'world') UI.log('[全頻] ' + m.from + '：' + m.text, 'world');
     else if (m.ch === 'whisper') { UI.log('（悄悄話）' + m.from + '：' + m.text, 'whisper'); G.lastWhisper = m.from; SFX.play('click'); }
     else if (m.ch === 'clan') UI.log('[血盟] ' + m.from + '：' + m.text, 'clan');

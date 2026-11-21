@@ -179,6 +179,17 @@ python3 -m http.server 8000
   update public.profiles set pw_hash = extensions.crypt('新密碼', extensions.gen_salt('bf')) where lower(account) = lower('玩家帳號');
   ```
 
+- **角色改名**：在 **SQL Editor** 執行下面這段（把兩個名字換掉，玩家需先離開遊戲）：
+
+  ```sql
+  update public.characters
+     set name = '新名字', data = jsonb_set(data, '{name}', to_jsonb('新名字'::text)), updated_at = now()
+   where name = '舊名字'
+     and not exists (select 1 from public.characters where lower(name) = lower('新名字'));
+  ```
+
+  顯示 `UPDATE 1` 就成功了；`UPDATE 0` 表示找不到舊名字，或新名字已經有人使用。
+
 - **查看或修改存檔**：**Table Editor** → `characters`，`data` 欄位就是整份存檔（JSON）。
 - **清理匿名身分**：每個瀏覽器第一次登入時會產生一個匿名使用者，久了 **Authentication → Users** 裡會累積很多。可以偶爾在 SQL Editor 執行這段，刪除一天以上沒有綁定帳號的匿名使用者（不影響任何遊戲帳號）：
 

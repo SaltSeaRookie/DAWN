@@ -166,7 +166,8 @@ const UI = {
     if (!text) return;
     const box = $('#chatLog');
     const line = el('div', 'ln ' + (cls || ''));
-    line.textContent = text;
+    if (/(^| )(chat|npc|npcmsg)( |$)/.test(cls || '')) { const b = el('span', 'npctag', 'NPC'); line.appendChild(b); line.appendChild(document.createTextNode(text)); }
+    else line.textContent = text;
     box.appendChild(line);
     while (box.children.length > 100) box.removeChild(box.firstChild);
     box.scrollTop = box.scrollHeight;
@@ -330,7 +331,7 @@ const UI = {
     if (inst) {
       s.appendChild(iconCanvas(inst.id, opts.size || 34));
       if (inst.qty > 1) s.appendChild(el('span', 'qty', inst.qty > 9999 ? Math.floor(inst.qty / 1000) + 'k' : inst.qty));
-      if (inst.ench) s.appendChild(el('span', 'ench', '+' + inst.ench));
+      if (inst.ench) s.appendChild(el('span', 'ench' + (inst.ench < 0 ? ' neg' : ''), enchTag(inst.ench).trim()));
       if (inst.pet) { s.appendChild(el('span', 'ench', 'Lv' + inst.pet.level)); if (inst.pet.dead) s.classList.add('deadpet'); if (inst.pet.out) s.classList.add('on'); }
       s.addEventListener('mouseenter', (e) => this.showTip(inst, e));
       s.addEventListener('mouseleave', () => this.hideTip());
@@ -1055,5 +1056,5 @@ Object.assign(UI, {
 function sellPrice(inst, forShop) {
   const d = ITEMS[inst.id];
   const base = d.type === 'junk' ? d.price : Math.floor(d.price * 0.4);
-  return base + (inst.ench ? inst.ench * inst.ench * 30 : 0);
+  return base + (inst.ench > 0 ? inst.ench * inst.ench * 30 : 0);
 }

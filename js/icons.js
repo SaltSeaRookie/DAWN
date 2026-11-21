@@ -98,7 +98,7 @@ function drawItemIcon(ctx, id, x, y, s) {
       const rl = (rx) => { const g = ctx.createLinearGradient(rx - 3, 0, rx + 3, 0); g.addColorStop(0, shade(c, -0.45)); g.addColorStop(0.5, shade(c, 0.1)); g.addColorStop(1, shade(c, -0.45)); ctx.fillStyle = g; ctx.beginPath(); ctx.ellipse(rx, 16, 3, 8.5, 0, 0, 7); ctx.fill(); ctx.fillStyle = '#6a4a2a'; ctx.fillRect(rx - 1, 6.5, 2, 2); ctx.fillRect(rx - 1, 23.5, 2, 2); };
       rl(7); rl(25);
       ctx.strokeStyle = 'rgba(80,40,20,0.6)'; ctx.lineWidth = 0.9; for (let i = 0; i < 3; i++) { ctx.beginPath(); ctx.moveTo(11, 11.5 + i * 3.5); ctx.lineTo(21, 11.5 + i * 3.5); ctx.stroke(); }
-      ctx.fillStyle = /^b/.test(id) ? '#ffd040' : '#b02020'; glow(/^b/.test(id) ? '#ffd040' : null, 4); ctx.beginPath(); ctx.arc(16, 23, 3, 0, 7); ctx.fill(); noGlow();
+      ctx.fillStyle = it.cursed ? '#7a20b0' : /^b/.test(id) ? '#ffd040' : '#b02020'; glow(/^b/.test(id) ? '#ffd040' : null, 4); ctx.beginPath(); ctx.arc(16, 23, 3, 0, 7); ctx.fill(); noGlow();
       ctx.fillStyle = 'rgba(255,255,255,0.5)'; ctx.fillRect(15, 22, 1, 1);
       break;
     }

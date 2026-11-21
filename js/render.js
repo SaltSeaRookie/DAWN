@@ -226,9 +226,10 @@ function render() {
   for (const it of m.items) {
     const [sx, sy] = S(it.x, it.y);
     if (sx < -60 || sx > VW + 60 || sy < -60 || sy > VH + 40) continue;
-    const nm = it.id === 'gold' ? '金幣 (' + it.qty + ')' : (it.ench ? '+' + it.ench + ' ' : '') + ITEMS[it.id].name + (it.qty > 1 ? ' (' + it.qty + ')' : '');
+    const nm = it.id === 'gold' ? '金幣 (' + it.qty + ')' : enchTag(it.ench || 0) + ITEMS[it.id].name + (it.qty > 1 ? ' (' + it.qty + ')' : '');
     const w = ctx.measureText(nm).width + 10;
     const lx = sx - w / 2, ly = sy - 36;
+    if (it.owner && it.t < LOOT_OWN_SEC) { ctx.font = '11px "Microsoft JhengHei", "PingFang TC", sans-serif'; outlineText('🔒 ' + it.owner + ' ' + Math.ceil(LOOT_OWN_SEC - it.t) + 's', sx, ly - 3, it.owner === p.name ? '#a0ffa0' : '#ff9a80'); ctx.font = '12px "Microsoft JhengHei", "PingFang TC", "Noto Sans TC", sans-serif'; }
     const hov = G.hover && G.hover.e === it;
     ctx.fillStyle = hov ? 'rgba(60,50,20,0.85)' : 'rgba(10,10,14,0.72)';
     ctx.fillRect(lx, ly, w, 17);
@@ -474,7 +475,7 @@ function drawEntity(e, S, labels) {
       if (e.role === 'stall' && e.stall) { stallSign(e.stall.title, sx, y - 2); y -= 20; }
       if (e.role === 'story' && Story.hasTalk(e)) { ctx.font = 'bold 22px Georgia, serif'; outlineText('!', sx, y - 34 + Math.sin(G.t * 4) * 2, '#ffd040'); ctx.font = '12px "Microsoft JhengHei", "PingFang TC", sans-serif'; }
       outlineText('[' + e.title + ']', sx, y, '#ffe9a0'); y -= 14;
-      outlineText(e.name, sx, y, '#ffffff'); y -= 6;
+      outlineText(e.name, sx, y, '#ffffff'); npcBadge(sx + ctx.measureText(e.name).width / 2 + 3, y); y -= 6;
       if (e.role === 'quest') {
         const q = p.quest, Q = QUESTS[q.idx];
         const mark = !Q ? null : !q.active ? '!' : q.count >= Q.count ? '?' : null;
@@ -491,6 +492,7 @@ function drawEntity(e, S, labels) {
       const yy = e === p ? y - 4 : y;
       outlineText(nm, sx + (em ? 8 : 0), yy, nameColor(e));
       if (em) drawEmblem(ctx, em, sx - w / 2 - 10, yy - 11, 13);
+      if (e !== p && e.kind !== 'remote') npcBadge(sx + (em ? 8 : 0) + w / 2 + 3, yy);
       y = yy - 14;
       if (clan) { ctx.font = '11px sans-serif'; outlineText('[' + clan + ']', sx, y, '#b8e0a8'); y -= 13; }
       if (e === p && p.title) { ctx.font = '11px sans-serif'; outlineText('《' + p.title + '》', sx, y, '#c8d8ff'); y -= 13; }
@@ -502,6 +504,15 @@ function drawEntity(e, S, labels) {
   });
 }
 
+// 「NPC」小標籤：讓玩家分辨電腦角色與真實玩家
+function npcBadge(x, y) {
+  ctx.save(); ctx.font = 'bold 9px sans-serif'; ctx.textAlign = 'left';
+  const w = ctx.measureText('NPC').width + 5;
+  ctx.fillStyle = 'rgba(70,70,80,0.9)'; ctx.fillRect(x, y - 10, w, 11);
+  ctx.strokeStyle = 'rgba(200,200,210,0.7)'; ctx.lineWidth = 1; ctx.strokeRect(x + 0.5, y - 9.5, w - 1, 10);
+  ctx.fillStyle = '#d8d8e0'; ctx.fillText('NPC', x + 2.5, y - 1.5);
+  ctx.restore();
+}
 function outlineText(t, x, y, col) {
   ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(0,0,0,0.85)'; ctx.strokeText(t, x, y);
   ctx.fillStyle = col; ctx.fillText(t, x, y);

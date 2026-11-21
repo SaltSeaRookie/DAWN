@@ -165,6 +165,8 @@ body:not(.in-game) #hud, body:not(.in-game) #minimapWrap, body:not(.in-game) #bu
 #chatLog .sys { color: #e8e8e8; }
 #chatLog .npc { color: #ffe9a0; }
 #chatLog .chat { color: #c8d8ff; }
+#chatLog .pchat { color: #e8f0ff; font-weight: bold; }
+#chatLog .npctag { display: inline-block; font: bold 9px sans-serif; color: #d8d8e0; background: #464650; border: 1px solid #8a8a96; border-radius: 2px; padding: 0 2px; margin-right: 4px; vertical-align: 1px; }
 #chatLog .me { color: #ffffff; font-weight: bold; }
 #chatLog .loot { color: #9fe8ff; }
 #chatLog .warn { color: #ff8a7a; }
@@ -189,6 +191,7 @@ body:not(.in-game) #hud, body:not(.in-game) #minimapWrap, body:not(.in-game) #bu
 .slot.locked canvas { opacity: 0.3; filter: grayscale(1); }
 .slot .key { position: absolute; left: 3px; top: 1px; font: bold 10px Georgia, serif; color: #c9b88a; text-shadow: 0 0 2px #000; }
 .slot .qty { position: absolute; right: 3px; bottom: 1px; font: bold 11px Georgia, serif; color: #fff; text-shadow: 0 0 3px #000, 0 0 2px #000; }
+.slot .ench.neg { color: #e070ff !important; }
 .slot .ench { position: absolute; left: 3px; top: 1px; font: bold 11px Georgia, serif; color: #8ad0ff; text-shadow: 0 0 3px #000; }
 .slot .eqlabel { font-size: 11px; color: #5a5246; }
 .slot.on .qty { color: #8eff8a; }

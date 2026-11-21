@@ -65,10 +65,10 @@ function lifeUpdate(a, dt, far) {
   if (L.state === 'hunt') {
     L.huntT -= dt;
     if (!a.target && (L.pots <= 0 || L.bag >= 8 || L.huntT <= 0)) { lifeStartReturn(a, far); return true; }
-    // 撿附近的戰利品（掉落 6 秒後，讓玩家優先撿）
+    // 撿附近的戰利品（真實玩家打倒的道具有 5 秒所有權；NPC 打倒的立刻可以撿）
     if (!a.target && !far) {
       let best = null, bd = 3.5;
-      for (const it of G.map.items) { if (it.t < 6) continue; const d = dist(a.x, a.y, it.x, it.y); if (d < bd) { bd = d; best = it; } }
+      for (const it of G.map.items) { if (lootLocked(it, a.name) || it.t < 1) continue; const d = dist(a.x, a.y, it.x, it.y); if (d < bd) { bd = d; best = it; } }
       if (best) {
         if (lifeWalk(a, best.x, best.y, dt, 0.6)) { const k = G.map.items.indexOf(best); if (k >= 0) { G.map.items.splice(k, 1); L.bag++; } }
         return true;

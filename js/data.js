@@ -115,6 +115,8 @@ const ITEMS = {
   ew_scroll:     { name: '武器強化卷軸', type: 'consume', w: 1, price: 600, stack: true, desc: '強化武器 +1。超過安全值可能失敗並使武器消失' },
   ea_scroll:     { name: '防具強化卷軸', type: 'consume', w: 1, price: 500, stack: true, desc: '強化防具 +1。超過安全值可能失敗並使防具消失' },
   bew_scroll:    { name: '祝福武器強化卷軸', type: 'consume', w: 1, price: 4000, stack: true, rare: true, desc: '強化武器 +1～+3，風險同一般卷軸' },
+  cew_scroll:    { name: '被詛咒的武器強化卷軸', type: 'consume', w: 1, price: 300, stack: true, cursed: true, desc: '被詛咒的卷軸。使用後武器的強化值 -1（最低 -7）' },
+  cea_scroll:    { name: '被詛咒的防具強化卷軸', type: 'consume', w: 1, price: 250, stack: true, cursed: true, desc: '被詛咒的卷軸。使用後防具的強化值 -1（最低 -7）' },
   bea_scroll:    { name: '祝福防具強化卷軸', type: 'consume', w: 1, price: 3500, stack: true, rare: true, desc: '強化防具 +1～+3，風險同一般卷軸' },
   tame_jerky:    { name: '馴獸肉乾', type: 'consume', icon: 'jerky', w: 1, price: 150, stack: true, desc: '對體力低於一半的野狼使用，有機會馴服牠成為寵物' },
   pet_collar:    { name: '寵物項圈', type: 'collar', icon: 'collar', w: 3, price: 200, desc: '裝著寵物的項圈。點擊召喚或收回寵物' },
@@ -151,7 +153,7 @@ for (const id in ITEMS) {
   }
 }
 const POTION_COLORS = { red_potion: '#d0242a', orange_potion: '#e8801c', clear_potion: '#e8f0ff', blue_potion: '#2a5ad8', haste_potion: '#2fae3a' };
-const SCROLL_COLORS = { return_scroll: '#c9b27a', teleport_scroll: '#a0c8e0', ew_scroll: '#e1c45a', ea_scroll: '#8fb6e0', bew_scroll: '#ffd860', bea_scroll: '#b8e0ff' };
+const SCROLL_COLORS = { return_scroll: '#c9b27a', teleport_scroll: '#a0c8e0', ew_scroll: '#e1c45a', ea_scroll: '#8fb6e0', bew_scroll: '#ffd860', bea_scroll: '#b8e0ff', cew_scroll: '#8a3a4a', cea_scroll: '#5a3a6a' };
 
 // ---------- 魔法 ----------
 // learn：各職業可學習的等級（null=不能學）
@@ -224,23 +226,23 @@ const MONSTERS = {
   goblin:   { name: '哥布林', lvl: 4, hp: 34, dmg: [2, 6], ac: 2, mr: 0, exp: 16, speed: 2.6, atkSpd: 1.2, range: 1.25, aggro: true, aggroR: 4.5, sprite: 'goblin', gold: [5, 14], loot: [['goblin_ear', 0.45], ['red_potion', 0.12], ['dagger', 0.03], ['return_scroll', 0.05], ['leather_cap', 0.03]] },
   goblin_archer: { name: '哥布林弓手', lvl: 5, hp: 28, dmg: [2, 6], ac: 1, mr: 0, exp: 19, speed: 2.6, atkSpd: 1.5, range: 5, proj: 'arrow', aggro: true, aggroR: 6, sprite: 'goblin', bow: true, gold: [6, 16], loot: [['goblin_ear', 0.4], ['arrow', 0.3, 30], ['leather_boots', 0.03]] },
   spider:   { name: '巨型蜘蛛', lvl: 7, hp: 50, dmg: [3, 8], ac: 3, mr: 5, exp: 28, speed: 3.0, atkSpd: 1.1, range: 1.3, aggro: true, aggroR: 4.5, sprite: 'spider', color: '#3a3030', gold: [7, 18], loot: [['spider_silk', 0.5], ['red_potion', 0.12], ['leather_gloves', 0.04]] },
-  treant:   { name: '樹精', lvl: 9, hp: 95, dmg: [4, 11], ac: 6, mr: 10, exp: 44, speed: 1.6, atkSpd: 1.7, range: 1.5, aggro: true, aggroR: 3.5, sprite: 'treant', gold: [10, 28], loot: [['bark', 0.55], ['orange_potion', 0.08], ['ea_scroll', 0.02], ['oak_staff', 0.04], ['book_icebolt', 0.01]] },
-  werewolf: { name: '狼人', lvl: 12, hp: 125, dmg: [5, 13], ac: 5, mr: 5, exp: 70, speed: 3.2, atkSpd: 1.0, range: 1.3, aggro: true, aggroR: 5.5, sprite: 'werewolf', color: '#5a4a3a', gold: [15, 36], loot: [['wolf_pelt', 0.5], ['orange_potion', 0.1], ['ew_scroll', 0.03], ['studded', 0.03], ['ring_dex', 0.004]] },
-  skeleton: { name: '骷髏', lvl: 7, hp: 55, dmg: [3, 9], ac: 4, mr: 0, exp: 30, speed: 2.4, atkSpd: 1.3, range: 1.3, aggro: true, aggroR: 5, undead: true, sprite: 'skeleton', gold: [8, 22], loot: [['bone_shard', 0.5], ['red_potion', 0.12], ['iron_sword', 0.02], ['ew_scroll', 0.02], ['iron_helm', 0.015]] },
+  treant:   { name: '樹精', lvl: 9, hp: 95, dmg: [4, 11], ac: 6, mr: 10, exp: 44, speed: 1.6, atkSpd: 1.7, range: 1.5, aggro: true, aggroR: 3.5, sprite: 'treant', gold: [10, 28], loot: [['bark', 0.55], ['orange_potion', 0.08], ['ea_scroll', 0.02], ['cea_scroll', 0.01], ['oak_staff', 0.04], ['book_icebolt', 0.01]] },
+  werewolf: { name: '狼人', lvl: 12, hp: 125, dmg: [5, 13], ac: 5, mr: 5, exp: 70, speed: 3.2, atkSpd: 1.0, range: 1.3, aggro: true, aggroR: 5.5, sprite: 'werewolf', color: '#5a4a3a', gold: [15, 36], loot: [['wolf_pelt', 0.5], ['orange_potion', 0.1], ['ew_scroll', 0.03], ['cew_scroll', 0.015], ['studded', 0.03], ['ring_dex', 0.004]] },
+  skeleton: { name: '骷髏', lvl: 7, hp: 55, dmg: [3, 9], ac: 4, mr: 0, exp: 30, speed: 2.4, atkSpd: 1.3, range: 1.3, aggro: true, aggroR: 5, undead: true, sprite: 'skeleton', gold: [8, 22], loot: [['bone_shard', 0.5], ['red_potion', 0.12], ['iron_sword', 0.02], ['ew_scroll', 0.02], ['cew_scroll', 0.01], ['iron_helm', 0.015]] },
   skeleton_archer: { name: '骷髏弓手', lvl: 10, hp: 60, dmg: [4, 10], ac: 3, mr: 0, exp: 42, speed: 2.4, atkSpd: 1.6, range: 6, proj: 'arrow', aggro: true, aggroR: 7, undead: true, sprite: 'skeleton', bow: true, gold: [10, 26], loot: [['bone_shard', 0.5], ['silver_arrow', 0.2, 20], ['hunting_bow', 0.03], ['composite_bow', 0.004]] },
-  ghoul:    { name: '食屍鬼', lvl: 11, hp: 110, dmg: [5, 13], ac: 5, mr: 5, exp: 62, speed: 2.8, atkSpd: 1.1, range: 1.3, aggro: true, aggroR: 5.5, undead: true, sprite: 'ghoul', gold: [14, 34], loot: [['ghoul_claw', 0.5], ['orange_potion', 0.1], ['ew_scroll', 0.03], ['chainmail', 0.012]] },
+  ghoul:    { name: '食屍鬼', lvl: 11, hp: 110, dmg: [5, 13], ac: 5, mr: 5, exp: 62, speed: 2.8, atkSpd: 1.1, range: 1.3, aggro: true, aggroR: 5.5, undead: true, sprite: 'ghoul', gold: [14, 34], loot: [['ghoul_claw', 0.5], ['orange_potion', 0.1], ['ew_scroll', 0.03], ['cew_scroll', 0.015], ['chainmail', 0.012]] },
   ghost:    { name: '怨靈', lvl: 13, hp: 90, dmg: [5, 12], ac: 8, mr: 30, exp: 78, speed: 2.6, atkSpd: 1.6, range: 5, proj: 'dark', magic: true, aggro: true, aggroR: 6, undead: true, sprite: 'ghost', gold: [16, 40], loot: [['ectoplasm', 0.5], ['blue_potion', 0.15], ['book_heal2', 0.015], ['wizard_hat', 0.02]] },
-  lizardman:{ name: '蜥蜴人', lvl: 13, hp: 140, dmg: [6, 15], ac: 7, mr: 5, exp: 85, speed: 2.7, atkSpd: 1.2, range: 1.6, aggro: true, aggroR: 5.5, sprite: 'lizard', gold: [18, 45], loot: [['lizard_skin', 0.5], ['orange_potion', 0.12], ['ew_scroll', 0.035], ['ea_scroll', 0.03], ['spear', 0.02], ['composite_bow', 0.006]] },
-  golem:    { name: '岩石巨像', lvl: 16, hp: 260, dmg: [9, 20], ac: 12, mr: 15, exp: 140, speed: 1.5, atkSpd: 1.8, range: 1.6, aggro: true, aggroR: 4, sprite: 'golem', gold: [25, 60], loot: [['golem_core', 0.5], ['clear_potion', 0.06], ['ea_scroll', 0.05], ['tower_shield', 0.02], ['iron_gauntlet', 0.03], ['amulet_earth', 0.01]] },
-  scorpion: { name: '沙漠巨蠍', lvl: 14, hp: 150, dmg: [6, 16], ac: 8, mr: 5, exp: 95, speed: 2.8, atkSpd: 1.2, range: 1.4, aggro: true, aggroR: 5, sprite: 'scorpion', color: '#b08040', gold: [20, 48], loot: [['scorpion_tail', 0.5], ['orange_potion', 0.12], ['ew_scroll', 0.035], ['iron_boots', 0.02], ['ring_fire', 0.01]] },
-  mummy:    { name: '木乃伊', lvl: 17, hp: 220, dmg: [8, 18], ac: 8, mr: 20, exp: 150, speed: 2.0, atkSpd: 1.4, range: 1.3, aggro: true, aggroR: 5, undead: true, sprite: 'mummy', gold: [26, 64], loot: [['mummy_cloth', 0.5], ['clear_potion', 0.06], ['ea_scroll', 0.04], ['book_lightning', 0.01], ['amulet_guard', 0.008]] },
-  sandworm: { name: '沙蟲', lvl: 19, hp: 320, dmg: [10, 22], ac: 9, mr: 10, exp: 210, speed: 2.2, atkSpd: 1.5, range: 1.8, aggro: true, aggroR: 5, sprite: 'worm', color: '#b8905a', gold: [30, 80], loot: [['worm_tooth', 0.5], ['clear_potion', 0.08], ['ew_scroll', 0.05], ['bew_scroll', 0.005], ['giant_belt', 0.004]] },
+  lizardman:{ name: '蜥蜴人', lvl: 13, hp: 140, dmg: [6, 15], ac: 7, mr: 5, exp: 85, speed: 2.7, atkSpd: 1.2, range: 1.6, aggro: true, aggroR: 5.5, sprite: 'lizard', gold: [18, 45], loot: [['lizard_skin', 0.5], ['orange_potion', 0.12], ['ew_scroll', 0.035], ['cew_scroll', 0.0175], ['ea_scroll', 0.03], ['cea_scroll', 0.015], ['spear', 0.02], ['composite_bow', 0.006]] },
+  golem:    { name: '岩石巨像', lvl: 16, hp: 260, dmg: [9, 20], ac: 12, mr: 15, exp: 140, speed: 1.5, atkSpd: 1.8, range: 1.6, aggro: true, aggroR: 4, sprite: 'golem', gold: [25, 60], loot: [['golem_core', 0.5], ['clear_potion', 0.06], ['ea_scroll', 0.05], ['cea_scroll', 0.025], ['tower_shield', 0.02], ['iron_gauntlet', 0.03], ['amulet_earth', 0.01]] },
+  scorpion: { name: '沙漠巨蠍', lvl: 14, hp: 150, dmg: [6, 16], ac: 8, mr: 5, exp: 95, speed: 2.8, atkSpd: 1.2, range: 1.4, aggro: true, aggroR: 5, sprite: 'scorpion', color: '#b08040', gold: [20, 48], loot: [['scorpion_tail', 0.5], ['orange_potion', 0.12], ['ew_scroll', 0.035], ['cew_scroll', 0.0175], ['iron_boots', 0.02], ['ring_fire', 0.01]] },
+  mummy:    { name: '木乃伊', lvl: 17, hp: 220, dmg: [8, 18], ac: 8, mr: 20, exp: 150, speed: 2.0, atkSpd: 1.4, range: 1.3, aggro: true, aggroR: 5, undead: true, sprite: 'mummy', gold: [26, 64], loot: [['mummy_cloth', 0.5], ['clear_potion', 0.06], ['ea_scroll', 0.04], ['cea_scroll', 0.02], ['book_lightning', 0.01], ['amulet_guard', 0.008]] },
+  sandworm: { name: '沙蟲', lvl: 19, hp: 320, dmg: [10, 22], ac: 9, mr: 10, exp: 210, speed: 2.2, atkSpd: 1.5, range: 1.8, aggro: true, aggroR: 5, sprite: 'worm', color: '#b8905a', gold: [30, 80], loot: [['worm_tooth', 0.5], ['clear_potion', 0.08], ['ew_scroll', 0.05], ['cew_scroll', 0.025], ['bew_scroll', 0.005], ['giant_belt', 0.004]] },
   wyvern:   { name: '赤鱗飛龍', lvl: 22, hp: 1500, dmg: [12, 26], ac: 12, mr: 30, exp: 1800, speed: 3.0, atkSpd: 1.6, range: 2.2, aggro: true, aggroR: 7, boss: true, breath: true, sprite: 'wyvern', color: '#9a4d26', gold: [500, 1000], respawn: 300,
     loot: [['wyvern_scale', 1], ['wyvern_scale', 0.5], ['ew_scroll', 0.6], ['bew_scroll', 0.2], ['dragonfang', 0.12], ['gale_bow', 0.12], ['plate', 0.15], ['book_fireball', 0.3], ['book_summon_fire', 0.2], ['ring_str', 0.1]] },
   lich:     { name: '墓穴領主', lvl: 24, hp: 1800, dmg: [10, 22], ac: 10, mr: 50, exp: 2200, speed: 2.2, atkSpd: 1.8, range: 6, proj: 'dark', magic: true, aggro: true, aggroR: 8, boss: true, undead: true, summon: 'skeleton', sprite: 'lich', gold: [600, 1200], respawn: 300,
     loot: [['lich_gem', 1], ['bew_scroll', 0.3], ['bea_scroll', 0.3], ['star_staff', 0.12], ['holy_mace', 0.15], ['archmage_robe', 0.15], ['shadow_cloak', 0.12], ['book_meteor', 0.25], ['book_heal3', 0.25], ['book_sanctuary', 0.2], ['book_summon_fire', 0.25], ['ring_int', 0.1], ['amulet_wis', 0.1]] },
   // 城堡守軍（攻城戰期間為敵對）
-  guard:    { name: '城堡守衛', lvl: 18, hp: 380, dmg: [9, 18], ac: 12, mr: 20, exp: 180, speed: 2.6, atkSpd: 1.3, range: 1.4, aggro: true, aggroR: 6, sprite: 'guard', gold: [30, 60], loot: [['clear_potion', 0.1], ['ea_scroll', 0.05]], siege: true },
+  guard:    { name: '城堡守衛', lvl: 18, hp: 380, dmg: [9, 18], ac: 12, mr: 20, exp: 180, speed: 2.6, atkSpd: 1.3, range: 1.4, aggro: true, aggroR: 6, sprite: 'guard', gold: [30, 60], loot: [['clear_potion', 0.1], ['ea_scroll', 0.05], ['cea_scroll', 0.025]], siege: true },
   guard_captain: { name: '守城隊長', lvl: 22, hp: 1100, dmg: [12, 24], ac: 14, mr: 30, exp: 900, speed: 2.6, atkSpd: 1.2, range: 1.5, aggro: true, aggroR: 7, sprite: 'guard', captain: true, boss: true, gold: [300, 600], loot: [['bew_scroll', 0.3], ['knight_sword', 0.3], ['iron_helm', 0.3]], siege: true },
 };
 
@@ -394,10 +396,10 @@ MONSTERS.lich.loot.push(['tidal_robe', 0.12], ['moon_pendant', 0.15]);
 
 // ===== 翡翠群島的怪物 =====
 Object.assign(MONSTERS, {
-  crab:        { name: '巨鉗蟹', lvl: 15, hp: 170, dmg: [7, 16], ac: 10, mr: 10, exp: 110, speed: 2.4, atkSpd: 1.3, range: 1.4, aggro: true, aggroR: 4, sprite: 'scorpion', color: '#c8502a', gold: [20, 50], loot: [['pearl', 0.35], ['orange_potion', 0.12], ['ea_scroll', 0.04], ['ring_ice', 0.01]] },
-  jungle_spider:{ name: '叢林毒蛛', lvl: 17, hp: 180, dmg: [8, 17], ac: 7, mr: 10, exp: 135, speed: 3.2, atkSpd: 1.0, range: 1.3, aggro: true, aggroR: 5.5, sprite: 'spider', color: '#2a5a2a', gold: [22, 54], loot: [['spider_silk', 0.5], ['clear_potion', 0.06], ['ew_scroll', 0.04], ['sage_gloves', 0.012]] },
-  croc:        { name: '鱷魚人', lvl: 19, hp: 260, dmg: [10, 21], ac: 11, mr: 10, exp: 190, speed: 2.7, atkSpd: 1.25, range: 1.6, aggro: true, aggroR: 5.5, sprite: 'lizard', color: '#3a5a3a', gold: [28, 70], loot: [['croc_hide', 0.5], ['clear_potion', 0.08], ['ew_scroll', 0.05], ['bea_scroll', 0.005], ['tide_ring', 0.006]] },
-  pirate:      { name: '海盜', lvl: 21, hp: 300, dmg: [11, 23], ac: 12, mr: 15, exp: 230, speed: 3.0, atkSpd: 1.0, range: 1.4, aggro: true, aggroR: 6, sprite: 'pirate', gold: [40, 100], loot: [['pirate_coin', 0.6], ['clear_potion', 0.1], ['ew_scroll', 0.05], ['pirate_sabre', 0.02], ['bew_scroll', 0.006]] },
+  crab:        { name: '巨鉗蟹', lvl: 15, hp: 170, dmg: [7, 16], ac: 10, mr: 10, exp: 110, speed: 2.4, atkSpd: 1.3, range: 1.4, aggro: true, aggroR: 4, sprite: 'scorpion', color: '#c8502a', gold: [20, 50], loot: [['pearl', 0.35], ['orange_potion', 0.12], ['ea_scroll', 0.04], ['cea_scroll', 0.02], ['ring_ice', 0.01]] },
+  jungle_spider:{ name: '叢林毒蛛', lvl: 17, hp: 180, dmg: [8, 17], ac: 7, mr: 10, exp: 135, speed: 3.2, atkSpd: 1.0, range: 1.3, aggro: true, aggroR: 5.5, sprite: 'spider', color: '#2a5a2a', gold: [22, 54], loot: [['spider_silk', 0.5], ['clear_potion', 0.06], ['ew_scroll', 0.04], ['cew_scroll', 0.02], ['sage_gloves', 0.012]] },
+  croc:        { name: '鱷魚人', lvl: 19, hp: 260, dmg: [10, 21], ac: 11, mr: 10, exp: 190, speed: 2.7, atkSpd: 1.25, range: 1.6, aggro: true, aggroR: 5.5, sprite: 'lizard', color: '#3a5a3a', gold: [28, 70], loot: [['croc_hide', 0.5], ['clear_potion', 0.08], ['ew_scroll', 0.05], ['cew_scroll', 0.025], ['bea_scroll', 0.005], ['tide_ring', 0.006]] },
+  pirate:      { name: '海盜', lvl: 21, hp: 300, dmg: [11, 23], ac: 12, mr: 15, exp: 230, speed: 3.0, atkSpd: 1.0, range: 1.4, aggro: true, aggroR: 6, sprite: 'pirate', gold: [40, 100], loot: [['pirate_coin', 0.6], ['clear_potion', 0.1], ['ew_scroll', 0.05], ['cew_scroll', 0.025], ['pirate_sabre', 0.02], ['bew_scroll', 0.006]] },
   pirate_captain: { name: '海盜船長', lvl: 26, hp: 2200, dmg: [16, 32], ac: 15, mr: 40, exp: 2800, speed: 3.0, atkSpd: 1.1, range: 1.5, aggro: true, aggroR: 8, boss: true, sprite: 'pirate', captainLook: true, gold: [800, 1500], respawn: 300,
     loot: [['pirate_coin', 1], ['bew_scroll', 0.35], ['bea_scroll', 0.3], ['pirate_sabre', 0.4], ['storm_bow', 0.12], ['dragon_shield', 0.1], ['tide_ring', 0.2], ['swift_boots', 0.15]] },
   sea_serpent: { name: '深海巨蛇', lvl: 28, hp: 2600, dmg: [15, 30], ac: 14, mr: 50, exp: 3200, speed: 2.4, atkSpd: 1.6, range: 5, proj: 'ice', magic: true, aggro: true, aggroR: 8, boss: true, sprite: 'worm', color: '#2a8a8a', gold: [900, 1600], respawn: 300,
@@ -425,9 +427,9 @@ Object.assign(MONSTERS, {
   dark_knight:  { name: '黑暗騎士', lvl: 22, hp: 340, dmg: [12, 24], ac: 14, mr: 20, exp: 280, speed: 2.8, atkSpd: 1.1, range: 1.5, aggro: true, aggroR: 6, sprite: 'guard', dark: true, gold: [50, 120],
     loot: [['iron_core', 0.3], ['clear_potion', 0.12], ['bew_scroll', 0.02], ['bea_scroll', 0.02], ['royal_sword', 0.006], ['royal_plate', 0.005]] },
   gargoyle:     { name: '石像鬼', lvl: 23, hp: 380, dmg: [11, 22], ac: 16, mr: 25, exp: 300, speed: 2.4, atkSpd: 1.4, range: 1.6, aggro: true, aggroR: 5, sprite: 'golem', color: '#4a4a5a', gold: [50, 120],
-    loot: [['iron_core', 0.4], ['ea_scroll', 0.08], ['bea_scroll', 0.02], ['crown_ring', 0.004], ['royal_robe', 0.005]] },
+    loot: [['iron_core', 0.4], ['ea_scroll', 0.08], ['cea_scroll', 0.04], ['bea_scroll', 0.02], ['crown_ring', 0.004], ['royal_robe', 0.005]] },
   fire_imp:     { name: '火焰小鬼', lvl: 21, hp: 220, dmg: [10, 20], ac: 9, mr: 30, exp: 240, speed: 3.2, atkSpd: 1.5, range: 5, proj: 'fire', magic: true, aggro: true, aggroR: 7, sprite: 'fireelem', gold: [40, 100],
-    loot: [['blue_potion', 0.2], ['ew_scroll', 0.08], ['bew_scroll', 0.02], ['royal_staff', 0.005], ['royal_bow', 0.005]] },
+    loot: [['blue_potion', 0.2], ['ew_scroll', 0.08], ['cew_scroll', 0.04], ['bew_scroll', 0.02], ['royal_staff', 0.005], ['royal_bow', 0.005]] },
   iron_colossus:{ name: '鋼鐵巨像', lvl: 30, hp: 3600, dmg: [18, 36], ac: 20, mr: 50, exp: 4500, speed: 1.8, atkSpd: 1.7, range: 2.2, aggro: true, aggroR: 8, boss: true, sprite: 'golem', color: '#7a7a8a', big: 1.6, gold: [1500, 2500], respawn: 300,
     loot: [['iron_core', 1], ['bew_scroll', 0.5], ['bea_scroll', 0.5], ['royal_sword', 0.15], ['royal_bow', 0.15], ['royal_staff', 0.15], ['royal_plate', 0.12], ['royal_robe', 0.12], ['crown_ring', 0.15]] },
 });
@@ -477,9 +479,9 @@ Object.assign(MONSTERS, {
   lava_slime:  { name: '熔岩史萊姆', lvl: 23, hp: 300, dmg: [12, 22], ac: 12, mr: 30, exp: 290, speed: 2.0, atkSpd: 1.4, range: 1.3, aggro: true, aggroR: 4.5, sprite: 'slime', element: 'fire', gold: [40, 90],
     loot: [['sulfur', 0.5], ['magma_core', 0.15], ['fireres_potion', 0.1], ['magma_ring', 0.008]] },
   hellhound:   { name: '地獄犬', lvl: 24, hp: 320, dmg: [13, 25], ac: 12, mr: 20, exp: 310, speed: 3.6, atkSpd: 0.9, range: 1.25, aggro: true, aggroR: 7, sprite: 'wolf', color: '#5a1a10', eye: '#ffb030', scaleUp: 1.3, gold: [45, 100],
-    loot: [['obsidian', 0.4], ['clear_potion', 0.1], ['ew_scroll', 0.05], ['cinder_boots', 0.004]] },
+    loot: [['obsidian', 0.4], ['clear_potion', 0.1], ['ew_scroll', 0.05], ['cew_scroll', 0.025], ['cinder_boots', 0.004]] },
   salamander:  { name: '火焰蜥蜴人', lvl: 25, hp: 380, dmg: [14, 27], ac: 14, mr: 25, exp: 340, speed: 2.8, atkSpd: 1.15, range: 1.6, aggro: true, aggroR: 6, sprite: 'lizard', color: '#9a2a14', gold: [50, 110],
-    loot: [['obsidian', 0.4], ['dragonblood', 0.06], ['ea_scroll', 0.06], ['obsidian_blade', 0.02], ['dragon_helm', 0.004]] },
+    loot: [['obsidian', 0.4], ['dragonblood', 0.06], ['ea_scroll', 0.06], ['cea_scroll', 0.03], ['obsidian_blade', 0.02], ['dragon_helm', 0.004]] },
   magma_golem: { name: '熔岩巨像', lvl: 26, hp: 560, dmg: [16, 30], ac: 18, mr: 30, exp: 420, speed: 1.6, atkSpd: 1.7, range: 1.6, aggro: true, aggroR: 4, sprite: 'golem', color: '#5a2a1a', gold: [60, 130],
     loot: [['magma_core', 0.5], ['bea_scroll', 0.02], ['basalt_mail', 0.02], ['dragon_aegis', 0.004]] },
   fire_spirit: { name: '炎魔', lvl: 25, hp: 300, dmg: [14, 26], ac: 10, mr: 45, exp: 360, speed: 3.0, atkSpd: 1.4, range: 5.5, proj: 'fire', magic: true, element: 'fire', aggro: true, aggroR: 7, sprite: 'fireelem', gold: [50, 110],

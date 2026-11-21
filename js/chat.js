@@ -31,7 +31,7 @@ const Chat = {
     later(rand(0.8, 1.8), () => {
       if (r.dead) return;
       r.speak(line, 5);
-      UI.log((whisper ? '（悄悄話）' : '') + r.name + '：' + line, whisper ? 'whisper' : r instanceof NPC ? 'npc' : 'chat');
+      UI.log((whisper ? '（悄悄話）' : '') + r.name + '：' + line, whisper ? 'whisper npcmsg' : r instanceof NPC ? 'npc' : 'chat');
       if (r.kind === 'dog' || r.pet) SFX.play('bark', r.x, r.y);
     });
   },

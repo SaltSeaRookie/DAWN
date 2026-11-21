@@ -3,8 +3,8 @@
 // 交易：與線上玩家（透過伺服器轉送）或電腦冒險者交易物品與金幣，雙方都按「確認」後才成交。
 // 擺攤：在村莊的安全區域擺出攤位，設定價格出售物品；附近的冒險者會來購買，線上玩家也能購買。
 // 攤販：各村莊有冒險者擺攤販賣各式物品。
-function tradeValue(it) { const d = ITEMS[it.id]; return Math.round((d.type === 'junk' ? d.price : d.price * 0.6) * (it.qty || 1) + (it.ench ? it.ench * it.ench * 120 : 0)); }
-function itemLabel(it) { const d = ITEMS[it.id]; return (it.ench ? '+' + it.ench + ' ' : '') + d.name + (it.qty > 1 ? ' ×' + it.qty : ''); }
+function tradeValue(it) { const d = ITEMS[it.id]; return Math.round((d.type === 'junk' ? d.price : d.price * 0.6) * (it.qty || 1) + (it.ench > 0 ? it.ench * it.ench * 120 : 0)); }
+function itemLabel(it) { const d = ITEMS[it.id]; return enchTag(it.ench || 0) + d.name + (it.qty > 1 ? ' ×' + it.qty : ''); }
 function giveItem(it) {
   // 把交易得到的物品放進背包（裝備類保留強化值）
   if (ITEMS[it.id].stack || !it.ench) return addItem(it.id, it.qty, it.ench || 0, true);
@@ -173,7 +173,7 @@ const Stall = {
     for (const sl of SLOTS) if (p.equip[sl] === inst) { UI.log('請先卸下裝備。', 'warn'); return; }
     if (st.items.length >= 16) { UI.log('攤位最多擺 16 項物品。', 'warn'); return; }
     const q = askQty(inst, '要上架'); if (!q) return;
-    const suggest = Math.max(1, Math.round(ITEMS[inst.id].price * (ITEMS[inst.id].type === 'junk' ? 1.2 : 0.8) + (inst.ench ? inst.ench * inst.ench * 150 : 0)));
+    const suggest = Math.max(1, Math.round(ITEMS[inst.id].price * (ITEMS[inst.id].type === 'junk' ? 1.2 : 0.8) + (inst.ench > 0 ? inst.ench * inst.ench * 150 : 0)));
     const v = prompt('設定「' + itemName(inst) + '」的單價（金幣）：\n參考：商店售價 ' + ITEMS[inst.id].price.toLocaleString() + '，商人收購 ' + sellPrice(inst).toLocaleString(), suggest);
     if (v === null) return;
     const price = clamp(parseInt(v, 10) || 0, 1, 99999999);
@@ -220,7 +220,7 @@ const Stall = {
     if (!buyers.length) return;
     const b = pick(buyers);
     // 價格越接近商店售價越容易賣出；便宜的很快就被買走
-    const cands = st.items.map((it) => { const fair = Math.max(1, ITEMS[it.id].price + (it.ench ? it.ench * it.ench * 150 : 0)); return { it, ch: clamp(1.5 - it.price / fair, 0.04, 0.95) }; });
+    const cands = st.items.map((it) => { const fair = Math.max(1, ITEMS[it.id].price + (it.ench > 0 ? it.ench * it.ench * 150 : 0)); return { it, ch: clamp(1.5 - it.price / fair, 0.04, 0.95) }; });
     const c = pick(cands);
     if (Math.random() > c.ch) { if (Math.random() < 0.4) { b.face(p.x, p.y); b.speak(pick(['這個有點貴耶…', '再便宜一點我就買', '逛逛而已～']), 3); } return; }
     const q = ITEMS[c.it.id].stack ? Math.max(1, Math.min(c.it.qty, randi(1, Math.ceil(c.it.qty / 2)))) : 1;
@@ -378,7 +378,7 @@ Object.assign(UI, {
     for (const it of st.items) {
       const row = el('div', 'li');
       row.appendChild(iconCanvas(it.id, 28));
-      const fair = ITEMS[it.id].price + (it.ench ? it.ench * it.ench * 150 : 0);
+      const fair = ITEMS[it.id].price + (it.ench > 0 ? it.ench * it.ench * 150 : 0);
       const tag = it.price < fair * 0.85 ? '<span class="good">便宜</span>' : it.price > fair * 1.15 ? '<span class="bad">偏貴</span>' : '';
       row.appendChild(el('div', 'li-n', '<b class="rn' + itemRarity(ITEMS[it.id]) + '">' + esc(itemLabel(it)) + '</b><span class="dim">單價 ' + it.price.toLocaleString() + ' ' + tag + '</span>'));
       const b = el('button', 'btn sm', '購買');
