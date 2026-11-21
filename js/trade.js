@@ -3,10 +3,21 @@
 // 交易：與線上玩家（透過伺服器轉送）或電腦冒險者交易物品與金幣，雙方都按「確認」後才成交。
 // 擺攤：在村莊的安全區域擺出攤位，設定價格出售物品；附近的冒險者會來購買，線上玩家也能購買。
 // 攤販：各村莊有冒險者擺攤販賣各式物品。
-function tradeValue(it) { const d = ITEMS[it.id], v = d.value !== undefined ? d.value : d.price; return Math.round((d.type === 'junk' ? v : v * 0.6) * (it.qty || 1) + (it.ench > 0 ? it.ench * it.ench * 120 : 0)); }
-function itemLabel(it) { const d = ITEMS[it.id]; return enchTag(it.ench || 0) + d.name + (it.qty > 1 ? ' ×' + it.qty : ''); }
+// 寵物項圈的價值：依寵物階級與等級（倒下的寵物打對折）
+function petValue(pd) { const d = PETS[pd.kind]; if (!d) return 0; return Math.round(1200 * Math.pow(d.tier, 1.6) * (1 + (pd.level - 1) * 0.08) * (pd.dead ? 0.5 : 1) / 10) * 10; }
+// 物品的合理價格（擺攤估價、電腦冒險者判斷用）
+function fairPrice(it) { if (it.pet) return petValue(it.pet); return ITEMS[it.id].price + (it.ench > 0 ? it.ench * it.ench * 150 : 0); }
+// 檢查並複製寵物資料（交易收到的資料來自別人，不能直接信任）
+function cleanPet(pd) {
+  if (!pd || typeof pd !== 'object' || !PETS[pd.kind]) return null;
+  const level = clamp(pd.level | 0, 1, 60);
+  return { kind: pd.kind, name: String(pd.name || PETS[pd.kind].name).slice(0, 8), level, exp: clamp(+pd.exp || 0, 0, petExpNeed(level)), hp: null, dead: !!pd.dead, out: false, id: 'p' + Date.now().toString(36) + randi(100, 999) };
+}
+function tradeValue(it) { if (it.pet) return petValue(it.pet); const d = ITEMS[it.id], v = d.value !== undefined ? d.value : d.price; return Math.round((d.type === 'junk' ? v : v * 0.6) * (it.qty || 1) + (it.ench > 0 ? it.ench * it.ench * 120 : 0)); }
+function itemLabel(it) { const d = ITEMS[it.id]; if (it.pet) return '寵物項圈（' + it.pet.name + '・' + (PETS[it.pet.kind] ? PETS[it.pet.kind].name : '?') + ' Lv.' + it.pet.level + (it.pet.dead ? '・已倒下' : '') + '）'; return enchTag(it.ench || 0) + d.name + (it.qty > 1 ? ' ×' + it.qty : ''); }
 function giveItem(it) {
-  // 把交易得到的物品放進背包（裝備類保留強化值）
+  // 把交易得到的物品放進背包（裝備類保留強化值，寵物項圈保留寵物資料）
+  if (it.pet) { const pd = cleanPet(it.pet); return pd ? !!addPetCollar(pd) : false; }
   if (ITEMS[it.id].stack || !it.ench) return addItem(it.id, it.qty, it.ench || 0, true);
   const p = G.player; if (p.inv.length >= INV_MAX) return false;
   p.inv.push(mkItem(it.id, it.qty || 1, it.ench || 0)); recalc(); return true;
@@ -14,6 +25,7 @@ function giveItem(it) {
 function takeFromInv(inst, qty) {
   // 從背包取出（交易、擺攤用），回傳取出的物品資料
   const out = { id: inst.id, qty, ench: inst.ench || 0 };
+  if (inst.pet) { out.qty = 1; out.pet = Object.assign({}, inst.pet, { out: false }); }
   removeItem(inst, qty);
   return out;
 }
@@ -66,10 +78,11 @@ const Trade = {
   },
   addMine(inst) {
     const s = this.s; if (!s) return;
-    if (inst.pet || isQuestItem(inst)) { UI.log(inst.pet ? '寵物項圈不能交易。' : '劇情道具不能交易。', 'warn'); return; }
+    if (isQuestItem(inst)) { UI.log('劇情道具不能交易。', 'warn'); return; }
+    if (inst.pet && inst.pet.out) { UI.log('請先把 ' + inst.pet.name + ' 收回項圈再交易。', 'warn'); return; }
     if (s.mine.items.length >= 12) { UI.log('一次最多交易 12 項物品。', 'warn'); return; }
     for (const sl of SLOTS) if (G.player.equip[sl] === inst) { UI.log('請先卸下裝備。', 'warn'); return; }
-    const q = askQty(inst, '要交易'); if (!q) return;
+    const q = inst.pet ? 1 : askQty(inst, '要交易'); if (!q) return;
     s.mine.items.push(takeFromInv(inst, q));
     this.changed();
   },
@@ -151,7 +164,7 @@ const Trade = {
   },
 };
 function sanitizeItems(list) {
-  return (Array.isArray(list) ? list : []).slice(0, 12).filter((it) => it && ITEMS[it.id] && it.id !== 'pet_collar').map((it) => ({ id: it.id, qty: clamp(it.qty | 0, 1, 99999), ench: clamp(it.ench | 0, 0, 30) }));
+  return (Array.isArray(list) ? list : []).slice(0, 12).filter((it) => it && ITEMS[it.id] && (it.id !== 'pet_collar' || cleanPet(it.pet))).map((it) => it.id === 'pet_collar' ? { id: it.id, qty: 1, ench: 0, pet: cleanPet(it.pet) } : { id: it.id, qty: clamp(it.qty | 0, 1, 99999), ench: clamp(it.ench | 0, -7, 30) });
 }
 
 // ================= 擺攤 =================
@@ -169,12 +182,13 @@ const Stall = {
   },
   addItem(inst) {
     const p = G.player, st = p.stall; if (!st || st.open) return;
-    if (inst.pet || isQuestItem(inst)) { UI.log('這個物品不能擺攤販賣。', 'warn'); return; }
+    if (isQuestItem(inst)) { UI.log('這個物品不能擺攤販賣。', 'warn'); return; }
+    if (inst.pet && inst.pet.out) { UI.log('請先把 ' + inst.pet.name + ' 收回項圈再上架。', 'warn'); return; }
     for (const sl of SLOTS) if (p.equip[sl] === inst) { UI.log('請先卸下裝備。', 'warn'); return; }
     if (st.items.length >= 16) { UI.log('攤位最多擺 16 項物品。', 'warn'); return; }
-    const q = askQty(inst, '要上架'); if (!q) return;
-    const suggest = Math.max(1, Math.round(ITEMS[inst.id].price * (ITEMS[inst.id].type === 'junk' ? 1.2 : 0.8) + (inst.ench > 0 ? inst.ench * inst.ench * 150 : 0)));
-    const v = prompt('設定「' + itemName(inst) + '」的單價（金幣）：\n參考：商店售價 ' + ITEMS[inst.id].price.toLocaleString() + '，商人收購 ' + sellPrice(inst).toLocaleString(), suggest);
+    const q = inst.pet ? 1 : askQty(inst, '要上架'); if (!q) return;
+    const suggest = inst.pet ? petValue(inst.pet) : Math.max(1, Math.round(ITEMS[inst.id].price * (ITEMS[inst.id].type === 'junk' ? 1.2 : 0.8) + (inst.ench > 0 ? inst.ench * inst.ench * 150 : 0)));
+    const v = prompt('設定「' + (inst.pet ? itemLabel({ id: inst.id, pet: inst.pet }) : itemName(inst)) + '」的單價（金幣）：\n' + (inst.pet ? '參考行情 ' + petValue(inst.pet).toLocaleString() : '參考：商店售價 ' + ITEMS[inst.id].price.toLocaleString() + '，商人收購 ' + sellPrice(inst).toLocaleString()), suggest);
     if (v === null) return;
     const price = clamp(parseInt(v, 10) || 0, 1, 99999999);
     const it = takeFromInv(inst, q); it.price = price; it.k = 's' + Date.now().toString(36) + randi(10, 99);
@@ -206,10 +220,10 @@ const Stall = {
     p.gold += total - tax;
     it.qty -= qty; if (it.qty <= 0) st.items.splice(st.items.indexOf(it), 1);
     st.sold += qty; st.earned += total - tax;
-    UI.log('🏪 ' + buyer + ' 買了 ' + ITEMS[it.id].name + (qty > 1 ? ' ×' + qty : '') + '，收入 ' + (total - tax).toLocaleString() + ' 金幣' + (tax ? '（城堡稅 ' + tax + '）' : '') + '。', 'loot');
+    UI.log('🏪 ' + buyer + ' 買了 ' + itemLabel(Object.assign({}, it, { qty })) + '，收入 ' + (total - tax).toLocaleString() + ' 金幣' + (tax ? '（城堡稅 ' + tax + '）' : '') + '。', 'loot');
     SFX.play('coin');
     if (!st.items.length) { UI.log('攤位上的物品全部賣完了！', 'level'); this.close(); } else { UI.refresh(); UI.renderStallSetup(); }
-    return { id: it.id, qty, ench: it.ench, price: it.price };
+    return { id: it.id, qty, ench: it.ench, price: it.price, pet: it.pet };
   },
   // 附近的冒險者會來逛攤位
   tick(dt) {
@@ -220,10 +234,10 @@ const Stall = {
     if (!buyers.length) return;
     const b = pick(buyers);
     // 價格越接近商店售價越容易賣出；便宜的很快就被買走
-    const cands = st.items.map((it) => { const fair = Math.max(1, ITEMS[it.id].price + (it.ench > 0 ? it.ench * it.ench * 150 : 0)); return { it, ch: clamp(1.5 - it.price / fair, 0.04, 0.95) }; });
+    const cands = st.items.map((it) => { const fair = Math.max(1, fairPrice(it)); return { it, ch: clamp(1.5 - it.price / fair, 0.04, 0.95) }; });
     const c = pick(cands);
     if (Math.random() > c.ch) { if (Math.random() < 0.4) { b.face(p.x, p.y); b.speak(pick(['這個有點貴耶…', '再便宜一點我就買', '逛逛而已～']), 3); } return; }
-    const q = ITEMS[c.it.id].stack ? Math.max(1, Math.min(c.it.qty, randi(1, Math.ceil(c.it.qty / 2)))) : 1;
+    const q = ITEMS[c.it.id].stack && !c.it.pet ? Math.max(1, Math.min(c.it.qty, randi(1, Math.ceil(c.it.qty / 2)))) : 1;
     b.face(p.x, p.y); b.speak(pick(['我要買這個！', '老闆，這個給我。', '找好久了！']), 3);
     this.sell(c.it.k, q, b.name);
   },
@@ -235,7 +249,7 @@ const Stall = {
     } else if (d.k === 'stall_sold' && this.pendingBuy) {
       const it = d.item, cost = it.price * it.qty;
       this.pendingBuy = null;
-      G.player.gold -= cost; giveItem({ id: it.id, qty: it.qty, ench: it.ench });
+      G.player.gold -= cost; giveItem({ id: it.id, qty: it.qty, ench: it.ench, pet: it.pet });
       UI.log('向 ' + name + ' 買了 ' + itemLabel(it) + '，花費 ' + cost.toLocaleString() + ' 金幣。', 'loot'); SFX.play('coin'); UI.refresh();
     } else if (d.k === 'stall_fail') { this.pendingBuy = null; UI.log('這件商品已經賣出了。', 'warn'); }
   },
@@ -378,7 +392,7 @@ Object.assign(UI, {
     for (const it of st.items) {
       const row = el('div', 'li');
       row.appendChild(iconCanvas(it.id, 28));
-      const fair = ITEMS[it.id].price + (it.ench > 0 ? it.ench * it.ench * 150 : 0);
+      const fair = fairPrice(it);
       const tag = it.price < fair * 0.85 ? '<span class="good">便宜</span>' : it.price > fair * 1.15 ? '<span class="bad">偏貴</span>' : '';
       row.appendChild(el('div', 'li-n', '<b class="rn' + itemRarity(ITEMS[it.id]) + '">' + esc(itemLabel(it)) + '</b><span class="dim">單價 ' + it.price.toLocaleString() + ' ' + tag + '</span>'));
       const b = el('button', 'btn sm', '購買');

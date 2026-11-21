@@ -79,7 +79,7 @@ const Online = {
       atk: p.atkAnim >= 0 && p.atkAnim < 1, dead: !!p.dead, level: p.level, cls: p.cls, align: p.align, pink: p.pinkT > 0,
       crown: typeof ownsCastle === 'function' && ownsCastle(), clan: p.clan ? p.clan.name : null, emblem: p.clan ? p.clan.emblem : null,
       hp: Math.round(p.hp / p.maxHp * 20) / 20,
-      stall: p.stall && p.stall.open ? { title: p.stall.title, items: p.stall.items.map((it) => ({ k: it.k, id: it.id, qty: it.qty, ench: it.ench, price: it.price })) } : null,
+      stall: p.stall && p.stall.open ? { title: p.stall.title, items: p.stall.items.map((it) => ({ k: it.k, id: it.id, qty: it.qty, ench: it.ench, price: it.price, pet: it.pet ? { kind: it.pet.kind, name: it.pet.name, level: it.pet.level, dead: it.pet.dead } : undefined })) } : null,
     };
   },
   async enter() {
