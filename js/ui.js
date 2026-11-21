@@ -19,8 +19,9 @@ function iconCanvas(id, size, kind = 'item') {
 const RARITY_NAMES = ['普通', '精良', '高級', '稀有'];
 function itemRarity(d) {
   if (d.rare) return 3;
-  if (d.price >= 20000) return 2;
-  if (d.price >= 2500) return 1;
+  const v = d.value !== undefined ? d.value : d.price;
+  if (v >= 20000) return 2;
+  if (v >= 2500) return 1;
   return 0;
 }
 // 魔法說明（魔法視窗、快捷列、魔法書共用）
@@ -1055,6 +1056,6 @@ Object.assign(UI, {
 });
 function sellPrice(inst, forShop) {
   const d = ITEMS[inst.id];
-  const base = d.type === 'junk' ? d.price : Math.floor(d.price * 0.4);
+  const v = d.value !== undefined ? d.value : d.price, base = d.type === 'junk' ? v : Math.floor(v * 0.4);
   return base + (inst.ench > 0 ? inst.ench * inst.ench * 30 : 0);
 }

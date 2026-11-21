@@ -1,7 +1,7 @@
 'use strict';
 // ===== 繪製 =====
 let darkCanvas = null, darkCtx = null, vignette = null, lowCanvas = null, lowCtx = null, mainCtx = null;
-const Settings = { grade: true, autoPickup: true };
+const Settings = { grade: true, autoPickup: true, themeBgm: true };
 try { Object.assign(Settings, JSON.parse(localStorage.getItem('dawnlands_settings') || '{}')); } catch (e) { /* */ }
 function saveSettings() { try { localStorage.setItem('dawnlands_settings', JSON.stringify(Settings)); } catch (e) { /* */ } }
 

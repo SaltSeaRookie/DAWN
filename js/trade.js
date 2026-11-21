@@ -3,7 +3,7 @@
 // 交易：與線上玩家（透過伺服器轉送）或電腦冒險者交易物品與金幣，雙方都按「確認」後才成交。
 // 擺攤：在村莊的安全區域擺出攤位，設定價格出售物品；附近的冒險者會來購買，線上玩家也能購買。
 // 攤販：各村莊有冒險者擺攤販賣各式物品。
-function tradeValue(it) { const d = ITEMS[it.id]; return Math.round((d.type === 'junk' ? d.price : d.price * 0.6) * (it.qty || 1) + (it.ench > 0 ? it.ench * it.ench * 120 : 0)); }
+function tradeValue(it) { const d = ITEMS[it.id], v = d.value !== undefined ? d.value : d.price; return Math.round((d.type === 'junk' ? v : v * 0.6) * (it.qty || 1) + (it.ench > 0 ? it.ench * it.ench * 120 : 0)); }
 function itemLabel(it) { const d = ITEMS[it.id]; return enchTag(it.ench || 0) + d.name + (it.qty > 1 ? ' ×' + it.qty : ''); }
 function giveItem(it) {
   // 把交易得到的物品放進背包（裝備類保留強化值）

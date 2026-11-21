@@ -631,3 +631,12 @@ for (const id in SPELLS) if (SPELLS[id].circle >= 8 && SPELLS[id].circle <= 10) 
 SHOPS.general.push('moonruins_scroll');
 // 後來覆寫或新增的物品若還沒有圖示類型，依類別補上
 for (const id in ITEMS) { const it = ITEMS[id]; if (it.icon) continue; it.icon = it.type === 'weapon' ? it.wclass : (it.type === 'armor' || it.type === 'acc') ? it.slot : it.type === 'consume' ? (/potion|cocoa|elixir/.test(id) ? 'potion' : 'scroll') : it.type === 'ammo' ? 'arrow' : 'junk'; }
+// ===== 商店售價（v2.22 提高難度）=====
+// value＝道具原本的價值（商人收購價、稀有度判斷用）；price＝商店售價。
+// 一般商品漲 50%，攸關角色強度的強化卷軸漲 5 倍，祝福卷軸漲 5 倍。收購價不變，所以打怪賺錢的速度不會跟著變快。
+const PRICE_MARKUP = { ew_scroll: 5, ea_scroll: 5, bew_scroll: 5, bea_scroll: 5, cew_scroll: 1, cea_scroll: 1 };
+for (const id in ITEMS) {
+  const it = ITEMS[id]; if (!it.price || it.type === 'junk' || it.type === 'gold') { it.value = it.price; continue; }
+  it.value = it.price;
+  const np = it.price * (PRICE_MARKUP[id] || 1.5); it.price = np >= 100 ? Math.round(np / 10) * 10 : Math.max(1, Math.round(np));
+}
