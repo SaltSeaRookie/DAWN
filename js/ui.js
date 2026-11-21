@@ -265,15 +265,22 @@ const UI = {
     d.appendChild(head); d.appendChild(body);
     let drag = null;
     head.addEventListener('pointerdown', (e) => { if (e.target === close) return; drag = [e.clientX - d.offsetLeft, e.clientY - d.offsetTop]; head.setPointerCapture(e.pointerId); this.front(d); });
-    head.addEventListener('pointermove', (e) => { if (drag) { d.style.left = clamp(e.clientX - drag[0], 0, window.innerWidth - 80) + 'px'; d.style.top = clamp(e.clientY - drag[1], 0, window.innerHeight - 40) + 'px'; } });
+    head.addEventListener('pointermove', (e) => { if (drag) { d.style.left = clamp(e.clientX - drag[0], 0, window.innerWidth - 80) + 'px'; d.style.top = clamp(e.clientY - drag[1], 0, window.innerHeight - 40) + 'px'; this.fitWin(d); } });
     head.addEventListener('pointerup', () => { drag = null; });
     d.addEventListener('pointerdown', () => this.front(d));
     $('#windows').appendChild(d);
+    this.fitWin(d);
     this.front(d);
     SFX.play('open');
     this.windows[id] = { el: d, body };
     return this.windows[id];
   },
+  // 視窗不超出畫面、也不被下方的 HUD 擋住（內容太多時可以捲動）
+  fitWin(d) {
+    const top = d.offsetTop || parseInt(d.style.top, 10) || 0;
+    d.style.maxHeight = Math.max(140, window.innerHeight - HUD_H() - top - 12) + 'px';
+  },
+  fitAll() { for (const k in this.windows) this.fitWin(this.windows[k].el); },
   front(d) {
     // 視窗層級維持在 20～80 之間，避免蓋過提示框
     this.z = (this.z || 20) + 1;
@@ -870,9 +877,9 @@ const UI = {
   // 召喚戒指
   openSummonRing() {
     this.close('sring');
-    const w = this.win('sring', '召喚戒指', window.innerWidth / 2 - 170, 90, 340);
+    const w = this.win('sring', '召喚戒指', window.innerWidth / 2 - 180, 50, 360);
     const p = G.player;
-    w.body.innerHTML = '<div class="npc-text">選擇要召喚的生物。等級越高，能召喚的生物越強；召喚獸的強度也會隨你的等級與魔攻成長。（目前召喚獸 ' + companions('summon').length + ' / ' + MAX_SUMMONS + '）</div>';
+    w.body.innerHTML = '<div class="dim small">等級越高能召喚越強的生物，強度也隨你的等級與魔攻成長。目前召喚獸 ' + companions('summon').length + ' / ' + MAX_SUMMONS + '</div>';
     const list = el('div', 'list');
     for (const s of ringSummonList()) {
       const d = MONSTERS[s.type];

@@ -17,6 +17,7 @@ function setHudHeight(h, save) {
   if (window.innerWidth < 760) root.style.removeProperty('--hud-h'); else root.style.setProperty('--hud-h', hudHeight + 'px');
   if (save) { Settings.hudH = hudHeight; saveSettings(); }
   const box = document.getElementById('chatLog'); if (box) box.scrollTop = box.scrollHeight;
+  if (typeof UI !== 'undefined' && UI.fitAll) UI.fitAll();
 }
 
 // ---------- 實體 ----------
@@ -1903,7 +1904,7 @@ window.addEventListener('load', () => {
   canvas = document.getElementById('game');
   ctx = canvas.getContext('2d');
   resize();
-  window.addEventListener('resize', resize);
+  window.addEventListener('resize', () => { resize(); UI.fitAll(); });
   canvas.addEventListener('pointerdown', onPointerDown);
   canvas.addEventListener('pointermove', onPointerMove);
   window.addEventListener('pointerup', () => { G.mouse.down = false; });
