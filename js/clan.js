@@ -104,7 +104,7 @@ function donateClan(amount) {
   amount = Math.floor(amount);
   if (!(amount > 0)) return '請輸入正確的金額。';
   if (p.gold < amount) return '金幣不足。';
-  p.gold -= amount; c.fund += amount;
+  p.gold -= amount; c.fund += amount; c.myContrib = (c.myContrib || 0) + amount;
   clanLog(p.name + ' 捐獻了 ' + amount.toLocaleString() + ' 金幣給血盟資金。');
   checkClanLevel();
   SFX.play('coin'); saveGame(true); UI.refresh();
@@ -229,16 +229,16 @@ Object.assign(UI, {
     w.body.appendChild(head);
     if (c.notice) w.body.appendChild(el('div', 'notice-box', '📜 ' + esc(c.notice)));
     const tabs = el('div', 'tabs');
-    for (const [k, l] of [['members', '成員'], ['fund', '等級與資金'], ['manage', '管理']]) { const b = el('button', 'tab' + (w.tab === k ? ' on' : ''), l); b.onclick = () => { w.tab = k; this.renderClan(); }; tabs.appendChild(b); }
+    for (const [k, l] of [['members', '成員'], ['fund', '等級資金'], ['donate', '捐獻紀錄'], ['manage', '管理']]) { const b = el('button', 'tab' + (w.tab === k ? ' on' : ''), l); b.onclick = () => { w.tab = k; this.renderClan(); }; tabs.appendChild(b); }
     w.body.appendChild(tabs);
     if (w.tab === 'members') {
       const list = el('div', 'list clanlist');
-      list.appendChild(el('div', 'li', '<div class="li-n"><b>👑 ' + esc(p.name) + '</b><span class="dim">盟主・' + CLASSES[p.cls].name + ' Lv.' + p.level + '・線上</span></div>'));
+      list.appendChild(el('div', 'li', '<div class="li-n"><b>👑 ' + esc(p.name) + '</b><span class="dim">盟主・' + CLASSES[p.cls].name + ' Lv.' + p.level + '・線上・捐獻 ' + (c.myContrib || 0).toLocaleString() + '</span></div>'));
       const ms = c.members.slice().sort((a, b) => RANK_ORDER[a.rank] - RANK_ORDER[b.rank] || b.level - a.level);
       for (const m of ms) {
         const st = memberStatus(m);
         const row = el('div', 'li');
-        row.appendChild(el('div', 'li-n', '<b><span class="dot ' + (st.on ? 'on' : '') + '"></span>' + esc(m.name) + ' <span class="rank r-' + m.rank + '">' + CLAN_RANKS[m.rank] + '</span></b><span class="dim">' + CLASSES[m.cls].name + ' Lv.' + m.level + '・' + st.text + (m.contrib ? '・貢獻 ' + m.contrib.toLocaleString() : '') + '</span>'));
+        row.appendChild(el('div', 'li-n', '<b><span class="dot ' + (st.on ? 'on' : '') + '"></span>' + esc(m.name) + ' <span class="rank r-' + m.rank + '">' + CLAN_RANKS[m.rank] + '</span></b><span class="dim">' + CLASSES[m.cls].name + ' Lv.' + m.level + '・' + st.text + '・捐獻 ' + (m.contrib || 0).toLocaleString() + '</span>'));
         const up = el('button', 'btn sm', '職位'); up.title = '切換職位：成員 → 精英 → 副盟主';
         up.onclick = () => setRank(m.name, m.rank === 'member' ? 'elite' : m.rank === 'elite' ? 'vice' : 'member');
         const kick = el('button', 'btn sm danger', '剔除');
@@ -267,6 +267,26 @@ Object.assign(UI, {
       bar.appendChild(bc);
       w.body.appendChild(bar);
       w.body.appendChild(el('div', 'dim small', '成員也會不定時捐獻資金。資金累積到門檻就會自動升級。'));
+    } else if (w.tab === 'donate') {
+      // 捐獻紀錄：每個人捐了多少
+      const all = [{ name: p.name, rank: 'leader', amt: c.myContrib || 0 }, ...c.members.map((m) => ({ name: m.name, rank: m.rank, amt: m.contrib || 0 }))].sort((a, b) => b.amt - a.amt);
+      const total = all.reduce((t, x) => t + x.amt, 0);
+      const top = all[0] ? all[0].amt : 0;
+      const box2 = el('div', 'donations');
+      box2.appendChild(el('div', 'lbl', '捐獻紀錄（成員合計 ' + total.toLocaleString() + ' 金幣）'));
+      all.forEach((x, i) => {
+        const pct = total ? Math.round(100 * x.amt / total) : 0;
+        const r = el('div', 'don-row' + (x.name === p.name ? ' me' : ''));
+        r.innerHTML = '<span class="don-rank">' + (x.amt ? (i < 3 ? ['🥇', '🥈', '🥉'][i] : i + 1) : '–') + '</span>' +
+          '<span class="don-name"><b>' + esc(x.name) + '</b><em>' + (x.rank === 'leader' ? '盟主' : CLAN_RANKS[x.rank]) + '</em></span>' +
+          '<span class="don-bar"><i style="width:' + (top ? Math.round(100 * x.amt / top) : 0) + '%"></i></span>' +
+          '<b class="don-amt">' + x.amt.toLocaleString() + '</b><span class="dim don-pct">' + pct + '%</span>';
+        box2.appendChild(r);
+      });
+      w.body.appendChild(box2);
+      const bar = el('div', 'btnrow');
+      const bc = el('button', 'btn sm', '我要捐獻'); bc.onclick = () => { const v = prompt('要捐獻多少金幣？（持有 ' + p.gold.toLocaleString() + '）'); if (v) { const e = donateClan(parseInt(v, 10)); if (e) this.log(e, 'warn'); } };
+      bar.appendChild(bc); w.body.appendChild(bar);
     } else {
       const bar = el('div', 'btnrow');
       const bn = el('button', 'btn', '編輯公告'); bn.onclick = () => { const v = prompt('血盟公告（最多 60 字）：', c.notice); if (v !== null) { c.notice = v.trim().slice(0, 60); if (c.notice) clanLog('公告更新：' + c.notice); this.renderClan(); } };
