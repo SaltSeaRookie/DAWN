@@ -189,7 +189,7 @@ Object.assign(UI, {
     if (V.log && V.log.length) w.body.appendChild(el('div', 'dim small vaultlog', V.log.slice(-4).map(esc).join('<br>')));
     w.body.appendChild(el('div', 'dim small', '背包（點擊存放；金額空白＝全部）'));
     const g2 = el('div', 'grid');
-    for (let i = 0; i < 48; i++) g2.appendChild(this.slotEl(p.inv[i], (inst) => {
+    for (let i = 0; i < INV_MAX; i++) g2.appendChild(this.slotEl(p.inv[i], (inst) => {
       if (inst.pet) { this.log('寵物項圈不能放進倉庫。', 'warn'); return; }
       const ex = ITEMS[inst.id].stack && V.items.find((x) => x.id === inst.id);
       if (!ex && V.items.length >= CAP) { this.log('血盟倉庫已滿。', 'warn'); return; }

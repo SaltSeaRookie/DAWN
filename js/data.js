@@ -193,6 +193,8 @@ const SPELLS = {
   summon_golem: { name: '召喚岩石巨像', circle: 4, mp: 30, target: 'self', icon: 'sgolem', summon: 'stonegolem', learn: { mage: 14, cleric: 14 }, desc: '召喚體力強大的岩石巨像替你擋住敵人（30 分鐘）' },
   summon_fire:  { name: '召喚火焰元素', circle: 5, mp: 40, target: 'self', icon: 'sfire', summon: 'fireelem', learn: { mage: 18, cleric: 18 }, desc: '召喚會發射火球的火焰元素（30 分鐘）' },
 };
+const INV_MAX = 80;   // 背包格數
+const MAX_PETS = 3;   // 同時出戰的寵物上限
 const MAX_SUMMONS = 3, MAX_CHARMS = 3, COMPANION_TIME = 1800;
 // 召喚獸（強度隨施法者等級與魔攻成長）
 const SUMMONS = {

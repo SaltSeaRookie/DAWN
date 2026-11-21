@@ -10,7 +10,8 @@ class RemotePlayer extends Entity {
     this.apply(d, d.look);
   }
   apply(s, look) {
-    for (const k of ['map', 'level', 'cls', 'align', 'pink', 'crown', 'clan', 'emblem', 'dead', 'hp']) if (s[k] !== undefined) this[k] = s[k];
+    for (const k of ['map', 'level', 'cls', 'align', 'pink', 'crown', 'clan', 'emblem', 'dead', 'hp', 'stall']) if (s[k] !== undefined) this[k] = s[k];
+    if (UI.windows.stallview && UI.windows.stallview.owner === this) UI.renderStallview();
     if (s.x !== undefined) { this.tx = s.x; this.ty = s.y; }
     if (s.dir !== undefined) this.netDir = s.dir / 100;
     this.netMoving = !!s.moving;
@@ -50,6 +51,7 @@ const Online = {
       r.apply(m.s, m.look);
     });
     R.on('chat', (m) => this.onChat(m));
+    R.on('relay', (m) => { if (!G.running || !m.data) return; Trade.onRelay(m.from, m.fromName, m.data); Stall.onRelay(m.from, m.fromName, m.data); });
     R.on('kicked', (m) => { RemoteBackend.token = null; alert(m.reason || '你已被伺服器中斷連線。'); location.reload(); });
     R.on('close', () => this.onClose());
   },
@@ -74,6 +76,7 @@ const Online = {
       atk: p.atkAnim >= 0 && p.atkAnim < 1, dead: !!p.dead, level: p.level, cls: p.cls, align: p.align, pink: p.pinkT > 0,
       crown: typeof ownsCastle === 'function' && ownsCastle(), clan: p.clan ? p.clan.name : null, emblem: p.clan ? p.clan.emblem : null,
       hp: Math.round(p.hp / p.maxHp * 100) / 100,
+      stall: p.stall && p.stall.open ? { title: p.stall.title, items: p.stall.items.map((it) => ({ k: it.k, id: it.id, qty: it.qty, ench: it.ench, price: it.price })) } : null,
     };
   },
   async enter() {
@@ -108,6 +111,7 @@ const Online = {
     if (lookChanged) { this.lastLook = lookKey; msg.look = JSON.parse(lookKey); }
     RemoteBackend.post('state', msg);
   },
+  relay(to, data) { if (this.active) RemoteBackend.post('relay', { to, data }); },
   // ---------- 聊天 ----------
   say(text) { if (this.active) RemoteBackend.post('chat', { ch: 'say', text }); },
   world(text) {

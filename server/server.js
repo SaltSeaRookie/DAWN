@@ -174,7 +174,13 @@ function cleanState(s) {
     map: cleanText(s.map, 16) || 'overworld', x: n(s.x), y: n(s.y), dir: n(s.dir) | 0, moving: !!s.moving, atk: !!s.atk, dead: !!s.dead,
     level: n(s.level, 1) | 0, cls: cleanText(s.cls, 12), align: n(s.align) | 0, pink: !!s.pink, crown: !!s.crown,
     clan: s.clan ? cleanText(s.clan, 12) : null, emblem: s.emblem && typeof s.emblem === 'object' ? s.emblem : null, hp: n(s.hp, 1),
+    stall: cleanStall(s.stall),
   };
+}
+function cleanStall(st) {
+  if (!st || typeof st !== 'object' || !Array.isArray(st.items)) return null;
+  const n = (v) => (Number.isFinite(+v) ? Math.max(0, Math.floor(+v)) : 0);
+  return { title: cleanText(st.title, 16), items: st.items.slice(0, 16).map((it) => ({ k: cleanText(it.k, 24), id: cleanText(it.id, 32), qty: n(it.qty), ench: n(it.ench), price: n(it.price) })) };
 }
 function cleanLook(l) { if (!l || typeof l !== 'object') return null; const s = JSON.stringify(l); return s.length < 2000 ? l : null; }
 
@@ -188,6 +194,14 @@ const events = {
     if (m.look) { c.look = cleanLook(m.look); out.look = c.look; }
     if (prevMap !== c.state.map) out.mapChange = true;
     broadcast(out, c);
+  },
+  // 玩家之間的直接訊息（交易、擺攤購買），伺服器只負責轉送
+  relay(c, m) {
+    if (!c.char) return;
+    const o = [...clients].find((x) => x.id === m.to && x.char);
+    if (!o) return;
+    if (JSON.stringify(m.data || {}).length > 20000) return;
+    send(o, { t: 'relay', from: c.id, fromName: c.char, data: m.data });
   },
   chat(c, m) {
     if (!c.char) return;

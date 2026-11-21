@@ -404,3 +404,13 @@ input.vaultamt { width: 72px; padding: 3px 5px; background: #12100d; color: #eee
 .rarityhead.r2, .rn2 { color: #c89aff; }
 .rarityhead.r3, .rn3 { color: #ffcf60; }
 .circlehead { grid-column: 1 / -1; font-size: 11px; color: #c9a55a; border-bottom: 1px solid #3a3228; padding: 4px 2px 1px; margin-top: 2px; }
+.invgrid { max-height: 380px; overflow-y: auto; padding-right: 2px; }
+
+/* 交易與擺攤 */
+.tradecols { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.tradeside { padding: 6px; background: rgba(0,0,0,0.25); border: 1px solid #3a3228; border-radius: 4px; }
+.tradeside.locked { border-color: #6ac06a; box-shadow: 0 0 6px rgba(100,200,100,0.4) inset; }
+.tradeside .grid { grid-template-columns: repeat(4, 1fr); }
+.slot.dimslot { opacity: 0.55; }
+input.stalltitle { flex: 1; padding: 3px 6px; background: #12100d; color: #eee; border: 1px solid #4a4030; border-radius: 3px; }
+.good { color: #8ef08a; }

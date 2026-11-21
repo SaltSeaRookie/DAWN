@@ -212,7 +212,7 @@ const NPC_NAMES = {
   general: ['露西亞', '米拉', '朵拉', '蘿絲'], smith: ['巴頓', '葛倫', '老鐵'], magic: ['賽琳', '奧斯卡'], teleport: ['艾琳', '諾娃', '薇拉', '妮可'],
   quest: ['雷恩'], clan: ['莫里斯'], warehouse: ['湯姆', '貝拉', '班恩', '漢克'], jewel: ['莉莉', '卡門'], pet: ['芙蘿', '傑克'], guard: ['村莊守衛'],
 };
-const NPC_TITLES = { general: '雜貨商人', smith: '武器防具商', magic: '魔法商人', teleport: '傳送師', quest: '守備隊長', clan: '血盟管理員', warehouse: '倉庫管理員', jewel: '飾品商人', pet: '寵物商人', guard: '守衛', herald: '攻城傳令官', coral: '島嶼商人', captain: '船長' };
+const NPC_TITLES = { stall: '攤販', general: '雜貨商人', smith: '武器防具商', magic: '魔法商人', teleport: '傳送師', quest: '守備隊長', clan: '血盟管理員', warehouse: '倉庫管理員', jewel: '飾品商人', pet: '寵物商人', guard: '守衛', herald: '攻城傳令官', coral: '島嶼商人', captain: '船長' };
 const NPC_LOOKS = {
   general: { body: '#8a3a4a', robe: true, hair: '#6a3a1a', longHair: true, skin: '#f0cfa8' },
   smith: { body: '#5a4a3a', legs: '#3a2e24', hair: '#2a1a10', skin: '#d8a880', belt: '#2a1a10', weapon: 'axe' },
@@ -249,6 +249,14 @@ function populateTowns(m) {
       const nm = (t.names && t.names[role]) || names[(W.towns.indexOf(t) + used[role] - 1) % names.length];
       m.npcs.push(new NPC(sp.x, sp.y, nm, NPC_TITLES[role], role, NPC_LOOKS[role], t.id));
     });
+    // 擺攤的冒險者（攤販）
+    for (let k = 0; k < (t.id === 'dawn' || t.id === 'oren' ? 3 : 2); k++) {
+      const a = rand(0, 7), r = rand(t.r * 0.45, t.r * 0.8);
+      const q = W.nearestFree(t.x + Math.cos(a) * r, t.y + Math.sin(a) * r);
+      const cls = pick(FIGHTER_CLS);
+      const vn = new NPC(q.x, q.y, Names.take(FIGHTER_NAMES), '攤販', 'stall', Object.assign({}, pick(FIGHTER_LOOKS[cls])), t.id);
+      m.npcs.push(vn);
+    }
     // 村民（可招募）
     const n = t.id === 'dawn' ? 7 : 3;
     for (let i = 0; i < n; i++) {
@@ -447,7 +455,8 @@ function serializePlayer(p) {
   return {
     v: 2, name: p.name, cls: p.cls, level: p.level, exp: p.exp, base: p.base, statPoints: p.statPoints,
     baseMaxHp: p.baseMaxHp, baseMaxMp: p.baseMaxMp, hp: Math.ceil(p.hp), mp: Math.floor(p.mp), gold: p.gold, align: p.align,
-    inv: p.inv, wh: p.wh, equip: p.equip, spells: p.spells, hotbar: p.hotbar, quest: p.quest, kills: p.kills, pkCount: p.pkCount, petMode: p.petMode,
+    // 交易中與擺攤中的物品也算在背包裡（避免中途離線時遺失）
+    inv: [...p.inv, ...(typeof Trade !== 'undefined' && Trade.s && G.player === p ? Trade.s.mine.items : []), ...(p.stall ? p.stall.items.map((it) => ({ id: it.id, qty: it.qty, ench: it.ench })) : [])], wh: p.wh, equip: p.equip, spells: p.spells, hotbar: p.hotbar, quest: p.quest, kills: p.kills, pkCount: p.pkCount, petMode: p.petMode,
     clan: p.clan, castle: p.castle, homeTown: p.homeTown, autoBuff: p.autoBuff || {}, realm: p.realm || null, mapId: p.mapId, x: p.x, y: p.y, day: G.day, created: p.created, playTime: p.playTime || 0,
   };
 }
@@ -477,7 +486,7 @@ function addItem(id, qty = 1, ench = 0, force) {
     const ex = p.inv.find((i) => i.id === id);
     if (ex) { ex.qty += qty; recalc(); UI.refresh(); return true; }
   }
-  if (p.inv.length >= 48) { log('背包已滿。', 'warn'); return false; }
+  if (p.inv.length >= INV_MAX) { log('背包已滿。', 'warn'); return false; }
   if (def.stack) p.inv.push(mkItem(id, qty, ench));
   else for (let i = 0; i < qty; i++) p.inv.push(mkItem(id, 1, ench));
   recalc(); UI.refresh();
@@ -704,6 +713,7 @@ function dropItem(x, y, id, qty) {
 }
 function pickup(it) {
   const items = G.map.items, k = items.indexOf(it); if (k < 0) return;
+  if (it.pet) { if (addPetCollar(it.pet)) { items.splice(k, 1); SFX.play('pickup'); log('撿回了寵物項圈（' + it.pet.name + '）。', 'loot'); } return; }
   if (addItem(it.id, it.qty, it.ench)) {
     items.splice(k, 1);
     SFX.play(it.id === 'gold' ? 'coin' : 'pickup');
@@ -824,6 +834,7 @@ function teleportTo(x, y) {
 function setAction(a) {
   const p = G.player;
   if (p.dead) return;
+  if (a.type !== 'talk' && stallBlocks()) return;
   p.action = a; p.repathT = 0;
   if (a.type === 'move') {
     const path = Path.find(G.world, p.x, p.y, a.x, a.y, 8000);
@@ -924,20 +935,21 @@ function usePortal(pt) {
   else { const w = getMap('overworld').world; changeMap('overworld', w.crypt.x + 0.5, w.crypt.y - 2); }
 }
 
+const AUTO_PICK_RANGE = 10;   // 閒置時自動撿取的偵測範圍（格）
 // 自動拾取：走過的物品直接撿起；閒置時自動走去撿附近的物品
 function autoPickup(dt) {
   const p = G.player, items = G.map.items;
   G.pickFail = G.pickFail || new WeakSet();
-  const ok = (it) => !G.pickFail.has(it) && (it.id === 'gold' || canCarry(it.id, it.qty));
+  const ok = (it) => !it.noAuto && !G.pickFail.has(it) && (it.id === 'gold' || canCarry(it.id, it.qty));
   for (const it of items.slice()) {
-    if (dist(p.x, p.y, it.x, it.y) < 0.9) { if (ok(it)) pickup(it); else G.pickFail.add(it); }
+    if (dist(p.x, p.y, it.x, it.y) < 1.3) { if (ok(it)) pickup(it); else if (!it.noAuto) G.pickFail.add(it); }
   }
   const fighting = G.map.actors.some((a) => !a.dead && a.target === p && dist(a.x, a.y, p.x, p.y) < 4);
   if (!p.action && !p.moving && !fighting) {
     G.idleT = (G.idleT || 0) + dt;
     if (G.idleT > 0.35) {
       G.idleT = 0;
-      let best = null, bd = 5.5;
+      let best = null, bd = AUTO_PICK_RANGE;
       for (const it of items) { const d = dist(p.x, p.y, it.x, it.y); if (d < bd && ok(it)) { bd = d; best = it; } }
       if (best) setAction({ type: 'pickup', item: best });
     }
@@ -1058,16 +1070,16 @@ function useItem(inst) {
       if (t) { teleportTo(t.x + 0.5, t.y + 0.5); log('你被傳送到了未知的地方。', 'sys'); }
       break;
     }
-    case 'ew_scroll': case 'bew_scroll': {
-      const w = p.equip.weapon;
-      if (!w) { log('你沒有裝備武器。', 'warn'); return; }
-      enchant(w, inst.id === 'bew_scroll');
-      break;
-    }
-    case 'ea_scroll': case 'bea_scroll': {
-      const list = SLOTS.filter((s) => p.equip[s] && ITEMS[p.equip[s].id].type === 'armor');
-      if (!list.length) { log('你沒有穿著可以強化的防具。', 'warn'); return; }
-      UI.chooseArmor(list, (slot) => { if (!p.inv.includes(inst)) return; enchant(p.equip[slot], inst.id === 'bea_scroll'); removeItem(inst, 1); });
+    case 'ew_scroll': case 'bew_scroll': case 'ea_scroll': case 'bea_scroll': {
+      // 可以強化身上裝備或背包裡的武器／防具
+      const wantType = inst.id.includes('ew') ? 'weapon' : 'armor';
+      const list = [];
+      for (const s of SLOTS) if (p.equip[s] && ITEMS[p.equip[s].id].type === wantType) list.push({ inst: p.equip[s], where: SLOT_NAMES[s] + '（裝備中）' });
+      for (const i of p.inv) if (ITEMS[i.id].type === wantType) list.push({ inst: i, where: '背包' });
+      if (!list.length) { log(wantType === 'weapon' ? '沒有可以強化的武器。' : '沒有可以強化的防具。', 'warn'); return; }
+      const go = (t) => { if (!p.inv.includes(inst)) return; enchant(t, inst.id.startsWith('b')); removeItem(inst, 1); };
+      if (list.length === 1) { go(list[0].inst); return; }
+      UI.chooseEnchant(list, ITEMS[inst.id].name, go);
       return;
     }
   }
@@ -1089,6 +1101,7 @@ function enchant(inst, blessed) {
     log('+' + cur + ' ' + nm + ' 發出強烈的光芒後就消失了…', 'warn');
     SFX.play('enchantFail');
     for (const s of SLOTS) if (p.equip[s] === inst) p.equip[s] = null;
+    { const k = p.inv.indexOf(inst); if (k >= 0) p.inv.splice(k, 1); }
     burst(p.x, p.y, 30, '#ffffff', 30, 3, 1, 3, 3); shake(5);
   }
   recalc(); UI.refresh();
@@ -1111,14 +1124,15 @@ function equipItem(inst) {
 function unequip(slot) {
   const p = G.player;
   if (!p.equip[slot]) return;
-  if (p.inv.length >= 48) { log('背包已滿。', 'warn'); return; }
+  if (p.inv.length >= INV_MAX) { log('背包已滿。', 'warn'); return; }
   p.inv.push(p.equip[slot]); log('卸下了 ' + itemName(p.equip[slot]) + '。', 'sys');
   p.equip[slot] = null; recalc(); UI.refresh();
 }
 function dropFromInv(inst, qty) {
   const p = G.player; qty = qty || inst.qty;
   if (inSafe(p) === false || true) {
-    G.map.items.push({ x: p.x + rand(-0.4, 0.4), y: p.y + rand(-0.4, 0.4), id: inst.id, qty, ench: inst.ench || 0, t: 0 });
+    // 自己丟棄的物品不會被自動拾取（手動點擊仍可撿回）
+    G.map.items.push({ x: p.x + rand(-0.4, 0.4), y: p.y + rand(-0.4, 0.4), id: inst.id, qty, ench: inst.ench || 0, t: 0, noAuto: true, pet: inst.pet || undefined });
     log('丟棄了 ' + ITEMS[inst.id].name + (qty > 1 ? ' ×' + qty : '') + '。', 'sys');
     removeItem(inst, qty);
   }
@@ -1673,6 +1687,7 @@ const NPC_LINES = {
   pet: ['可愛的寵物在等你喔～', '寵物倒下了就帶回來給我吧', '馴獸肉乾可以馴服野狼'],
   herald: ['灰岩城等待著真正的主人', '有血盟就能向灰岩城宣戰！'],
   merc: ['需要可靠的劍嗎？', '守衛們，打起精神來！', '傭兵只認金幣和城主。'],
+  stall: ['走過路過不要錯過！', '便宜賣喔～', '好東西都在這裡！', '最後幾件了！'],
   buffer: ['魔力在流動…', '需要祝福嗎？', '城主血盟的魔法免費喔。'],
 };
 function updateNPCs(dt) {
@@ -1712,6 +1727,8 @@ function frameBody(ts) {
     updateSpawners(dt);
     updateSiege(dt);
     garrisonTick(dt);
+    Stall.tick(dt);
+    G.nsT = (G.nsT || 0) - dt; if (G.nsT <= 0) { G.nsT = 5; npcStallTick(); }
     updateFx(dt);
     updateHazards(dt); autoBuffTick(dt); if (typeof Online !== "undefined") Online.tick(dt);
     volcanoTick(dt);
@@ -1775,7 +1792,7 @@ function onPointerDown(e) {
     return;
   }
   if (hit) {
-    if (hit.kind === 'remote') { const ci = $('#chatInput'); ci.value = '/w ' + hit.e.name + ' '; ci.focus(); UI.log(hit.e.name + '（玩家・Lv.' + hit.e.level + ' ' + (CLASSES[hit.e.cls] ? CLASSES[hit.e.cls].name : '') + (hit.e.clan ? '・' + hit.e.clan : '') + '）', 'sys'); return; }
+    if (hit.kind === 'remote') { UI.openPlayerMenu(hit.e); return; }
     if (hit.kind === 'actor') {
       const a = hit.e;
       if (a.struct === 'gate' && !playerCanAttack(a, force)) { gateClick(a); return; }
@@ -1866,7 +1883,7 @@ function enterWorld(saveData) {
     log('與晨風村的守備隊長 雷恩 對話可以接受委託。', 'npc');
   }
   Music.play('field');
-  for (const inst of p.inv) if (inst.pet && inst.pet.out) { inst.pet.out = false; if (!companions('pet').length) spawnPet(inst); }
+  for (const inst of p.inv) if (inst.pet && inst.pet.out) { inst.pet.out = false; if (companions('pet').length < MAX_PETS) spawnPet(inst); }
   UI.refresh();
   Online.enter();
 }

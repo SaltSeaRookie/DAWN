@@ -91,7 +91,7 @@ function newPetData(kind, level = 1, name) {
 }
 function addPetCollar(pd) {
   const p = G.player;
-  if (p.inv.length >= 48) { log('背包已滿，無法放入寵物項圈。', 'warn'); return null; }
+  if (p.inv.length >= INV_MAX) { log('背包已滿，無法放入寵物項圈。', 'warn'); return null; }
   const inst = mkItem('pet_collar', 1); inst.pet = pd;
   p.inv.push(inst); recalc(); UI.refresh();
   return inst;
@@ -104,7 +104,7 @@ function spawnPet(inst) {
   const p = G.player, pd = inst.pet, d = PETS[pd.kind], st = petStats(pd);
   if (pd.dead) { log(pd.name + ' 已經倒下了，請到寵物商人那裡復活。', 'warn'); SFX.play('error'); return; }
   const out = companions('pet');
-  if (out.length) { log('一次只能帶一隻寵物出來。', 'warn'); SFX.play('error'); return; }
+  if (out.length >= MAX_PETS) { log('一次最多只能帶 ' + MAX_PETS + ' 隻寵物出來。', 'warn'); SFX.play('error'); return; }
   const pos = G.world.nearestFree(p.x + 1, p.y + 1);
   const a = new Actor({
     x: pos.x, y: pos.y, kind: 'companion', faction: 'ally', companion: 'pet', name: pd.name, level: pd.level, maxHp: st.maxHp, ac: st.ac, mr: st.mr,
@@ -165,14 +165,14 @@ function tameTarget(t) {
   removeItem(inst, 1);
   const chance = clamp(0.35 + statMod(p.d.st.cha) * 0.06 + p.level * 0.01, 0.1, 0.85);
   if (Math.random() > chance) { log('野狼吃掉了肉乾，但沒有被馴服…', 'warn'); t.speak('嗚嚕…', 2); return; }
-  if (p.inv.length >= 48) { log('背包已滿，無法放入寵物項圈。', 'warn'); return; }
+  if (p.inv.length >= INV_MAX) { log('背包已滿，無法放入寵物項圈。', 'warn'); return; }
   t.dead = true; t.deadT = 9;
   if (t.spawner) { t.spawner.alive--; t.spawner.timer = t.spawner.respawn; }
   const pd = newPetData('graywolf', Math.max(1, t.level));
   const c = addPetCollar(pd);
   log('馴服成功！你得到了寵物「灰狼」。點擊背包裡的寵物項圈可以召喚或收回。', 'level');
   SFX.play('levelup');
-  if (c && !companions('pet').length) spawnPet(c);
+  if (c && companions('pet').length < MAX_PETS) spawnPet(c);
 }
 
 // ---------- 移動與傳送 ----------

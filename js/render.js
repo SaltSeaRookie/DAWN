@@ -459,6 +459,7 @@ function drawEntity(e, S, labels) {
     ctx.font = '12px "Microsoft JhengHei", "PingFang TC", sans-serif';
     let y = top - 8;
     if (e instanceof NPC) {
+      if (e.role === 'stall' && e.stall) { stallSign(e.stall.title, sx, y - 2); y -= 20; }
       outlineText('[' + e.title + ']', sx, y, '#ffe9a0'); y -= 14;
       outlineText(e.name, sx, y, '#ffffff'); y -= 6;
       if (e.role === 'quest') {
@@ -480,6 +481,8 @@ function drawEntity(e, S, labels) {
       y = yy - 14;
       if (clan) { ctx.font = '11px sans-serif'; outlineText('[' + clan + ']', sx, y, '#b8e0a8'); y -= 13; }
       if ((e === p && ownsCastle()) || (e.kind === 'remote' && e.crown)) { drawCrown(ctx, sx, y - 6, G.t, 1.1); y -= 20; }
+      const stl = e === p ? (p.stall && p.stall.open ? p.stall : null) : e.kind === 'remote' ? e.stall : null;
+      if (stl) { stallSign(stl.title, sx, y - 2); y -= 22; }
     }
     if (e.say && e.sayT > 0) bubble(e.say, sx, y - 4);
   });
@@ -709,4 +712,13 @@ function frostUnder(x, y) {
   ctx.fillStyle = 'rgba(150,210,255,0.28)'; ctx.beginPath(); ctx.ellipse(x, y, 18, 8, 0, 0, 7); ctx.fill();
   ctx.strokeStyle = 'rgba(220,240,255,0.7)'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.ellipse(x, y, 18, 8, 0, 0, 7); ctx.stroke();
   for (let i = 0; i < 4; i++) { const a = G.t * 2 + i * 1.57; ctx.fillStyle = '#e8f6ff'; ctx.fillRect(x + Math.cos(a) * 16 - 1, y + Math.sin(a) * 7 - 1, 2, 2); }
+}
+
+// 攤位招牌
+function stallSign(title, x, y) {
+  ctx.font = 'bold 12px "Microsoft JhengHei", "PingFang TC", sans-serif';
+  const t = '🏪 ' + title, w = ctx.measureText(t).width + 16;
+  ctx.fillStyle = 'rgba(70,40,14,0.92)'; ctx.beginPath(); ctx.roundRect(x - w / 2, y - 17, w, 20, 4); ctx.fill();
+  ctx.strokeStyle = '#d8a850'; ctx.lineWidth = 1.5; ctx.stroke();
+  ctx.fillStyle = '#ffe4a0'; ctx.fillText(t, x, y - 3);
 }

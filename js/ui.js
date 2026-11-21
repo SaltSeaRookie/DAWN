@@ -184,7 +184,7 @@ const UI = {
     $('#alignFill').style.background = p.align < 0 ? 'linear-gradient(#b03020,#601008)' : 'linear-gradient(#3a6ab0,#1a3a70)';
     $('#btnChar').classList.toggle('alert', p.statPoints > 0);
     this.refreshHotbar();
-    for (const k of ['inv', 'char', 'spell', 'clan', 'shop', 'wh', 'pet', 'petshop', 'merc', 'buffer']) if (this.windows[k]) this['render' + k[0].toUpperCase() + k.slice(1)]();
+    for (const k of ['inv', 'char', 'spell', 'clan', 'shop', 'wh', 'pet', 'petshop', 'merc', 'buffer', 'stallview']) if (this.windows[k]) this['render' + k[0].toUpperCase() + k.slice(1)]();
   },
 
   tick(dt) {
@@ -262,7 +262,7 @@ const UI = {
     if (y + th > window.innerHeight - 4) { y = Math.max(4, r.top + r.height / 2 - th / 2); x = r.right + 8; if (x + tw > window.innerWidth - 4) x = r.left - tw - 8; }
     t.style.left = clamp(x, 4, window.innerWidth - tw - 4) + 'px'; t.style.top = clamp(y, 4, window.innerHeight - th - 4) + 'px';
   },
-  close(id) { const w = this.windows[id]; if (w) { w.el.remove(); delete this.windows[id]; } this.hideTip(); },
+  close(id) { const w = this.windows[id]; if (w) { w.el.remove(); delete this.windows[id]; if (w.onClose) { const f = w.onClose; w.onClose = null; f(); } } this.hideTip(); },
   closeAll() { for (const k in this.windows) this.close(k); },
   toggle(id) {
     if (this.windows[id]) { this.close(id); return; }
@@ -343,10 +343,16 @@ const UI = {
     const w = this.windows.inv; if (!w) return;
     const p = G.player;
     w.body.innerHTML = '';
-    const grid = el('div', 'grid');
-    for (let i = 0; i < 48; i++) {
+    const grid = el('div', 'grid invgrid');
+    for (let i = 0; i < INV_MAX; i++) {
       const inst = p.inv[i];
-      grid.appendChild(this.slotEl(inst, (it) => { if (this.dropMode) { this.dropMode = false; this.askDrop(it); } else useItem(it); }, { drag: true, right: (it) => this.askDrop(it) }));
+      grid.appendChild(this.slotEl(inst, (it) => {
+        if (this.delMode) { this.delMode = false; this.askDelete(it); }
+        else if (this.dropMode) { this.dropMode = false; this.askDrop(it); }
+        else if (Trade.s) Trade.addMine(it);
+        else if (G.player.stall && !G.player.stall.open) Stall.addItem(it);
+        else useItem(it);
+      }, { drag: true, right: (it) => this.askDrop(it) }));
     }
     w.body.appendChild(grid);
     const wp = weightPct(p);
@@ -356,9 +362,21 @@ const UI = {
     const tools = el('div', 'inv-tools');
     const bSort = el('button', 'btn sm', '整理'); bSort.onclick = () => { p.inv.sort((a, b) => ({ weapon: 0, armor: 1, acc: 2, consume: 3, ammo: 4, book: 5, junk: 6 }[ITEMS[a.id].type] - { weapon: 0, armor: 1, acc: 2, consume: 3, ammo: 4, book: 5, junk: 6 }[ITEMS[b.id].type]) || a.id.localeCompare(b.id)); this.renderInv(); };
     const bDrop = el('button', 'btn sm' + (this.dropMode ? ' on' : ''), '🗑 丟棄'); bDrop.onclick = () => { this.dropMode = !this.dropMode; this.renderInv(); if (this.dropMode) this.log('點擊要丟棄的物品。', 'sys'); };
-    tools.appendChild(bSort); tools.appendChild(bDrop);
-    tools.appendChild(el('span', 'dim small', '點擊使用／裝備・右鍵丟棄・拖曳到快捷列'));
+    const bDel = el('button', 'btn sm' + (this.delMode ? ' on' : ''), '🔥 刪除'); bDel.onclick = () => { this.delMode = !this.delMode; this.dropMode = false; this.renderInv(); if (this.delMode) this.log('點擊要刪除（銷毀）的物品。', 'sys'); };
+    const bStall = el('button', 'btn sm' + (p.stall ? ' on' : ''), '🏪 擺攤'); bStall.onclick = () => Stall.toggleSetup();
+    tools.appendChild(bSort); tools.appendChild(bDrop); tools.appendChild(bDel); tools.appendChild(bStall);
+    tools.appendChild(el('span', 'dim small', (Trade.s ? '交易中：點擊物品放到交易欄・' : p.stall && !p.stall.open ? '擺攤準備中：點擊物品放上攤位・' : '') + '背包 ' + p.inv.length + ' / ' + INV_MAX + '・點擊使用／裝備・右鍵丟棄・拖曳到快捷列'));
     w.body.appendChild(foot); w.body.appendChild(tools);
+  },
+  askDelete(inst) {
+    const nm = itemName(inst);
+    let q = inst.qty;
+    if (inst.qty > 1) { const v = prompt('要刪除多少個 ' + ITEMS[inst.id].name + '？（最多 ' + inst.qty + '，刪除後無法復原）', inst.qty); if (v === null) return; q = clamp(parseInt(v, 10) || 0, 0, inst.qty); if (!q) return; }
+    else if (!confirm((inst.pet ? '項圈裡有寵物「' + inst.pet.name + '」，刪除後會永遠失去牠。\n' : '') + '確定要刪除「' + nm + '」嗎？刪除後無法復原。')) return;
+    if (inst.pet) { const out = companions('pet').find((x) => x.pet === inst.pet); if (out) recallPet(out, true); }
+    for (const sl of SLOTS) if (G.player.equip[sl] === inst) G.player.equip[sl] = null;
+    removeItem(inst, q);
+    SFX.play('enchantFail'); this.log('刪除了 ' + ITEMS[inst.id].name + (q > 1 ? ' ×' + q : '') + '。', 'sys');
   },
   askDrop(inst) {
     let q = inst.qty;
@@ -553,6 +571,7 @@ const UI = {
     else if (role === 'warehouse') this.openWarehouse(npc);
     else if (role === 'herald') this.openHerald(npc);
     else if (role === 'merc') this.openMercCaptain(npc);
+    else if (role === 'stall') this.openStallView(npc);
     else if (role === 'buffer') this.openBuffer(npc);
     else if (role === 'pet') this.openPetShop(npc);
   },
@@ -769,7 +788,7 @@ const UI = {
     w.body.appendChild(g1);
     w.body.appendChild(el('div', 'dim small', '背包（點擊寄放）'));
     const g2 = el('div', 'grid');
-    for (let i = 0; i < 48; i++) g2.appendChild(this.slotEl(p.inv[i], (inst) => {
+    for (let i = 0; i < INV_MAX; i++) g2.appendChild(this.slotEl(p.inv[i], (inst) => {
       if (p.wh.length >= 60) { this.log('倉庫已滿。', 'warn'); return; }
       const ex = ITEMS[inst.id].stack && p.wh.find((x) => x.id === inst.id);
       if (ex) ex.qty += inst.qty; else p.wh.push({ id: inst.id, qty: inst.qty, ench: inst.ench || 0 });
@@ -815,26 +834,30 @@ const UI = {
       b.onclick = () => { const e = recruit(v); if (e) { this.log(e, 'warn'); } this.close('vill'); };
       row.appendChild(b);
     }
+    if (v.kind === 'fighter') { const tb = el('button', 'btn', '交易'); tb.onclick = () => { this.close('vill'); Trade.request(v); }; row.appendChild(tb); }
     if (v.kind === 'fighter') row.appendChild(el('div', 'dim small', '提示：按住 Ctrl 或 Shift 點擊才會強制攻擊（會變成紫名）。'));
     w.body.appendChild(row);
     v.face(p.x, p.y);
   },
-  chooseArmor(slots, cb) {
+  // 選擇要強化的裝備（身上與背包裡的都可以）
+  chooseEnchant(list, scrollName, cb) {
     this.close('choose');
-    const w = this.win('choose', '選擇要強化的防具', window.innerWidth / 2 - 150, 120, 300);
-    const p = G.player;
-    const list = el('div', 'list');
-    for (const s of slots) {
-      const inst = p.equip[s];
+    const w = this.win('choose', '使用「' + scrollName + '」', window.innerWidth / 2 - 160, 120, 320);
+    const box = el('div', 'list');
+    for (const { inst, where } of list) {
       const row = el('div', 'li');
       row.appendChild(iconCanvas(inst.id, 28));
-      row.appendChild(el('div', 'li-n', '<b>' + esc(itemName(inst)) + '</b><span class="dim">' + SLOT_NAMES[s] + '・安全值 +' + ITEMS[inst.id].safe + '</span>'));
+      row.appendChild(el('div', 'li-n', '<b>' + esc(itemName(inst)) + '</b><span class="dim">' + where + '・安全值 +' + ITEMS[inst.id].safe + ((inst.ench || 0) >= ITEMS[inst.id].safe ? '・<span class="bad">可能會消失</span>' : '') + '</span>'));
       const b = el('button', 'btn sm', '強化');
-      b.onclick = () => { this.close('choose'); cb(s); };
-      row.appendChild(b); list.appendChild(row);
+      b.onclick = () => { this.close('choose'); cb(inst); };
+      row.appendChild(b);
+      row.addEventListener('mouseenter', (e) => this.showTip(inst, e));
+      row.addEventListener('mouseleave', () => this.hideTip());
+      box.appendChild(row);
     }
-    w.body.appendChild(list);
+    w.body.appendChild(box);
   },
+
   showDeath() {
     const d = $('#death'); d.classList.add('show');
     const p = G.player;

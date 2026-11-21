@@ -46,7 +46,7 @@ const Chat = {
       const role = {
         general: '需要藥水或卷軸嗎？點我就能購買喔。', smith: '要看看武器和防具嗎？', magic: '想學新的魔法嗎？魔法書都在這裡。',
         teleport: '要去哪裡？我可以送你一程。', quest: '村子需要你的幫忙，來看看委託吧。', clan: '想要建立血盟就找我。',
-        warehouse: '東西太重可以寄放在我這裡。', jewel: '戒指和項鍊能讓你更強喔。', pet: '要不要帶一隻可愛的寵物回家？', herald: '有血盟就能向灰岩城宣戰！', merc: '城主可以向我雇用傭兵、訓練守衛。', buffer: '我能為你施放持續 10 分鐘的增益魔法。', castlewh: '', captain: '要出海嗎？',
+        warehouse: '東西太重可以寄放在我這裡。', jewel: '戒指和項鍊能讓你更強喔。', pet: '要不要帶一隻可愛的寵物回家？', herald: '有血盟就能向灰岩城宣戰！', merc: '城主可以向我雇用傭兵、訓練守衛。', stall: '來看看我的攤位吧，都是好東西！', buffer: '我能為你施放持續 10 分鐘的增益魔法。', castlewh: '', captain: '要出海嗎？',
       }[r.role];
       if (has(/(你好|哈囉|嗨|hi|hello|安安|早安|午安|晚安)/i)) return '你好，' + p.name + '。' + role;
       if (has(/(謝謝|感謝|3q|thx)/i)) return '不客氣，路上小心！';
