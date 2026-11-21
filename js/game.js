@@ -252,9 +252,21 @@ function populateTowns(m) {
       m.npcs.push(new NPC(sp.x, sp.y, nm, NPC_TITLES[role], role, NPC_LOOKS[role], t.id));
     });
     // 擺攤的冒險者（攤販）
+    // 攤販擺在村莊外圈，和其他 NPC、篝火、告示板保持距離，避免擋住對話
+    const taken = [{ x: t.x, y: t.y, r: 4 }, ...m.npcs.filter((n) => n.town === t.id).map((n) => ({ x: n.x, y: n.y, r: 3.2 })), ...(t.spots || []).map((s) => ({ x: s.x, y: s.y, r: 3.2 })), ...W.objs.filter((o) => o && o.kind === 'board').map((o) => ({ x: o.tx + 0.5, y: o.ty + 0.5, r: 3 }))];
+    // 主線故事 NPC 的位置（之後才會放上去）
+    if (t.id === 'dawn') taken.push({ x: t.x - 3.5, y: t.y + 3.5, r: 3.2 });
+    if (t.id === 'leaf') taken.push({ x: t.x + 2.5, y: t.y - 3.5, r: 3.2 });
     for (let k = 0; k < (t.id === 'dawn' || t.id === 'oren' ? 3 : 2); k++) {
-      const a = rand(0, 7), r = rand(t.r * 0.45, t.r * 0.8);
-      const q = W.nearestFree(t.x + Math.cos(a) * r, t.y + Math.sin(a) * r);
+      let q = null;
+      for (let tries = 0; tries < 60 && !q; tries++) {
+        const a = rand(0, 7), r = rand(t.r * 0.62, t.r * 0.92);
+        const c = W.nearestFree(t.x + Math.cos(a) * r, t.y + Math.sin(a) * r);
+        if (!W.isSafe(c.x, c.y) || taken.some((o) => dist(o.x, o.y, c.x, c.y) < o.r)) continue;
+        q = c;
+      }
+      if (!q) continue;
+      taken.push({ x: q.x, y: q.y, r: 3.2 });
       const cls = pick(FIGHTER_CLS);
       const vn = new NPC(q.x, q.y, Names.take(FIGHTER_NAMES), '攤販', 'stall', Object.assign({}, pick(FIGHTER_LOOKS[cls])), t.id);
       m.npcs.push(vn);
@@ -1797,7 +1809,8 @@ function pickAt(mx, my) {
   const test = (e, kind) => {
     const b = e._bb; if (!b) return;
     if (mx >= b.x0 && mx <= b.x1 && my >= b.y0 && my <= b.y1) {
-      const depth = e.x + e.y + (kind === 'item' ? 100 : 0);
+      // 攤販與其他 NPC 重疊時，優先點到一般 NPC
+      const depth = e.x + e.y + (kind === 'item' ? 100 : 0) - (e.role === 'stall' ? 3 : 0);
       if (depth > bd) { bd = depth; best = { kind, e }; }
     }
   };
