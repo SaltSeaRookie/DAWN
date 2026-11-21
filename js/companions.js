@@ -255,3 +255,28 @@ function updateCompanion(a, dt) {
   }
   if (a.path.length && da > near) a.moveAlong(dt, (da > 5 ? 1.4 : 1.05) * hm); else { a.moving = false; a.path = []; if (mode !== 'stay') a.face(p.x, p.y); }
 }
+
+// ===== 召喚戒指：依等級召喚不同的生物 =====
+function ringSummonList() { return RING_SUMMONS.map((s) => Object.assign({ name: MONSTERS[s.type].name, ok: G.player.level >= s.lvl }, s)); }
+function summonFromRing(type) {
+  const p = G.player, e = RING_SUMMONS.find((s) => s.type === type), d = MONSTERS[type];
+  if (!e || p.level < e.lvl) { log('等級不足，無法召喚 ' + d.name + '。', 'warn'); SFX.play('error'); return; }
+  if (p.mp < e.mp) { log('魔力不足（需要 ' + e.mp + '）。', 'warn'); SFX.play('error'); return; }
+  p.mp -= e.mp;
+  const list = companions('summon');
+  while (list.length >= MAX_SUMMONS) { const old = list.shift(); dismissCompanion(old, '召喚時間到了，' + old.name + ' 消散了。'); }
+  const pos = G.world.nearestFree(p.x + rand(-1.5, 1.5), p.y + rand(-1.5, 1.5));
+  const a = makeMonster(type, pos.x, pos.y);
+  // 強度隨召喚者的等級與魔攻成長
+  const k = 0.7 + Math.max(0, p.level - e.lvl) * 0.03 + Math.max(0, p.d.sp) * 0.02;
+  a.maxHp = a.hp = Math.round(d.hp * k * (d.boss ? 0.5 : 1));
+  a.dmg = [Math.round(d.dmg[0] * k), Math.round(d.dmg[1] * k)];
+  Object.assign(a, { kind: 'companion', faction: 'ally', companion: 'summon', ringSummon: true, boss: false, aggro: true, aggroR: 7, spawner: null, level: Math.max(d.lvl, p.level) });
+  a.expire = G.t + COMPANION_TIME;
+  G.map.actors.push(a);
+  burst(a.x, a.y, 20, '#c8a0ff', 30, 2.5, 0.8, 3, 3);
+  G.rings = G.rings || []; G.rings.push({ x: a.x, y: a.y, t: 0, r: 1.6, col: '200,160,255' });
+  SFX.play('cast');
+  log('召喚戒指發出光芒，召喚出了 ' + d.name + '！（30 分鐘）', 'level');
+  UI.refresh();
+}

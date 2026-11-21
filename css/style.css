@@ -414,3 +414,5 @@ input.vaultamt { width: 72px; padding: 3px 5px; background: #12100d; color: #eee
 .slot.dimslot { opacity: 0.55; }
 input.stalltitle { flex: 1; padding: 3px 6px; background: #12100d; color: #eee; border: 1px solid #4a4030; border-radius: 3px; }
 .good { color: #8ef08a; }
+.spelltip { margin-top: 4px; padding-top: 4px; border-top: 1px solid #3a3228; }
+.spelltip-n { color: #c8b0ff; }

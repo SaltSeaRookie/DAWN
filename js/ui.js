@@ -10,7 +10,7 @@ function iconCanvas(id, size, kind = 'item') {
   c.style.width = size + 'px'; c.style.height = size + 'px';
   const g = c.getContext('2d'); g.scale(2, 2);
   if (kind === 'item') drawItemIcon(g, id, 0, 0, size);
-  else if (kind === 'spell') drawSkillIcon(g, SPELLS[id] ? SPELLS[id].icon : id, 0, 0, size);
+  else if (kind === 'spell') drawSpellIcon(g, id, 0, 0, size);
   else drawSkillIcon(g, id, 0, 0, size);
   return c;
 }
@@ -22,6 +22,17 @@ function itemRarity(d) {
   if (d.price >= 20000) return 2;
   if (d.price >= 2500) return 1;
   return 0;
+}
+// 魔法說明（魔法視窗、快捷列、魔法書共用）
+function spellTipHtml(id) {
+  const s = SPELLS[id], p = G.player; if (!s) return '';
+  const has = p && p.spells.includes(id);
+  let h = '<b class="spelltip-n">' + s.name + '</b><div class="dim">第 ' + s.circle + ' 階魔法</div>';
+  h += '<div>消耗 MP <b>' + s.mp + '</b>' + (s.aoe ? '　範圍 ' + s.aoe : '') + (s.dur ? '　持續 ' + (s.dur >= 60 ? Math.round(s.dur / 60) + ' 分鐘' : s.dur + ' 秒') : '') + (s.cd ? '　冷卻 ' + s.cd + ' 秒' : '') + '</div>';
+  h += '<div>' + esc(s.desc) + '</div>';
+  h += '<div class="dim">可學習：' + Object.keys(s.learn).map((c) => CLASSES[c].name + ' Lv.' + s.learn[c]).join('、') + '</div>';
+  if (p) h += has ? '<div class="good">已學會</div>' : s.learn[p.cls] === undefined ? '<div class="bad">' + CLASSES[p.cls].name + '無法學習</div>' : '<div class="' + (p.level >= s.learn[p.cls] ? 'dim' : 'bad') + '">你的職業需要 Lv.' + s.learn[p.cls] + '</div>';
+  return h;
 }
 const UI = {
   windows: {}, drag: null,
@@ -82,8 +93,17 @@ const UI = {
       } else s.title = '把背包或魔法視窗的圖示拖到這裡';
       s.appendChild(el('span', 'key', String((i + 1) % 10)));
       const q = el('span', 'qty'); s.appendChild(q);
-      s.addEventListener('click', () => useHotbar(i));
-      s.addEventListener('contextmenu', (e) => { e.preventDefault(); p.hotbar[i] = null; this.buildHotbar(); });
+      s.addEventListener('click', () => { if (this.wasDrag()) return; useHotbar(i); });
+      s.addEventListener('contextmenu', (e) => { e.preventDefault(); p.hotbar[i] = null; this.hideTip(); this.buildHotbar(); });
+      // 拖曳快捷列上的圖示可以互換位置
+      if (h) s.addEventListener('pointerdown', (e) => { if (e.button === 0) this.dragStart(e, h, null, i); });
+      s.addEventListener('mouseenter', (e) => {
+        const hh = p.hotbar[i]; if (!hh || this.drag) return;
+        if (hh.kind === 'item' && ITEMS[hh.id]) { const inst = p.inv.find((x) => x.id === hh.id) || { id: hh.id, qty: countItem(hh.id), ench: 0 }; this.showTip(inst, e); }
+        else if (hh.kind === 'spell') { const t = $('#tip'); t.innerHTML = spellTipHtml(hh.id); t.style.display = 'block'; this.placeTip(t, s); }
+        else { const t = $('#tip'); t.innerHTML = '<b>自動狩獵</b><div class="dim">自動攻擊附近的怪物，體力低時自動喝水。點擊開關</div>'; t.style.display = 'block'; this.placeTip(t, s); }
+      });
+      s.addEventListener('mouseleave', () => this.hideTip());
       hb.appendChild(s);
     }
     this.refreshHotbar();
@@ -98,8 +118,8 @@ const UI = {
       else { q.textContent = G.autoHunt ? 'ON' : ''; s.classList.toggle('on', G.autoHunt); s.classList.remove('empty'); }
     });
   },
-  dragStart(e, entry, iconEl) {
-    this.drag = { entry, sx: e.clientX, sy: e.clientY, moved: false, ghost: null, iconEl };
+  dragStart(e, entry, iconEl, fromHot) {
+    this.drag = { entry, sx: e.clientX, sy: e.clientY, moved: false, ghost: null, iconEl, fromHot };
   },
   dragMove(e) {
     const d = this.drag; if (!d) return;
@@ -119,7 +139,12 @@ const UI = {
       d.ghost.remove();
       const t = document.elementFromPoint(e.clientX, e.clientY);
       const slot = t && t.closest('#hotbar .slot');
-      if (slot) { G.player.hotbar[+slot.dataset.hot] = d.entry; this.buildHotbar(); SFX.play('click'); }
+      if (slot) {
+        const hb = G.player.hotbar, to = +slot.dataset.hot;
+        if (d.fromHot !== undefined) { const tmp = hb[to]; hb[to] = hb[d.fromHot]; hb[d.fromHot] = tmp; }   // 快捷列內互換
+        else hb[to] = d.entry;
+        this.buildHotbar(); SFX.play('click');
+      }
       d.cancelClick = true;
     }
     this.lastDrag = d;
@@ -196,7 +221,7 @@ const UI = {
       const bf = $('#buffs'); bf.innerHTML = '';
       for (const k of keys) {
         const b = el('div', 'buff');
-        b.appendChild(iconCanvas(SPELLS[k] ? SPELLS[k].icon : k, 30, 'skill'));
+        b.appendChild(SPELLS[k] ? iconCanvas(k, 30, 'spell') : iconCanvas(k, 30, 'skill'));
         const s = Math.ceil(p.buffs[k]);
         b.appendChild(el('span', '', s >= 60 ? Math.ceil(s / 60) + 'm' : s + 's'));
         b.title = SPELLS[k] ? SPELLS[k].name : k === 'haste' ? '加速' : k;
@@ -331,7 +356,7 @@ const UI = {
     if (d.type === 'weapon' || d.type === 'armor') h += '<div class="dim">安全強化值 +' + d.safe + '</div>';
     if (d.cls) h += '<div class="' + (p && !d.cls.includes(p.cls) ? 'bad' : 'dim') + '">可使用：' + d.cls.map((c) => CLASSES[c].name).join('、') + '</div>';
     if (d.lvl) h += '<div class="' + (p && p.level < d.lvl ? 'bad' : 'dim') + '">需要等級 ' + d.lvl + '</div>';
-    if (d.type === 'book' && p) { const need = SPELLS[d.spell].learn[p.cls]; h += '<div class="' + (need === undefined || p.level < need ? 'bad' : 'dim') + '">' + (need === undefined ? CLASSES[p.cls].name + '無法學習' : '學習等級 ' + need) + '</div>'; }
+    if (d.type === 'book') h += '<div class="spelltip">' + spellTipHtml(d.spell) + '</div>';
     if (d.desc) h += '<div class="dim">' + esc(d.desc) + '</div>';
     h += '<div class="dim">重量 ' + (Math.round(itemWeight(inst) * 10) / 10) + '　售價 ' + sellPrice(inst) + '</div>';
     const t = $('#tip'); t.innerHTML = h; t.style.display = 'block';
@@ -360,7 +385,7 @@ const UI = {
     foot.innerHTML = '<div class="wt"><span>負重 ' + p.d.weight + ' / ' + p.d.weightMax + '</span><div class="wtbar"><div class="' + (wp >= 100 ? 'over' : wp >= 50 ? 'heavy' : '') + '" style="width:' + Math.min(100, wp) + '%"></div></div></div>' +
       '<div class="gold">金幣 <b>' + p.gold.toLocaleString() + '</b></div>';
     const tools = el('div', 'inv-tools');
-    const bSort = el('button', 'btn sm', '整理'); bSort.onclick = () => { p.inv.sort((a, b) => ({ weapon: 0, armor: 1, acc: 2, consume: 3, ammo: 4, book: 5, junk: 6 }[ITEMS[a.id].type] - { weapon: 0, armor: 1, acc: 2, consume: 3, ammo: 4, book: 5, junk: 6 }[ITEMS[b.id].type]) || a.id.localeCompare(b.id)); this.renderInv(); };
+    const bSort = el('button', 'btn sm', '整理'); bSort.onclick = () => { p.inv.sort((a, b) => ({ weapon: 0, armor: 1, acc: 2, tool: 3, consume: 3, ammo: 4, book: 5, junk: 6, collar: 7 }[ITEMS[a.id].type] - { weapon: 0, armor: 1, acc: 2, tool: 3, consume: 3, ammo: 4, book: 5, junk: 6, collar: 7 }[ITEMS[b.id].type]) || a.id.localeCompare(b.id)); this.renderInv(); };
     const bDrop = el('button', 'btn sm' + (this.dropMode ? ' on' : ''), '🗑 丟棄'); bDrop.onclick = () => { this.dropMode = !this.dropMode; this.renderInv(); if (this.dropMode) this.log('點擊要丟棄的物品。', 'sys'); };
     const bDel = el('button', 'btn sm' + (this.delMode ? ' on' : ''), '🔥 刪除'); bDel.onclick = () => { this.delMode = !this.delMode; this.dropMode = false; this.renderInv(); if (this.delMode) this.log('點擊要刪除（銷毀）的物品。', 'sys'); };
     const bStall = el('button', 'btn sm' + (p.stall ? ' on' : ''), '🏪 擺攤'); bStall.onclick = () => Stall.toggleSetup();
@@ -457,8 +482,7 @@ const UI = {
       if (has && p.autoBuff && p.autoBuff[id] && autoBuffable(id)) c.appendChild(el('span', 'abadge', '自動'));
       c.addEventListener('mouseenter', (e) => {
         const t = $('#tip');
-        t.innerHTML = '<b>' + s.name + '</b><div>第 ' + s.circle + ' 階　消耗 MP ' + s.mp + (s.aoe ? '　範圍 ' + s.aoe : '') + (s.cd ? '　冷卻 ' + s.cd + ' 秒' : '') + '</div><div>' + esc(s.desc) + '</div>' + (s.dur ? '<div class="dim">持續 ' + s.dur + ' 秒</div>' : '') +
-          (has ? '<div class="dim">點擊施放・拖曳到快捷列' + (autoBuffable(id) ? '・右鍵切換自動施放' : '') + '</div>' : '<div class="bad">尚未學會（Lv.' + s.learn[p.cls] + ' 可學，需要魔法書' + (s.circle >= 7 ? '，只有強大的頭目會掉落' : s.circle >= 5 ? '，城堡御用商人或歐瑞城魔法商人有售' : '') + '）</div>');
+        t.innerHTML = spellTipHtml(id) + (has ? '<div class="dim">點擊施放・拖曳到快捷列' + (autoBuffable(id) ? '・右鍵切換自動施放' : '') + '</div>' : '<div class="dim">' + (s.circle >= 7 ? '魔法書只有強大的頭目會掉落' : s.circle >= 5 ? '魔法書：城堡御用商人或歐瑞城魔法商人' : '魔法書：魔法商人') + '</div>');
         t.style.display = 'block'; this.placeTip(t, c);
       });
       c.addEventListener('mouseleave', () => this.hideTip());
@@ -648,6 +672,8 @@ const UI = {
         const row = el('div', 'li');
         row.appendChild(iconCanvas(inst.id, 28));
         row.appendChild(el('div', 'li-n', '<b>' + esc(itemName(inst)) + '</b><span class="dim">每個 ' + each + ' 金幣</span>'));
+        row.addEventListener('mouseenter', (e) => this.showTip(inst, e));
+        row.addEventListener('mouseleave', () => this.hideTip());
         const sell = (q) => {
           if (!p.inv.includes(inst)) return;
           q = clamp(q, 1, inst.qty);
@@ -687,14 +713,16 @@ const UI = {
     const w = this.win('tp', npc.title, 16, 60, 320);
     const W = getMap('overworld').world;
     const dests = W.towns.filter((t) => t.id !== npc.town).map((t) => ({ name: t.name, sub: '村莊', cost: Math.round(dist(t.x, t.y, npc.x, npc.y) * 4), x: t.x, y: t.y + 3 }));
-    dests.push({ name: '灰岩城', sub: '城堡前', cost: 300, x: W.castle.x0 - 4, y: W.castle.cy });
+    if (npc.town !== 'castle') dests.push({ name: '灰岩城', sub: '城堡前', cost: 300, x: W.castle.x0 - 4, y: W.castle.cy });
     dests.push({ name: '地下墓穴入口', sub: '骸骨荒原・建議 Lv 10+', cost: 350, x: W.crypt.x - 2, y: W.crypt.y - 2 });
     dests.push({ name: '霜嶺高地', sub: '建議 Lv 15+', cost: 400, x: 36, y: 38 });
     dests.push({ name: '赤岩峽谷', sub: '建議 Lv 12+', cost: 380, x: 118, y: 44 });
     dests.push({ name: '火山隘口', sub: '熾焰火山・建議 Lv 23+', cost: 600, x: W.volcanoGate.x + 1, y: W.volcanoGate.y + 2 });
     if (G.map.id !== 'overworld') for (const d of dests) { d.map = 'overworld'; d.cost = Math.max(d.cost, 800); }
     if (npc.town !== 'oren') { const O = getMap('oren').world; dests.push({ name: '歐瑞城', sub: '北境・建議 Lv 16+', cost: 1000, x: O.city.x, y: O.city.y + 3, map: 'oren' }); }
-    w.body.innerHTML = this.dialogHead(npc, '要去哪裡呢？我可以用魔法送你一程。');
+    const castleFree = npc.town === 'castle' && ownsCastle();
+    if (castleFree) for (const d of dests) d.cost = 0;
+    w.body.innerHTML = this.dialogHead(npc, castleFree ? '城主大人，城堡的傳送陣隨時為您開啟，不收費用。' : npc.town === 'castle' ? '這是灰岩城的傳送陣，可以送你到大陸各地。' : '要去哪裡呢？我可以用魔法送你一程。');
     const list = el('div', 'list');
     for (const d of dests) {
       const row = el('div', 'li');
@@ -838,6 +866,26 @@ const UI = {
     if (v.kind === 'fighter') row.appendChild(el('div', 'dim small', '提示：按住 Ctrl 或 Shift 點擊才會強制攻擊（會變成紫名）。'));
     w.body.appendChild(row);
     v.face(p.x, p.y);
+  },
+  // 召喚戒指
+  openSummonRing() {
+    this.close('sring');
+    const w = this.win('sring', '召喚戒指', window.innerWidth / 2 - 170, 90, 340);
+    const p = G.player;
+    w.body.innerHTML = '<div class="npc-text">選擇要召喚的生物。等級越高，能召喚的生物越強；召喚獸的強度也會隨你的等級與魔攻成長。（目前召喚獸 ' + companions('summon').length + ' / ' + MAX_SUMMONS + '）</div>';
+    const list = el('div', 'list');
+    for (const s of ringSummonList()) {
+      const d = MONSTERS[s.type];
+      const row = el('div', 'li' + (s.ok ? '' : ' bad'));
+      row.appendChild(el('div', 'li-n', '<b>' + d.name + '</b><span class="dim">需要 Lv.' + s.lvl + '・MP ' + s.mp + '・基礎體力 ' + d.hp + '・攻擊 ' + d.dmg[0] + '-' + d.dmg[1] + (d.proj ? '・遠程' : '') + '</span>'));
+      const b = el('button', 'btn sm', s.ok ? '召喚' : '等級不足');
+      b.disabled = !s.ok;
+      b.onclick = () => { summonFromRing(s.type); this.close('sring'); };
+      row.appendChild(b);
+      list.appendChild(row);
+    }
+    w.body.appendChild(list);
+    w.body.appendChild(el('div', 'dim small', '召喚獸持續 30 分鐘，可在夥伴視窗（T）下達指令。召喚戒指可以拖到快捷列。'));
   },
   // 選擇要強化的裝備（身上與背包裡的都可以）
   chooseEnchant(list, scrollName, cb) {

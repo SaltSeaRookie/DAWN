@@ -606,6 +606,14 @@ function drawSkillIcon(ctx, id, x, y, s) {
     case 'swolf': glow('#80c0ff', 8); ctx.fillStyle = '#b8dcff'; ctx.beginPath(); ctx.moveTo(6, 22); ctx.lineTo(10, 8); ctx.lineTo(14, 14); ctx.lineTo(20, 14); ctx.lineTo(24, 8); ctx.lineTo(27, 22); ctx.lineTo(16, 28); ctx.closePath(); ctx.fill(); ctx.fillStyle = '#1a3a6a'; ctx.fillRect(11, 17, 3, 2); ctx.fillRect(19, 17, 3, 2); break;
     case 'sgolem': glow('#80c0ff', 6); ctx.fillStyle = '#8a847a'; ctx.fillRect(8, 8, 16, 18); ctx.fillRect(4, 11, 5, 12); ctx.fillRect(23, 11, 5, 12); ctx.fillStyle = '#7ad0ff'; ctx.fillRect(12, 12, 3, 2); ctx.fillRect(17, 12, 3, 2); ctx.fillRect(14, 18, 4, 4); break;
     case 'sfire': { const gr = ctx.createRadialGradient(16, 20, 1, 16, 18, 14); gr.addColorStop(0, '#fff6c0'); gr.addColorStop(0.5, '#ff8a20'); gr.addColorStop(1, '#a01800'); ctx.fillStyle = gr; glow('#ff6020', 8); ctx.beginPath(); ctx.moveTo(16, 3); ctx.quadraticCurveTo(28, 14, 24, 24); ctx.quadraticCurveTo(16, 31, 8, 24); ctx.quadraticCurveTo(4, 14, 16, 3); ctx.fill(); ctx.shadowBlur = 0; ctx.fillStyle = '#3a0a00'; ctx.fillRect(12, 17, 2.5, 2.5); ctx.fillRect(18, 17, 2.5, 2.5); break; }
+    case 'load': {
+      // 羽毛與秤錘：負重強化
+      ctx.fillStyle = '#5a4a3a'; ctx.beginPath(); ctx.moveTo(9, 26); ctx.lineTo(23, 26); ctx.lineTo(20, 17); ctx.lineTo(12, 17); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = '#8a7a6a'; ctx.fillRect(14, 13, 4, 4);
+      glow('#ffffff', 6); ctx.strokeStyle = '#fffbe8'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(8, 14); ctx.quadraticCurveTo(14, 2, 27, 4); ctx.stroke();
+      ctx.fillStyle = '#fffbe8'; ctx.beginPath(); ctx.moveTo(27, 4); ctx.quadraticCurveTo(18, 6, 12, 12); ctx.quadraticCurveTo(20, 10, 27, 4); ctx.fill();
+      break;
+    }
     case 'auto':
       ctx.strokeStyle = '#ffd36a'; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.arc(16, 16, 9, 0.3, Math.PI * 1.7); ctx.stroke();
       ctx.fillStyle = '#ffd36a'; ctx.beginPath(); ctx.moveTo(25, 6); ctx.lineTo(26, 14); ctx.lineTo(18, 11); ctx.fill();
@@ -833,4 +841,67 @@ function drawWisp(ctx, x, y, o) {
   ctx.fillStyle = '#6a5a3a'; ctx.fillRect(-2.5, -1.5, 1.5, 1.5); ctx.fillRect(1, -1.5, 1.5, 1.5);
   ctx.restore();
   return hover;
+}
+
+// ===== 魔法圖示（v2.15 重新設計）=====
+// 依魔法系別使用不同顏色的寶石底與邊框，中間是魔法的圖騰，右下角標示階級。
+const SPELL_SCHOOLS = {
+  fire:   { a: '#ff9a40', b: '#a82a08', c: '#3a0a02', rim: '#ffb060', name: '火' },
+  frost:  { a: '#a8e4ff', b: '#2a70c0', c: '#0a1e40', rim: '#9ad8ff', name: '冰' },
+  storm:  { a: '#fff08a', b: '#b08a10', c: '#2e2404', rim: '#ffe070', name: '雷' },
+  wind:   { a: '#b0ffb8', b: '#2a9a50', c: '#08301a', rim: '#90f0a0', name: '風' },
+  holy:   { a: '#fffbe0', b: '#d0a830', c: '#3a2c08', rim: '#ffe8a0', name: '聖' },
+  earth:  { a: '#f0d0a0', b: '#8a5a28', c: '#2a1a08', rim: '#e0b070', name: '地' },
+  arcane: { a: '#e4b8ff', b: '#7030c0', c: '#1e0838', rim: '#d0a0ff', name: '秘' },
+  war:    { a: '#ffb0a0', b: '#9a2a20', c: '#2e0806', rim: '#ff9080', name: '武' },
+};
+const SPELL_SCHOOL_OF = {};
+for (const [sc, ids] of Object.entries({
+  fire: ['flamering', 'fireball', 'meteor', 'firestorm', 'armageddon', 'summon_fire'],
+  frost: ['icebolt', 'frostnova', 'blizzard', 'timestop'],
+  storm: ['lightning', 'chainlightning', 'thunderstorm'],
+  wind: ['windshot', 'haste', 'blink', 'eagleeye'],
+  holy: ['heal1', 'heal2', 'heal3', 'groupheal', 'greaterheal', 'holy', 'holylight', 'turnundead', 'sanctuary', 'holyjudgment', 'holyfield', 'miracle', 'divineshield', 'blessarmor', 'glow', 'lightbolt'],
+  earth: ['shield', 'earthskin', 'earthquake', 'loadup', 'summon_golem'],
+  arcane: ['poison', 'deathcloud', 'charm', 'summon_wolf', 'manashield'],
+  war: ['powerstrike', 'whirlwind', 'warcry', 'might', 'berserk', 'arrowrain', 'trueshot', 'arrowstorm'],
+})) for (const id of ids) SPELL_SCHOOL_OF[id] = sc;
+function drawSpellIcon(ctx, id, x, y, s) {
+  const sp = SPELLS[id]; if (!sp) { drawSkillIcon(ctx, id, x, y, s); return; }
+  const S = SPELL_SCHOOLS[SPELL_SCHOOL_OF[id] || 'arcane'];
+  ctx.save(); ctx.translate(x, y); ctx.scale(s / 32, s / 32);
+  const rr = (x0, y0, w, h, r) => { ctx.beginPath(); ctx.moveTo(x0 + r, y0); ctx.arcTo(x0 + w, y0, x0 + w, y0 + h, r); ctx.arcTo(x0 + w, y0 + h, x0, y0 + h, r); ctx.arcTo(x0, y0 + h, x0, y0, r); ctx.arcTo(x0, y0, x0 + w, y0, r); ctx.closePath(); };
+  // 外框（金屬）
+  const fr = ctx.createLinearGradient(0, 0, 32, 32); fr.addColorStop(0, '#e8d4a0'); fr.addColorStop(0.5, '#7a6038'); fr.addColorStop(1, '#3a2a14');
+  ctx.fillStyle = fr; rr(0.5, 0.5, 31, 31, 6); ctx.fill();
+  // 系別寶石底
+  const bg = ctx.createRadialGradient(13, 11, 1, 16, 16, 19); bg.addColorStop(0, S.a); bg.addColorStop(0.55, S.b); bg.addColorStop(1, S.c);
+  ctx.fillStyle = bg; rr(2.5, 2.5, 27, 27, 4.5); ctx.fill();
+  // 內圈魔法陣
+  ctx.strokeStyle = 'rgba(255,255,255,0.18)'; ctx.lineWidth = 0.8;
+  ctx.beginPath(); ctx.arc(16, 16, 11.5, 0, 7); ctx.stroke();
+  for (let i = 0; i < 6; i++) { const a = i * Math.PI / 3 + 0.3; ctx.beginPath(); ctx.moveTo(16 + Math.cos(a) * 11.5, 16 + Math.sin(a) * 11.5); ctx.lineTo(16 + Math.cos(a + 2.1) * 11.5, 16 + Math.sin(a + 2.1) * 11.5); ctx.stroke(); }
+  // 高光
+  const hl = ctx.createLinearGradient(0, 2, 0, 16); hl.addColorStop(0, 'rgba(255,255,255,0.35)'); hl.addColorStop(1, 'rgba(255,255,255,0)');
+  ctx.fillStyle = hl; rr(3, 3, 26, 12, 4); ctx.fill();
+  // 圖騰
+  ctx.save();
+  ctx.shadowColor = 'rgba(0,0,0,0.75)'; ctx.shadowBlur = 3;
+  if (typeof sp.icon === 'string' && sp.icon.startsWith('rune:')) {
+    const ch = sp.icon.split(':')[1];
+    ctx.fillStyle = '#ffffff'; ctx.font = 'bold 15px "Microsoft JhengHei", "PingFang TC", serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.shadowColor = S.rim; ctx.shadowBlur = 6; ctx.fillText(ch, 16, 16.5);
+  } else {
+    ctx.translate(16, 16); ctx.scale(0.74, 0.74); ctx.translate(-16, -16);
+    drawSkillIcon(ctx, sp.icon, 0, 0, 32);
+  }
+  ctx.restore();
+  // 內框描邊
+  ctx.strokeStyle = S.rim; ctx.globalAlpha = 0.7; ctx.lineWidth = 1; rr(2.5, 2.5, 27, 27, 4.5); ctx.stroke(); ctx.globalAlpha = 1;
+  // 階級標記
+  const t = String(sp.circle);
+  ctx.font = 'bold 8px Georgia, serif'; const tw = ctx.measureText(t).width + 5;
+  ctx.fillStyle = 'rgba(10,8,6,0.85)'; rr(31 - tw - 1, 1, tw, 9, 2.5); ctx.fill();
+  ctx.fillStyle = sp.circle >= 6 ? '#ffd860' : '#f0e8d8'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(t, 31 - tw / 2 - 1, 5.8);
+  ctx.restore();
 }

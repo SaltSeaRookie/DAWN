@@ -581,3 +581,20 @@ SHOPS.oren_magic = [...SHOPS.magic, ...BOOKS_C5];
 const bookDrop = (mon, circles, ch) => { if (!MONSTERS[mon]) return; for (const id in SPELLS) if (circles.includes(SPELLS[id].circle)) MONSTERS[mon].loot.push(['book_' + id, ch]); };
 bookDrop('wyvern', [6], 0.04); bookDrop('lich', [6], 0.05); bookDrop('pirate_captain', [6], 0.05); bookDrop('sea_serpent', [6, 7], 0.04);
 bookDrop('iron_colossus', [6, 7, 8], 0.05); bookDrop('frost_king', [7, 8, 9], 0.06); bookDrop('flame_dragon', [8, 9, 10], 0.07);
+
+// ===== 召喚戒指、負重強化（v2.15）=====
+ITEMS.summon_ring = { name: '召喚戒指', type: 'tool', icon: 'ring', w: 2, price: 30000, rare: true, desc: '使用後可以依照你的等級，選擇召喚不同強度的召喚獸（30 分鐘，與召喚術共用 3 隻上限）。可以放到快捷列' };
+// 召喚戒指能召喚的生物：等級越高越強
+const RING_SUMMONS = [
+  { lvl: 1, type: 'wolf', mp: 10 }, { lvl: 8, type: 'werewolf', mp: 18 }, { lvl: 14, type: 'snow_wolf', mp: 22 },
+  { lvl: 18, type: 'hellhound', mp: 28 }, { lvl: 22, type: 'yeti', mp: 34 }, { lvl: 26, type: 'ice_golem', mp: 40 },
+  { lvl: 30, type: 'frost_troll', mp: 48 }, { lvl: 34, type: 'magma_golem', mp: 56 }, { lvl: 38, type: 'draconian', mp: 66 },
+  { lvl: 44, type: 'wyvern', mp: 90 },
+].filter((s) => MONSTERS[s.type]);
+SHOPS.magic.push('summon_ring'); SHOPS.oren_magic.push('summon_ring'); SHOPS.castleshop.push('summon_ring');
+for (const m of ['wyvern', 'lich', 'iron_colossus']) if (MONSTERS[m]) MONSTERS[m].loot.push(['summon_ring', 0.04]);
+// 負重強化（第 2 階，所有職業）
+SPELLS.loadup = { name: '負重強化', circle: 2, mp: 6, target: 'self', dur: 900, icon: 'load', learn: { knight: 6, mage: 4, ranger: 5, cleric: 4 }, desc: '身體變得輕盈有力，負重上限 +50%（15 分鐘）' };
+ITEMS.book_loadup = { name: '魔法書（負重強化）', type: 'book', spell: 'loadup', icon: 'book', w: 5, price: 600, desc: '第 2 階魔法。使用後學會「負重強化」' };
+SHOPS.magic.splice(SHOPS.magic.indexOf('book_shield') + 1 || 6, 0, 'book_loadup');
+SHOPS.oren_magic.splice(6, 0, 'book_loadup');

@@ -375,6 +375,7 @@ function drawEntity(e, S, labels) {
     if (e.dead) { ctx.save(); ctx.translate(sx, sy); ctx.scale(1, 0.55); ctx.rotate(Math.PI / 2 * 0.9); ctx.translate(-sx, -sy); }
     if (e.slowT > 0 && !e.dead) frostUnder(sx, sy);
     if (e.companion === 'charm') glowUnder(sx, sy, 26 + Math.sin(G.t * 4) * 3, 'rgba(255,110,200,0.45)');
+    if (e.ringSummon) glowUnder(sx, sy, 30 + Math.sin(G.t * 4) * 3, 'rgba(180,140,255,0.45)');
     const H = (opts, h, w = 14) => { drawShadow(ctx, sx, sy, 11, 4); drawHumanoid(ctx, sx, sy, Object.assign(o, opts)); top = sy - h; bb = [sx - w, sy - h + 2, sx + w, sy + 4]; };
     switch (d.sprite) {
       case 'wolf': { const k = d.scaleUp || 1; drawShadow(ctx, sx, sy, 16 * k, 6 * k); drawWolf(ctx, sx, sy, Object.assign(o, { scale: e.scale * k, eye: d.eye })); top = sy - 34 * k; bb = [sx - 24 * k, sy - 34 * k, sx + 24 * k, sy + 4]; break; }
@@ -412,7 +413,11 @@ function drawEntity(e, S, labels) {
       const targeted = p.action && p.action.target === e;
       const hovered = G.hover && G.hover.e === e;
       labels.push(() => {
-        if (e.companion === 'charm') {
+        if (e.companion === 'summon') {
+          ctx.font = '12px "Microsoft JhengHei", "PingFang TC", sans-serif';
+          outlineText(e.name, sx, top - 8, '#c8b0ff');
+          hpBar(sx, top - 4, 34, e.hp / e.maxHp, '#40c060');
+        } else if (e.companion === 'charm') {
           ctx.font = '12px "Microsoft JhengHei", "PingFang TC", sans-serif';
           outlineText(e.name, sx, top - 8, '#ff9ad8');
           ctx.font = 'bold 15px sans-serif'; outlineText('♥', sx, top - 22 + Math.sin(G.t * 4) * 2, '#ff6ac0');

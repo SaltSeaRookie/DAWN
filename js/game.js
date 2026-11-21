@@ -162,6 +162,7 @@ function recalc(p = G.player) {
   d.mlevel = Math.max(0, Math.floor(p.level / CLASSES[p.cls].mlDiv));
   d.sp += statMod(st.int) + d.mlevel;
   d.weightMax = 1000 + (st.str + st.con) * 40 + d.weightB;
+  if (B.loadup) d.weightMax = Math.round(d.weightMax * 1.5);
   d.weight = invWeight(p);
   p.d = d;
   if (p.hp > p.maxHp) p.hp = p.maxHp;
@@ -280,6 +281,8 @@ function populateField(m) {
   const C = W.castle;
   m.npcs.push(new NPC(C.herald.x, C.herald.y, '奧德里奇', NPC_TITLES.herald, 'herald', NPC_LOOKS.herald, 'castle'));
   m.npcs.push(new NPC(C.merchant.x, C.merchant.y, '瑟琳娜', '城堡御用商人', 'castleshop', { body: '#6a1a3a', robe: true, hair: '#2a1a10', longHair: true, skin: '#f0d0b0', trim: '#e0c060' }, 'castle'));
+  const tq = W.nearestFree(C.x0 + 4.5, C.cy - 4.5);
+  m.npcs.push(new NPC(tq.x, tq.y, '瑟薇雅', NPC_TITLES.teleport, 'teleport', NPC_LOOKS.teleport, 'castle'));
   const mq = W.nearestFree(C.x0 + 4.5, C.cy + 4.5);
   m.npcs.push(new NPC(mq.x, mq.y, '葛倫', '傭兵隊長', 'merc', { body: '#5a4030', legs: '#2a2420', helm: '#8a8a90', skin: '#d8a880', cape: '#6a2a1a', trim: '#b09040', weapon: 'sword', shield: true }, 'castle'));
   const bq = W.nearestFree(C.tower.x - 3.5, C.tower.y - 4);
@@ -881,7 +884,7 @@ function updatePlayer(dt) {
     p.buffs[k] -= dt;
     if (p.buffs[k] <= 0) {
       delete p.buffs[k]; changed = true;
-      const msg = { haste: '你的動作恢復正常速度。', holy: '武器上神聖的氣息消失了。', shield: '防護術的效果消失了。', glow: '身邊的光芒消失了。', might: '力量祝福的效果消失了。', fireres: '抗火的力量消失了。', expboost: '經驗祝福的效果結束了。', warcry: '戰吼的效果消失了。', earthskin: '大地之膚的效果消失了。', blessarmor: '祝福鎧甲的效果消失了。', sanctuary: '神聖光環消失了。', manashield: '魔力護盾消失了。', divineshield: '神聖護盾消失了。', berserk: '你從狂暴中冷靜下來。', eagleeye: '鷹眼的效果消失了。', holyfield: '聖域消失了。', miracle: '神蹟的庇護結束了。' }[k];
+      const msg = { haste: '你的動作恢復正常速度。', holy: '武器上神聖的氣息消失了。', shield: '防護術的效果消失了。', glow: '身邊的光芒消失了。', might: '力量祝福的效果消失了。', fireres: '抗火的力量消失了。', expboost: '經驗祝福的效果結束了。', warcry: '戰吼的效果消失了。', earthskin: '大地之膚的效果消失了。', blessarmor: '祝福鎧甲的效果消失了。', sanctuary: '神聖光環消失了。', manashield: '魔力護盾消失了。', loadup: '負重強化的效果消失了。', divineshield: '神聖護盾消失了。', berserk: '你從狂暴中冷靜下來。', eagleeye: '鷹眼的效果消失了。', holyfield: '聖域消失了。', miracle: '神蹟的庇護結束了。' }[k];
       if (msg) log(msg, 'sys');
     }
   }
@@ -1028,6 +1031,7 @@ function useItem(inst) {
     if (!hasteCompanions(300)) { log('附近沒有夥伴。', 'warn'); return; }
     SFX.play('potion'); SFX.play('buff'); removeItem(inst, 1); return;
   }
+  if (inst.id === 'summon_ring') { UI.openSummonRing(); return; }
   if (inst.id === 'tame_jerky') { G.targeting = 'tame'; log('請點擊要馴服的野狼（體力需低於一半）。Esc 取消', 'sys'); return; }
   if (d.type === 'book') {
     const s = SPELLS[d.spell], need = s.learn[p.cls];
@@ -1297,6 +1301,7 @@ function doCast(id, target) {
       G.rings = G.rings || []; G.rings.push({ x: p.x, y: p.y, t: 0, r: 7, col: '170,255,190' });
       SFX.play('heal'); break;
     }
+    case 'loadup': buff('loadup', '你的身體變得輕盈有力。（負重上限 +50%）', '#e0c070'); break;
     case 'might': buff('might', '一股力量湧入你的身體。（傷害 +3）', '#ff9a60'); break;
     case 'warcry': {
       buff('warcry', '你發出了震天的戰吼！（防禦 +3）', '#ffd080'); SFX.play('roar');
