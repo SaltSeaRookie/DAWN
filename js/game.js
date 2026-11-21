@@ -1778,6 +1778,7 @@ function frameBody(ts) {
     garrisonTick(dt);
     Stall.tick(dt);
     Story.tick(dt);
+    musicTick(dt);
     G.nsT = (G.nsT || 0) - dt; if (G.nsT <= 0) { G.nsT = 5; npcStallTick(); }
     updateFx(dt);
     updateHazards(dt); autoBuffTick(dt); if (typeof Online !== "undefined") Online.tick(dt);
@@ -1933,7 +1934,7 @@ function enterWorld(saveData) {
     log('點擊地面移動，點擊怪物攻擊。數字鍵 1-0 使用快捷列，可以把背包或魔法視窗的圖示拖到快捷列。', 'sys');
     log('與晨風村的守備隊長 雷恩 對話可以接受委託。', 'npc');
   }
-  Music.play('field');
+  G.musT = 0; G.musWant = null; Music.play(areaMusicId());
   for (const inst of p.inv) if (inst.pet && inst.pet.out) { inst.pet.out = false; if (companions('pet').length < MAX_PETS) spawnPet(inst); }
   UI.refresh();
   Story.renderTrack();

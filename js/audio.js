@@ -126,6 +126,15 @@ function instrumentFor(prog) {
   // [波形, 起音, 衰減到的比例, 衰減時間, 釋音, 濾波, 音量, 選項]
   const f = prog >> 3;
   if (prog === 47) return { kind: 'timpani' };
+  // 區域音樂用到的特定樂器
+  if (prog >= 8 && prog <= 10) return { wave: 'sine', wave2: 'sine', det: 1200, mix2: 0.35, a: 0.002, sus: 0.0, d: 1.8, r: 0.5, filt: 7000, vol: 0.55 };   // 鋼片琴、音樂盒
+  if (prog === 12 || prog === 13) return { wave: 'sine', wave2: 'triangle', det: 2400, mix2: 0.2, a: 0.002, sus: 0.0, d: 0.5, r: 0.15, filt: 5000, vol: 0.95 };   // 馬林巴
+  if (prog === 14) return { wave: 'sine', wave2: 'triangle', det: 1530, mix2: 0.4, a: 0.002, sus: 0.0, d: 3.0, r: 1.0, filt: 5000, vol: 0.45 };   // 管鐘
+  if (prog === 30 || prog === 29) return { wave: 'sawtooth', wave2: 'square', det: 10, mix2: 0.5, a: 0.005, sus: 0.7, d: 0.3, r: 0.1, filt: 1700, vol: 0.3 };   // 電吉他
+  if (prog === 46) return { wave: 'triangle', wave2: 'sine', det: 1200, mix2: 0.3, a: 0.003, sus: 0.0, d: 1.4, r: 0.4, filt: 3500, vol: 0.8 };   // 豎琴
+  if (prog >= 52 && prog <= 54) return { wave: 'sine', wave2: 'triangle', det: 7, mix2: 0.6, a: 0.35, sus: 0.9, d: 0.5, r: 0.8, filt: 1800, vol: 0.45, vib: 4 };   // 合唱
+  if (prog >= 104 && prog <= 107) return { wave: 'sawtooth', wave2: 'triangle', det: 3, mix2: 0.5, a: 0.002, sus: 0.0, d: 0.9, r: 0.2, filt: 2600, fenv: 0.6, vol: 0.5 };   // 西塔琴、班卓琴、日本琴
+  if (prog === 114) return { wave: 'sine', wave2: 'triangle', det: 1900, mix2: 0.35, a: 0.003, sus: 0.0, d: 0.7, r: 0.3, filt: 4000, vol: 0.7 };   // 鋼鼓
   if (prog >= 120) return { kind: 'noise', a: 0.15, d: 0.3, sus: 0.8, r: 0.4, vol: 0.25, filt: 900 };
   if (prog >= 96 && prog <= 103) return { wave: 'sine', wave2: 'triangle', det: 12, a: 0.25, sus: 0.6, d: 1.5, r: 1.2, filt: 3000, vol: 0.5 };
   switch (f) {
@@ -155,6 +164,7 @@ const Music = {
       try { this.songs.field = parseMidi(u); } catch (e) { console.warn('MIDI 解析失敗', e); }
     }
     if (!this.songs.login) this.songs.login = composeLoginTheme();
+    if (!this.songs[this.current] && typeof composeArea === 'function') { const t = composeArea(this.current); if (t) this.songs[this.current] = t; }
     this.song = this.songs[this.current] || this.songs.login;
   },
   // 切換曲目（login＝登入曲，field＝遊戲中）
@@ -178,8 +188,7 @@ const Music = {
   start() {
     if (!Snd.ctx) return;
     this.load(); if (!this.song || this.playing) return;
-    this.song = this.songs[this.current] || this.song;
-    this.out = Snd.ctx.createGain(); this.out.gain.value = 1; this.out.connect(Snd.musicBus);
+    this.out = Snd.ctx.createGain(); this.out.gain.value = this.song.gain || 1; this.out.connect(Snd.musicBus);
     this.setupChannels();
     this.playing = true; this.cursor = 0; this.base = Snd.ctx.currentTime + 0.15;
     this.timer = setInterval(() => this.pump(), 60);
@@ -198,7 +207,7 @@ const Music = {
     const c = Snd.ctx, ev = this.song.events, ahead = c.currentTime + 0.5;
     this.voices = this.voices.filter((v) => v.endT > c.currentTime);
     while (true) {
-      if (this.cursor >= ev.length) { this.base += this.song.duration + 1.5; this.cursor = 0; }
+      if (this.cursor >= ev.length) { this.base += this.song.duration + (this.song.loopGap !== undefined ? this.song.loopGap : 1.5); this.cursor = 0; }
       const e = ev[this.cursor];
       const t = this.base + e.t;
       if (t > ahead) break;
