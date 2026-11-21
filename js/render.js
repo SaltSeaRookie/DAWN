@@ -295,6 +295,9 @@ function drawObj(o, S) {
     case 'crate': s = SPR.crate0; break;
     case 'snowrock': s = SPR.snowrock0; break;
     case 'pine': s = SPR['pine' + o.v]; break;
+    case 'moongate': s = SPR.moongate0; break;
+    case 'stele': s = SPR['stele' + o.v]; break;
+    case 'crystal': s = SPR['crystal' + o.v]; break;
     case 'palm': s = SPR['palm' + o.v]; break;
     case 'cave': s = SPR.cave0; break;
   }
@@ -314,6 +317,8 @@ function drawObj(o, S) {
   else ctx.drawImage(s.c, Math.round(sx - s.ax), Math.round(sy - s.ay));
   ctx.globalAlpha = 1;
   if (o.kind === 'brazier') drawFire(sx, sy - 24, 1);
+  if (o.kind === 'crystal' || o.kind === 'moongate') glowUnder(sx, sy - (o.kind === 'moongate' ? 40 : 20), o.kind === 'moongate' ? 46 : 26 + Math.sin(G.t * 2 + o.tx) * 3, 'rgba(170,140,255,0.28)');
+  if (o.kind === 'stele' && typeof Story !== 'undefined' && Story.steleLit(o.v)) { glowUnder(sx, sy - 40, 40 + Math.sin(G.t * 3) * 4, 'rgba(160,200,255,0.55)'); if (Math.random() < 0.3) G.particles.push({ x: o.tx + 0.5 + rand(-0.4, 0.4), y: o.ty + 0.5 + rand(-0.4, 0.4), z: rand(10, 60), vx: 0, vy: 0, vz: rand(20, 40), life: 1.2, max: 1.2, color: '#c8d8ff', size: 2 }); }
   if (o.kind === 'torch') drawFire(sx, sy - 40, 0.55);
   if (o.kind === 'lamp') { const f = 0.8 + Math.sin(G.t * 9 + o.tx) * 0.1; ctx.fillStyle = 'rgba(255,210,120,' + 0.25 * f + ')'; ctx.beginPath(); ctx.arc(sx, sy - 68, 12, 0, 7); ctx.fill(); }
 }
@@ -388,6 +393,8 @@ function drawEntity(e, S, labels) {
       case 'pirate': H(d.captainLook
         ? { body: '#2a2a4a', legs: '#1a1a2a', hair: '#1a1010', cape: '#8a1a1a', trim: '#e0c060', belt: '#5a3a1a', weapon: 'claymore', skin: '#c89070', scale: 1.3 }
         : { body: '#e8e0d0', sleeve: '#a02a2a', legs: '#2a2a3a', hood: '#a02a2a', belt: '#5a3a1a', weapon: 'sword', skin: '#c89070' }, d.captainLook ? 70 : 56, 16); break;
+      case 'elf': H({ body: '#3a2a5a', sleeve: '#2a1a4a', legs: '#2a2238', hood: '#24163e', skin: '#d8c8f0', belt: '#6a5a8a', weapon: 'bow', draw: e.atkAnim >= 0 && e.atkAnim < 0.6, eye: '#c080ff' }, 58); break;
+      case 'eclipse': { drawShadow(ctx, sx, sy, 22, 8); glowUnder(sx, sy, 60 + Math.sin(G.t * 2) * 6, 'rgba(120,60,220,0.35)'); drawHumanoid(ctx, sx, sy, Object.assign(o, { kind: 'lich', body: '#1a1028', robe: true, bone: '#d8d0f0', skin: '#d8d0f0', sleeve: '#2a1a40', weapon: 'staff', crown: true, scale: 1.9, eye: '#d060ff', cape: '#3a1a5a' })); top = sy - 116; bb = [sx - 30, sy - 112, sx + 30, sy + 4]; break; }
       case 'yeti': H({ kind: 'werewolf', body: '#e8eef4', skin: '#dfe7ee', legs: '#c8d4de', boots: '#a8b4c0', sleeve: '#e8eef4', scale: 1.35 }, 74, 20); break;
       case 'troll': { const k = d.big || 1; H({ kind: 'ghoul', body: '#4a6a8a', skin: '#8ab0c8', legs: '#3a4a5a', boots: '#2a3a4a', sleeve: '#8ab0c8', belt: '#5a4a3a', weapon: 'club', crown: d.frostKing, scale: 1.4 * k, eye: d.frostKing ? '#80e0ff' : null }, 66 * k, 18 * k); if (d.frostKing) glowUnder(sx, sy, 50, 'rgba(140,210,255,0.3)'); break; }
       case 'werewolf': H({ kind: 'werewolf', body: '#5a4a3a', skin: '#6a5a48', legs: '#4a3a2a', boots: '#3a2a1a', sleeve: '#6a5a48', scale: 1.15 }, 64, 18); break;
@@ -465,6 +472,7 @@ function drawEntity(e, S, labels) {
     let y = top - 8;
     if (e instanceof NPC) {
       if (e.role === 'stall' && e.stall) { stallSign(e.stall.title, sx, y - 2); y -= 20; }
+      if (e.role === 'story' && Story.hasTalk(e)) { ctx.font = 'bold 22px Georgia, serif'; outlineText('!', sx, y - 34 + Math.sin(G.t * 4) * 2, '#ffd040'); ctx.font = '12px "Microsoft JhengHei", "PingFang TC", sans-serif'; }
       outlineText('[' + e.title + ']', sx, y, '#ffe9a0'); y -= 14;
       outlineText(e.name, sx, y, '#ffffff'); y -= 6;
       if (e.role === 'quest') {
@@ -485,6 +493,7 @@ function drawEntity(e, S, labels) {
       if (em) drawEmblem(ctx, em, sx - w / 2 - 10, yy - 11, 13);
       y = yy - 14;
       if (clan) { ctx.font = '11px sans-serif'; outlineText('[' + clan + ']', sx, y, '#b8e0a8'); y -= 13; }
+      if (e === p && p.title) { ctx.font = '11px sans-serif'; outlineText('《' + p.title + '》', sx, y, '#c8d8ff'); y -= 13; }
       if ((e === p && ownsCastle()) || (e.kind === 'remote' && e.crown)) { drawCrown(ctx, sx, y - 6, G.t, 1.1); y -= 20; }
       const stl = e === p ? (p.stall && p.stall.open ? p.stall : null) : e.kind === 'remote' ? e.stall : null;
       if (stl) { stallSign(stl.title, sx, y - 2); y -= 22; }
@@ -584,8 +593,17 @@ function drawMinimap(mc) {
   for (const n of G.map.npcs) { const [x, y] = P(n.x, n.y); g.fillStyle = '#ffd040'; g.fillRect(x - 1.5, y - 1.5, 3, 3); }
   for (const pt of G.world.portals) { const [x, y] = P(pt.x, pt.y); g.fillStyle = '#c0a0ff'; g.fillRect(x - 2.5, y - 2.5, 5, 5); }
   const [px, py] = P(p.x, p.y);
+  // 主線目標 ★
+  const tg = Story.target();
+  if (tg && tg.map === G.map.id) { const [tx, ty] = P(tg.x, tg.y); starMark(g, clamp(tx, 6, w - 6), clamp(ty, 6, h - 6), 6); }
   g.fillStyle = '#fff'; g.beginPath(); g.arc(px, py, 3, 0, 7); g.fill();
   g.strokeStyle = '#000'; g.lineWidth = 1; g.stroke();
+}
+function starMark(g, x, y, r) {
+  g.save(); g.translate(x, y);
+  g.fillStyle = '#ffd040'; g.strokeStyle = '#5a3a00'; g.lineWidth = 1.2;
+  g.beginPath(); for (let i = 0; i < 10; i++) { const rr = i % 2 ? r * 0.45 : r, a = -Math.PI / 2 + i * Math.PI / 5; g.lineTo(Math.cos(a) * rr, Math.sin(a) * rr); } g.closePath(); g.fill(); g.stroke();
+  g.restore();
 }
 
 // ===== 世界地圖（羊皮紙風格）=====
@@ -648,6 +666,9 @@ function drawWorldMap(cv, mapId = 'overworld') {
     g.beginPath(); g.moveTo(x - 4, y - 15); g.lineTo(x, y - 9); g.lineTo(x + 4, y - 15); g.fill();
     g.fillStyle = '#2a1e10'; g.fillText(pl.name, x, y - 20);
   }
+  // 主線目標
+  const tg = Story.target();
+  if (tg && tg.map === mapId) { const [x, y] = P(tg.x, tg.y); starMark(g, x, y - 4, 10 + Math.sin(G.t * 4) * 1.5); }
   // 玩家位置
   if (G.map.id === mapId) {
     const [x, y] = P(G.player.x, G.player.y);

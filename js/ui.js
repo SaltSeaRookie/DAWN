@@ -309,17 +309,17 @@ const UI = {
     if (id === 'map') {
       const w = Math.min(860, W - 20), h = Math.min(540, window.innerHeight - HUD_H() - 110);
       const win = this.win('map', '世界地圖', (W - w) / 2, 40, w);
-      win.mapId = ['isle', 'volcano', 'oren'].includes(G.map.id) ? G.map.id : 'overworld';
+      win.mapId = ['isle', 'volcano', 'oren', 'moonruins'].includes(G.map.id) ? G.map.id : 'overworld';
       const tabs = el('div', 'tabs');
       const cv = makeCanvas(w - 22, h - 34); cv.className = 'mapcv';
       const note = el('div', 'dim small');
       const show = (id) => {
         win.mapId = id;
         tabs.querySelectorAll('.tab').forEach((b) => b.classList.toggle('on', b.dataset.id === id));
-        note.textContent = G.map.id === id ? '紅點為你的位置。' : G.map.id === 'crypt' ? '你目前在地下墓穴中。' : (id === 'isle' ? '在銀風港找船長搭船前往翡翠群島。' : id === 'oren' ? '從霜嶺高地北方的北境山道進入，傳送師也能直接送你到歐瑞城。' : id === 'volcano' ? '從赤岩峽谷深處的火山隘口進入，傳送師也能送你到隘口。' : '在珊瑚鎮找船長搭船回到大陸。');
+        note.textContent = G.map.id === id ? '紅點為你的位置。' : G.map.id === 'crypt' ? '你目前在地下墓穴中。' : (id === 'isle' ? '在銀風港找船長搭船前往翡翠群島。' : id === 'oren' ? '從霜嶺高地北方的北境山道進入，傳送師也能直接送你到歐瑞城。' : id === 'moonruins' ? '主線故事的舞台。取得月之鑰後，從幽影森林深處的月影之門進入。' : id === 'volcano' ? '從赤岩峽谷深處的火山隘口進入，傳送師也能送你到隘口。' : '在珊瑚鎮找船長搭船回到大陸。');
         drawWorldMap(cv, id);
       };
-      for (const [id, nm] of [['overworld', '晨曦大陸'], ['isle', '翡翠群島'], ['volcano', '熾焰火山'], ['oren', '北境・歐瑞城']]) { const b = el('button', 'tab', nm); b.dataset.id = id; b.onclick = () => show(id); tabs.appendChild(b); }
+      for (const [id, nm] of [['overworld', '晨曦大陸'], ['isle', '翡翠群島'], ['volcano', '熾焰火山'], ['oren', '北境・歐瑞城'], ['moonruins', '月影遺跡']]) { const b = el('button', 'tab', nm); b.dataset.id = id; b.onclick = () => show(id); tabs.appendChild(b); }
       win.body.appendChild(tabs); win.body.appendChild(cv); win.body.appendChild(note); win.cv = cv;
       show(win.mapId);
     }
@@ -393,7 +393,7 @@ const UI = {
     foot.innerHTML = '<div class="wt"><span>負重 ' + p.d.weight + ' / ' + p.d.weightMax + '</span><div class="wtbar"><div class="' + (wp >= 100 ? 'over' : wp >= 50 ? 'heavy' : '') + '" style="width:' + Math.min(100, wp) + '%"></div></div></div>' +
       '<div class="gold">金幣 <b>' + p.gold.toLocaleString() + '</b></div>';
     const tools = el('div', 'inv-tools');
-    const bSort = el('button', 'btn sm', '整理'); bSort.onclick = () => { p.inv.sort((a, b) => ({ weapon: 0, armor: 1, acc: 2, tool: 3, consume: 3, ammo: 4, book: 5, junk: 6, collar: 7 }[ITEMS[a.id].type] - { weapon: 0, armor: 1, acc: 2, tool: 3, consume: 3, ammo: 4, book: 5, junk: 6, collar: 7 }[ITEMS[b.id].type]) || a.id.localeCompare(b.id)); this.renderInv(); };
+    const bSort = el('button', 'btn sm', '整理'); bSort.onclick = () => { p.inv.sort((a, b) => ({ quest: -1, weapon: 0, armor: 1, acc: 2, tool: 3, consume: 3, ammo: 4, book: 5, junk: 6, collar: 7 }[ITEMS[a.id].type] - { quest: -1, weapon: 0, armor: 1, acc: 2, tool: 3, consume: 3, ammo: 4, book: 5, junk: 6, collar: 7 }[ITEMS[b.id].type]) || a.id.localeCompare(b.id)); this.renderInv(); };
     const bDrop = el('button', 'btn sm' + (this.dropMode ? ' on' : ''), '🗑 丟棄'); bDrop.onclick = () => { this.dropMode = !this.dropMode; this.renderInv(); if (this.dropMode) this.log('點擊要丟棄的物品。', 'sys'); };
     const bDel = el('button', 'btn sm' + (this.delMode ? ' on' : ''), '🔥 刪除'); bDel.onclick = () => { this.delMode = !this.delMode; this.dropMode = false; this.renderInv(); if (this.delMode) this.log('點擊要刪除（銷毀）的物品。', 'sys'); };
     const bStall = el('button', 'btn sm' + (p.stall ? ' on' : ''), '🏪 擺攤'); bStall.onclick = () => Stall.toggleSetup();
@@ -402,6 +402,7 @@ const UI = {
     w.body.appendChild(foot); w.body.appendChild(tools);
   },
   askDelete(inst) {
+    if (isQuestItem(inst)) { this.log('劇情道具不能刪除。', 'warn'); return; }
     const nm = itemName(inst);
     let q = inst.qty;
     if (inst.qty > 1) { const v = prompt('要刪除多少個 ' + ITEMS[inst.id].name + '？（最多 ' + inst.qty + '，刪除後無法復原）', inst.qty); if (v === null) return; q = clamp(parseInt(v, 10) || 0, 0, inst.qty); if (!q) return; }
@@ -412,6 +413,7 @@ const UI = {
     SFX.play('enchantFail'); this.log('刪除了 ' + ITEMS[inst.id].name + (q > 1 ? ' ×' + q : '') + '。', 'sys');
   },
   askDrop(inst) {
+    if (isQuestItem(inst)) { this.log('劇情道具不能丟棄。', 'warn'); return; }
     let q = inst.qty;
     if (inst.qty > 1) { const v = prompt('要丟棄多少個 ' + ITEMS[inst.id].name + '？（最多 ' + inst.qty + '）', inst.qty); if (v === null) return; q = clamp(parseInt(v, 10) || 0, 0, inst.qty); if (!q) return; }
     else if (inst.pet) { if (!confirm('項圈裡有寵物「' + inst.pet.name + '」，丟棄後會失去牠，確定嗎？')) return; const out = companions('pet').find((x) => x.pet === inst.pet); if (out) recallPet(out, true); }
@@ -604,6 +606,7 @@ const UI = {
     else if (role === 'herald') this.openHerald(npc);
     else if (role === 'merc') this.openMercCaptain(npc);
     else if (role === 'stall') this.openStallView(npc);
+    else if (role === 'story') Story.talk(npc);
     else if (role === 'buffer') this.openBuffer(npc);
     else if (role === 'pet') this.openPetShop(npc);
   },
@@ -673,7 +676,7 @@ const UI = {
         list.appendChild(row);
       }
     } else {
-      const items = p.inv.filter((i) => !i.pet);
+      const items = p.inv.filter((i) => !i.pet && !isQuestItem(i));
       if (!items.length) list.appendChild(el('div', 'dim', '沒有可以販賣的物品。'));
       for (const inst of items) {
         const d = ITEMS[inst.id], each = sellPrice(inst, true);
@@ -727,6 +730,7 @@ const UI = {
     dests.push({ name: '赤岩峽谷', sub: '建議 Lv 12+', cost: 380, x: 118, y: 44 });
     dests.push({ name: '火山隘口', sub: '熾焰火山・建議 Lv 23+', cost: 600, x: W.volcanoGate.x + 1, y: W.volcanoGate.y + 2 });
     if (G.map.id !== 'overworld') for (const d of dests) { d.map = 'overworld'; d.cost = Math.max(d.cost, 800); }
+    if (Story.ruinsOpen()) { const M = getMap('moonruins').world; dests.push({ name: '月影遺跡', sub: '主線故事・建議 Lv 22+', cost: 1200, x: M.entry.x + 1, y: M.entry.y, map: 'moonruins' }); }
     if (npc.town !== 'oren') { const O = getMap('oren').world; dests.push({ name: '歐瑞城', sub: '北境・建議 Lv 16+', cost: 1000, x: O.city.x, y: O.city.y + 3, map: 'oren' }); }
     const castleFree = npc.town === 'castle' && ownsCastle();
     if (castleFree) for (const d of dests) d.cost = 0;

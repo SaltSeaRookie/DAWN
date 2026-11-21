@@ -185,7 +185,7 @@ function getMap(id) {
   const w = new World(id, 20261115);
   const m = { id, world: w, actors: [], items: [], spawners: [], npcs: [] };
   G.maps[id] = m;
-  if (id === 'overworld') populateOverworld(m); else if (id === 'isle') populateIsle(m); else if (id === 'keep') populateKeep(m); else if (id === 'volcano') populateVolcano(m); else if (id === 'oren') populateOren(m); else populateCrypt(m);
+  if (id === 'overworld') populateOverworld(m); else if (id === 'isle') populateIsle(m); else if (id === 'keep') populateKeep(m); else if (id === 'volcano') populateVolcano(m); else if (id === 'oren') populateOren(m); else if (id === 'moonruins') populateMoonruins(m); else populateCrypt(m);
   return m;
 }
 function setMap(id) {
@@ -278,6 +278,10 @@ function populateTowns(m) {
 }
 function populateField(m) {
   const W = m.world;
+  // 主線故事的 NPC
+  { const t1 = W.towns.find((t) => t.id === 'dawn'), t2 = W.towns.find((t) => t.id === 'leaf');
+    if (t1) storyNpc(m, 'scholar', t1.x - 3.5, t1.y + 3.5, 'dawn');
+    if (t2) storyNpc(m, 'elder', t2.x + 2.5, t2.y - 3.5, 'leaf'); }
   // 灰岩城：傳令官、城門、守護塔
   const C = W.castle;
   m.npcs.push(new NPC(C.herald.x, C.herald.y, '奧德里奇', NPC_TITLES.herald, 'herald', NPC_LOOKS.herald, 'castle'));
@@ -377,6 +381,24 @@ function populateOren(m) {
   m.fighterT = 0;
   for (let i = 0; i < 7; i++) spawnFighter(m, false);
 }
+function storyNpc(m, key, x, y, town) {
+  const D = STORY_NPCS[key], q = m.world.nearestFree(x, y);
+  const n = new NPC(q.x, q.y, D.name, D.title, 'story', Object.assign({}, D.look), town);
+  n.storyKey = key; m.npcs.push(n); return n;
+}
+function populateMoonruins(m) {
+  const W = m.world;
+  storyNpc(m, 'spirit', W.spiritSpot.x, W.spiritSpot.y, 'moonruins');
+  const table = [['moon_spider', 10, 50, 12, 3], ['moon_wraith', 14, 999, 12, 2], ['fallen_elf', 20, 999, 10, 2], ['ruin_golem', 30, 999, 8, 2], ['eclipse_knight', 45, 999, 8, 2]];
+  for (const [type, dmin, dmax, n, max] of table)
+    for (let i = 0; i < n; i++) {
+      const p = W.randomFreeTile((x, y) => { const d = dist(x, y, W.entry.x, W.entry.y); return d > dmin && d < dmax && dist(x, y, W.altar.x, W.altar.y) > 10 && W.steles.every((s) => dist(x, y, s.x, s.y) > 5); });
+      if (p) m.spawners.push({ type, x: p.x + 0.5, y: p.y + 0.5, max, alive: 0, timer: 0, respawn: 30 });
+    }
+  // 完成主線後，蝕月之主會在祭壇定期重生
+  if (G.player && G.player.story && G.player.story.done) m.spawners.push({ type: 'eclipse_lord', x: W.altar.x, y: W.altar.y, max: 1, alive: 0, timer: 0, respawn: MONSTERS.eclipse_lord.respawn });
+  for (const sp of m.spawners) for (let i = 0; i < sp.max; i++) spawnFrom(m, sp);
+}
 function populateKeep(m) {
   const W = m.world;
   const groups = [['dark_knight', 0, 999, 12, 3], ['gargoyle', 10, 999, 9, 2], ['fire_imp', 0, 999, 9, 3]];
@@ -461,12 +483,12 @@ function serializePlayer(p) {
     baseMaxHp: p.baseMaxHp, baseMaxMp: p.baseMaxMp, hp: Math.ceil(p.hp), mp: Math.floor(p.mp), gold: p.gold, align: p.align,
     // 交易中與擺攤中的物品也算在背包裡（避免中途離線時遺失）
     inv: [...p.inv, ...(typeof Trade !== 'undefined' && Trade.s && G.player === p ? Trade.s.mine.items : []), ...(p.stall ? p.stall.items.map((it) => ({ id: it.id, qty: it.qty, ench: it.ench })) : [])], wh: p.wh, equip: p.equip, spells: p.spells, hotbar: p.hotbar, quest: p.quest, kills: p.kills, pkCount: p.pkCount, petMode: p.petMode,
-    clan: p.clan, castle: p.castle, homeTown: p.homeTown, autoBuff: p.autoBuff || {}, realm: p.realm || null, mapId: p.mapId, x: p.x, y: p.y, day: G.day, created: p.created, playTime: p.playTime || 0,
+    clan: p.clan, castle: p.castle, homeTown: p.homeTown, autoBuff: p.autoBuff || {}, realm: p.realm || null, story: p.story || null, title: p.title || null, mapId: p.mapId, x: p.x, y: p.y, day: G.day, created: p.created, playTime: p.playTime || 0,
   };
 }
 function loadPlayer(d) {
   const p = new Player({ name: d.name, cls: d.cls, stats: d.base });
-  for (const k of ['level', 'exp', 'statPoints', 'baseMaxHp', 'baseMaxMp', 'hp', 'mp', 'gold', 'align', 'inv', 'wh', 'spells', 'hotbar', 'quest', 'kills', 'pkCount', 'petMode', 'clan', 'castle', 'homeTown', 'autoBuff', 'realm', 'mapId', 'created', 'playTime'])
+  for (const k of ['level', 'exp', 'statPoints', 'baseMaxHp', 'baseMaxMp', 'hp', 'mp', 'gold', 'align', 'inv', 'wh', 'spells', 'hotbar', 'quest', 'kills', 'pkCount', 'petMode', 'clan', 'castle', 'homeTown', 'autoBuff', 'realm', 'story', 'title', 'mapId', 'created', 'playTime'])
     if (d[k] !== undefined) p[k] = d[k];
   for (const s of SLOTS) p.equip[s] = (d.equip && d.equip[s]) || null;
   for (const i of p.inv) i.uid = G.uid++;
@@ -657,6 +679,7 @@ function killActor(a, src) {
   const byPlayer = src === pl || (src && src.faction === 'ally') || a.hitByPlayer;
   if (a.kind === 'monster') {
     noteKill(src, a);
+    Story.onKill(a);
     const d = a.def;
     if (byPlayer && !pl.dead) {
       const lvDiff = d.lvl - pl.level;
@@ -805,7 +828,7 @@ function goNearestTown() {
   }
   // 地下城：以入口在大陸上的位置找最近的村莊
   const ow = getMap('overworld').world;
-  const ent = G.map.id === 'keep' ? { x: ow.castle.cx, y: ow.castle.cy } : G.map.id === 'volcano' ? ow.volcanoGate : ow.crypt;
+  const ent = G.map.id === 'keep' ? { x: ow.castle.cx, y: ow.castle.cy } : G.map.id === 'volcano' ? ow.volcanoGate : G.map.id === 'moonruins' ? ow.moonGate : ow.crypt;
   const opts = ow.towns.map((t) => ({ x: t.x, y: t.y + 2, name: t.name, d: dist(t.x, t.y, ent.x, ent.y) }));
   if (ownsCastle()) opts.push({ x: ow.castle.cx, y: ow.castle.cy + 2, name: '灰岩城', d: G.map.id === 'keep' ? 0 : dist(ow.castle.cx, ow.castle.cy, ent.x, ent.y) });
   const t = opts.sort((a, b) => a.d - b.d)[0];
@@ -931,6 +954,12 @@ function usePortal(pt) {
     const w = getMap('keep').world; changeMap('keep', w.entry.x + 1, w.entry.y); log('你走進了灰岩城的地下要塞。', 'level'); return;
   }
   if (pt.to === 'volcano') { const w = getMap('volcano').world; changeMap('volcano', w.entry.x + 1, w.entry.y); log('一股熱浪撲面而來…你進入了熾焰火山。', 'level'); return; }
+  if (pt.stele !== undefined) { Story.activateStele(pt.stele); return; }
+  if (pt.to === 'moonruins') {
+    if (!Story.ruinsOpen()) { log('古老的石門緊緊閉著，門中央有一個新月形的鑰匙孔……', 'sys'); SFX.play('error'); return; }
+    const w = getMap('moonruins').world; changeMap('moonruins', w.entry.x + 1, w.entry.y); log('月之鑰發出光芒，石門緩緩打開——你踏進了月影遺跡。', 'level'); return;
+  }
+  if (pt.from === 'moonruins') { const g = getMap('overworld').world.moonGate; changeMap('overworld', g.x + 1.5, g.y + 2.5); return; }
   if (pt.to === 'oren') { const w = getMap('oren').world; changeMap('oren', w.entry.x + 1, w.entry.y); log('穿過積雪的山道，你來到了北境。遠方是歐瑞城的城牆。', 'level'); return; }
   if (pt.from === 'oren') { const g = getMap('overworld').world.northPass; changeMap('overworld', g.x + 1.5, g.y + 2); return; }
   if (pt.from === 'volcano') { const g = getMap('overworld').world.volcanoGate; changeMap('overworld', g.x + 1.5, g.y + 2); return; }
@@ -1057,6 +1086,7 @@ function useItem(inst) {
     case 'fireres_potion': p.buffs.fireres = 300; recalc(); SFX.play('potion'); burst(p.x, p.y, 20, '#ff8a30', 16, 2, 0.8, 2, 3); log('你的身體被一層抗火的力量包覆。（火屬性抗性 +30%，5 分鐘）', 'sys'); break;
     case 'dragonblood': if (p.hp >= p.maxHp && p.mp >= p.maxMp) { log('體力與魔力已經全滿了。', 'sys'); return; } p.hp = Math.min(p.maxHp, p.hp + 300); p.mp = Math.min(p.maxMp, p.mp + 60); SFX.play('potion'); floatText(p.x, p.y, '+300', '#60ff80', 60); burst(p.x, p.y, 20, '#c01020', 16, 1.5, 0.7, 2, 3); break;
     case 'exp_scroll': p.buffs.expboost = 600; SFX.play('buff'); burst(p.x, p.y, 30, '#a0ff80', 24, 2, 1, 3, 4); log('經驗祝福降臨！10 分鐘內狩獵經驗值 +50%。', 'level'); break;
+    case 'moonruins_scroll': { if (!Story.ruinsOpen()) { log('卷軸上的月光很微弱……（完成主線第 3 章取得月之鑰後才能使用）', 'warn'); return; } const w = getMap('moonruins').world; if (G.map.id === 'moonruins') teleportTo(w.entry.x + 1, w.entry.y); else changeMap('moonruins', w.entry.x + 1, w.entry.y); log('你被傳送到月影遺跡的入口。', 'sys'); break; }
     case 'oren_scroll': { const w = getMap('oren').world; if (G.map.id === 'oren') teleportTo(w.city.x, w.city.y + 3); else changeMap('oren', w.city.x, w.city.y + 3); log('你被傳送到北境的歐瑞城。', 'sys'); break; }
     case 'hot_cocoa': p.hp = Math.min(p.maxHp, p.hp + 60); p.mp = Math.min(p.maxMp, p.mp + 20); SFX.play('potion'); floatText(p.x, p.y, '+60', '#60ff80', 60); log('暖暖的熱可可讓你恢復了精神。', 'sys'); break;
     case 'pet_feast': { const pets = companions('pet'); if (!pets.length) { log('沒有出戰中的寵物。', 'warn'); return; } for (const a of pets) { a.hp = a.maxHp; floatText(a.x, a.y, 'FULL', '#60ff80', 50); burst(a.x, a.y, 20, '#ffe080', 16, 2, 0.6); } SFX.play('heal'); log('寵物大口吃完大餐，體力全滿了！', 'sys'); break; }
@@ -1526,6 +1556,7 @@ function updateActor(a, dt) {
     // 特殊能力
     if (a.def && a.def.dragon && dragonThink(a, dt)) return;
   if (a.def && a.def.frostKing && frostKingThink(a, dt)) return;
+  if (a.def && a.def.eclipse && eclipseThink(a, dt)) return;
     if (a.def && a.def.breath && dt2 < 6 && dt2 > 2.5 && a.atkCd <= 0 && Math.random() < 0.02) {
       a.face(t.x, t.y); a.atkAnim = 0; a.atkCd = a.atkSpd * 1.6; a.path = [];
       SFX.play('fire', a.x, a.y);
@@ -1734,6 +1765,7 @@ function frameBody(ts) {
     updateSiege(dt);
     garrisonTick(dt);
     Stall.tick(dt);
+    Story.tick(dt);
     G.nsT = (G.nsT || 0) - dt; if (G.nsT <= 0) { G.nsT = 5; npcStallTick(); }
     updateFx(dt);
     updateHazards(dt); autoBuffTick(dt); if (typeof Online !== "undefined") Online.tick(dt);
@@ -1871,7 +1903,7 @@ function enterWorld(saveData) {
   if (p.clan) taken.push(...p.clan.members.map((m) => m.name));
   Names.reset(taken);
   G.day = saveData.day || 0.3;
-  setMap(['crypt', 'isle', 'volcano', 'oren'].includes(saveData.mapId) || (saveData.mapId === 'keep' && saveData.castle && saveData.castle.owned) ? saveData.mapId : 'overworld');
+  setMap(['crypt', 'isle', 'volcano', 'oren', 'moonruins'].includes(saveData.mapId) || (saveData.mapId === 'keep' && saveData.castle && saveData.castle.owned) ? saveData.mapId : 'overworld');
   recalc(p);
   if (saveData.x && !G.world.blocked(saveData.x, saveData.y)) { p.x = saveData.x; p.y = saveData.y; }
   else { const t = G.world.towns[0] || { x: G.world.entry.x, y: G.world.entry.y - 2 }; const q = G.world.nearestFree(t.x + 1, t.y + 2); p.x = q.x; p.y = q.y; }
@@ -1891,6 +1923,8 @@ function enterWorld(saveData) {
   Music.play('field');
   for (const inst of p.inv) if (inst.pet && inst.pet.out) { inst.pet.out = false; if (companions('pet').length < MAX_PETS) spawnPet(inst); }
   UI.refresh();
+  Story.renderTrack();
+  if (!p.story) later(3, () => { if (G.player === p && !p.story) { Story.st(); log('📖 主線故事「失落的月之碑」：晨風村來了一位流浪學者，他好像有事想找冒險者幫忙……', 'quest'); Story.renderTrack(); } });
   Online.enter();
 }
 function exitWorld() {

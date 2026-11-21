@@ -451,6 +451,33 @@ function buildExtraSprites() {
     g.fillStyle = '#a08050'; g.beginPath(); g.moveTo(10, 22); g.lineTo(25, 14); g.lineTo(40, 22); g.lineTo(25, 30); g.fill();
     g.strokeStyle = '#3a2814'; g.lineWidth = 1; g.beginPath(); g.moveTo(10, 22); g.lineTo(25, 30); g.lineTo(40, 22); g.moveTo(25, 30); g.lineTo(25, 44); g.stroke();
   });
+  // 月影之門：古老的石拱門，門內是流動的月光
+  spr('moongate0', 120, 150, 60, 128, (g) => {
+    g.fillStyle = 'rgba(0,0,0,0.3)'; g.beginPath(); g.ellipse(60, 130, 48, 14, 0, 0, 7); g.fill();
+    const st = (x, w) => { const gr = g.createLinearGradient(x, 0, x + w, 0); gr.addColorStop(0, '#5a5868'); gr.addColorStop(1, '#3a3848'); g.fillStyle = gr; g.fillRect(x, 40, w, 90); g.fillStyle = 'rgba(255,255,255,0.08)'; for (let y = 48; y < 128; y += 14) g.fillRect(x, y, w, 2); };
+    st(18, 20); st(82, 20);
+    g.fillStyle = '#4a4858'; g.beginPath(); g.moveTo(14, 46); g.quadraticCurveTo(60, -6, 106, 46); g.lineTo(98, 50); g.quadraticCurveTo(60, 8, 22, 50); g.closePath(); g.fill();
+    const mg = g.createRadialGradient(60, 86, 4, 60, 86, 34); mg.addColorStop(0, 'rgba(230,220,255,0.95)'); mg.addColorStop(0.5, 'rgba(150,120,255,0.55)'); mg.addColorStop(1, 'rgba(80,40,180,0.1)');
+    g.fillStyle = mg; g.beginPath(); g.moveTo(38, 130); g.lineTo(38, 54); g.quadraticCurveTo(60, 26, 82, 54); g.lineTo(82, 130); g.closePath(); g.fill();
+    g.fillStyle = '#c8b8ff'; g.font = 'bold 14px serif'; g.textAlign = 'center'; g.fillText('☾', 60, 30);
+  });
+  // 月之碑
+  for (let v = 0; v < 3; v++) spr('stele' + v, 70, 110, 35, 92, (g) => {
+    g.fillStyle = 'rgba(0,0,0,0.3)'; g.beginPath(); g.ellipse(35, 94, 26, 9, 0, 0, 7); g.fill();
+    g.fillStyle = '#4a4a58'; g.fillRect(14, 82, 42, 12);
+    const gr = g.createLinearGradient(20, 0, 50, 0); gr.addColorStop(0, '#6a6a7e'); gr.addColorStop(1, '#3e3e4e');
+    g.fillStyle = gr; g.beginPath(); g.moveTo(20, 84); g.lineTo(20, 22); g.quadraticCurveTo(35, 8, 50, 22); g.lineTo(50, 84); g.closePath(); g.fill();
+    g.strokeStyle = 'rgba(180,170,255,0.85)'; g.lineWidth = 1.5;
+    g.beginPath(); g.arc(35, 36, 7, 0.6, Math.PI * 2 - 0.6); g.stroke();
+    for (let k = 0; k < 5; k++) { g.beginPath(); g.moveTo(25, 52 + k * 6); g.lineTo(45 - (k % 2) * 6, 52 + k * 6); g.stroke(); }
+  });
+  // 月光水晶
+  for (let v = 0; v < 3; v++) spr('crystal' + v, 60, 80, 30, 66, (g) => {
+    g.fillStyle = 'rgba(0,0,0,0.25)'; g.beginPath(); g.ellipse(30, 68, 18, 6, 0, 0, 7); g.fill();
+    const cols = [['#b8a8ff', '#6a50d0'], ['#a8d8ff', '#4a80d0'], ['#e0b8ff', '#9a50c8']][v];
+    const shard = (x, h, w, a) => { g.save(); g.translate(x, 68); g.rotate(a); const gr = g.createLinearGradient(-w, 0, w, 0); gr.addColorStop(0, cols[0]); gr.addColorStop(1, cols[1]); g.fillStyle = gr; g.beginPath(); g.moveTo(-w, 0); g.lineTo(-w * 0.6, -h); g.lineTo(0, -h - 8); g.lineTo(w * 0.6, -h); g.lineTo(w, 0); g.closePath(); g.fill(); g.fillStyle = 'rgba(255,255,255,0.45)'; g.fillRect(-w * 0.3, -h, 2, h - 4); g.restore(); };
+    shard(22, 26, 6, -0.3); shard(40, 22, 5, 0.35); shard(30, 42, 8, 0);
+  });
   // 雪松（北境）
   for (let v = 0; v < 3; v++) spr('pine' + v, 90, 150, 45, 138, (g) => {
     const R = mulberry32(900 + v), hgt = 100 + v * 12;

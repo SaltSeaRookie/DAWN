@@ -66,7 +66,7 @@ const Trade = {
   },
   addMine(inst) {
     const s = this.s; if (!s) return;
-    if (inst.pet) { UI.log('寵物項圈不能交易。', 'warn'); return; }
+    if (inst.pet || isQuestItem(inst)) { UI.log(inst.pet ? '寵物項圈不能交易。' : '劇情道具不能交易。', 'warn'); return; }
     if (s.mine.items.length >= 12) { UI.log('一次最多交易 12 項物品。', 'warn'); return; }
     for (const sl of SLOTS) if (G.player.equip[sl] === inst) { UI.log('請先卸下裝備。', 'warn'); return; }
     const q = askQty(inst, '要交易'); if (!q) return;
@@ -169,7 +169,7 @@ const Stall = {
   },
   addItem(inst) {
     const p = G.player, st = p.stall; if (!st || st.open) return;
-    if (inst.pet) { UI.log('寵物項圈不能擺攤販賣。', 'warn'); return; }
+    if (inst.pet || isQuestItem(inst)) { UI.log('這個物品不能擺攤販賣。', 'warn'); return; }
     for (const sl of SLOTS) if (p.equip[sl] === inst) { UI.log('請先卸下裝備。', 'warn'); return; }
     if (st.items.length >= 16) { UI.log('攤位最多擺 16 項物品。', 'warn'); return; }
     const q = askQty(inst, '要上架'); if (!q) return;

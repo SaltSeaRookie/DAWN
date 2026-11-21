@@ -598,3 +598,32 @@ SPELLS.loadup = { name: '負重強化', circle: 2, mp: 6, target: 'self', dur: 9
 ITEMS.book_loadup = { name: '魔法書（負重強化）', type: 'book', spell: 'loadup', icon: 'book', w: 5, price: 600, desc: '第 2 階魔法。使用後學會「負重強化」' };
 SHOPS.magic.splice(SHOPS.magic.indexOf('book_shield') + 1 || 6, 0, 'book_loadup');
 SHOPS.oren_magic.splice(6, 0, 'book_loadup');
+
+// ===== 主線故事「失落的月之碑」與月影遺跡（v2.16）=====
+Object.assign(ITEMS, {
+  // 劇情道具（不能販賣、不能丟棄）
+  moon_shard:   { name: '月之碑碎片', type: 'quest', icon: 'gem', w: 0, price: 0, stack: true, desc: '刻著古老文字的石碑碎片，在夜裡會發出淡淡的藍光' },
+  moon_key:     { name: '月之鑰', type: 'quest', icon: 'gem', w: 0, price: 0, desc: '打開月影之門的鑰匙，握在手裡有股清涼的感覺' },
+  // 月影遺跡的裝備
+  moonlight_amulet: { name: '月光項鍊', type: 'acc', slot: 'amulet', mp: 40, mr: 10, sp: 2, mpr: 2, w: 2, price: 30000, rare: true, desc: '學者艾德溫送給你的謝禮' },
+  moonshadow_cloak: { name: '月影斗篷', type: 'armor', slot: 'cloak', ac: 3, mr: 12, er: 4, w: 30, price: 26000, safe: 4, lvl: 22, rare: true },
+  eclipse_blade:    { name: '蝕月之刃', type: 'weapon', wclass: 'sword', dmg: [12, 26], dmgB: 3, hit: 3, spd: 0.85, range: 1.35, w: 120, price: 70000, safe: 6, lvl: 28, cls: ['knight', 'ranger'], rare: true, desc: '蝕月之主的佩劍，劍身吸收著光' },
+  eclipse_staff:    { name: '蝕月法杖', type: 'weapon', wclass: 'staff', dmg: [6, 14], sp: 8, mp: 60, mpr: 3, spd: 1.0, range: 1.4, w: 60, price: 70000, safe: 6, lvl: 28, twoHand: true, cls: ['mage', 'cleric'], rare: true },
+  eclipse_bow:      { name: '蝕月長弓', type: 'weapon', wclass: 'bow', dmg: [10, 22], hit: 4, spd: 0.8, range: 8, ranged: true, w: 60, price: 70000, safe: 6, lvl: 28, twoHand: true, cls: ['ranger'], rare: true },
+  starsilver_mail:  { name: '星銀鎧甲', type: 'armor', slot: 'armor', ac: 9, mr: 15, w: 300, price: 40000, safe: 4, lvl: 24, cls: ['knight', 'cleric', 'ranger'] },
+  moon_ring:        { name: '新月戒指', type: 'acc', slot: 'ring', sp: 1, mp: 25, mr: 5, w: 2, price: 9000 },
+  moon_dust:        { name: '月塵', type: 'junk', w: 2, price: 500, stack: true },
+  moonruins_scroll: { name: '月影遺跡傳送卷軸', type: 'consume', icon: 'scroll', w: 1, price: 900, stack: true, desc: '傳送到月影遺跡的入口（完成主線第 4 章後才能使用）' },
+});
+Object.assign(MONSTERS, {
+  moon_spider:   { name: '月紋蜘蛛', lvl: 23, hp: 260, dmg: [10, 20], ac: 11, mr: 25, exp: 230, speed: 3.2, atkSpd: 1.0, range: 1.3, aggro: true, aggroR: 6, sprite: 'spider', color: '#4a3a7a', gold: [30, 60], loot: [['moon_dust', 0.4], ['moon_ring', 0.008]] },
+  moon_wraith:   { name: '月影幽魂', lvl: 24, hp: 240, dmg: [12, 22], ac: 10, mr: 45, exp: 250, speed: 2.8, atkSpd: 1.5, range: 5.5, proj: 'dark', magic: true, aggro: true, aggroR: 7, sprite: 'ghost', color: 'rgba(190,160,255,0.95)', undead: true, gold: [30, 60], loot: [['moon_dust', 0.5], ['blue_potion', 0.2], ['moonshadow_cloak', 0.004]] },
+  fallen_elf:    { name: '墮落精靈射手', lvl: 25, hp: 280, dmg: [12, 24], ac: 10, mr: 30, exp: 280, speed: 3.2, atkSpd: 1.2, range: 6.5, proj: 'arrow', aggro: true, aggroR: 8, sprite: 'elf', gold: [40, 80], loot: [['silver_arrow', 0.3], ['moon_dust', 0.3], ['eclipse_bow', 0.003]] },
+  ruin_golem:    { name: '遺跡守衛', lvl: 27, hp: 620, dmg: [16, 30], ac: 20, mr: 30, exp: 420, speed: 2.1, atkSpd: 1.6, range: 1.6, aggro: true, aggroR: 5, sprite: 'golem', color: '#7a7aa0', gold: [50, 100], loot: [['moon_dust', 0.6], ['starsilver_mail', 0.006]] },
+  eclipse_knight:{ name: '蝕月騎士', lvl: 29, hp: 700, dmg: [18, 34], ac: 18, mr: 30, exp: 520, speed: 2.8, atkSpd: 1.1, range: 1.5, aggro: true, aggroR: 7, sprite: 'guard', dark: true, gold: [60, 120], loot: [['moon_dust', 0.5], ['bew_scroll', 0.01], ['eclipse_blade', 0.003]] },
+  shadow_treant: { name: '影縛樹精', lvl: 18, hp: 1400, dmg: [12, 24], ac: 12, mr: 25, exp: 2500, speed: 1.8, atkSpd: 1.7, range: 1.7, aggro: true, aggroR: 8, sprite: 'treant', boss: true, story: true, gold: [800, 1500], respawn: 999999, loot: [['clear_potion', 1]] },
+  eclipse_lord:  { name: '蝕月之主', lvl: 34, hp: 6500, dmg: [24, 44], ac: 22, mr: 60, exp: 13000, speed: 2.4, atkSpd: 1.6, range: 2.0, aggro: true, aggroR: 10, boss: true, eclipse: true, sprite: 'eclipse', gold: [3000, 6000], respawn: 480,
+    loot: [['moon_dust', 1], ['moon_dust', 1], ['exp_scroll', 0.5], ['bew_scroll', 0.5], ['bea_scroll', 0.5], ['eclipse_blade', 0.2], ['eclipse_staff', 0.2], ['eclipse_bow', 0.2], ['moonshadow_cloak', 0.3], ['starsilver_mail', 0.25], ['moon_ring', 0.3], ['summon_ring', 0.05]] },
+});
+for (const id in SPELLS) if (SPELLS[id].circle >= 8 && SPELLS[id].circle <= 10) MONSTERS.eclipse_lord.loot.push(['book_' + id, 0.05]);
+SHOPS.general.push('moonruins_scroll');

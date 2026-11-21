@@ -163,3 +163,45 @@ function frostKingThink(a, dt) {
   }
   return false;
 }
+
+// ===== 蝕月之主（月影遺跡・月之祭壇）=====
+// 技能：暗影連射（三道暗影彈）、蝕月新星（近身範圍傷害）、召喚月影幽魂（70%、35%）、月蝕（體力 50% 以下瞬移到目標身後）
+function eclipseThink(a, dt) {
+  const t = a.target; if (!t || t.dead) return false;
+  a.boltCd = (a.boltCd === undefined ? 3 : a.boltCd) - dt;
+  a.novaCd = (a.novaCd === undefined ? 6 : a.novaCd) - dt;
+  a.blinkCd = (a.blinkCd === undefined ? 10 : a.blinkCd) - dt;
+  const hpF = a.hp / a.maxHp;
+  const call = (n, line) => { dragonRoar(a, line); for (let i = 0; i < n; i++) { const q = G.world.nearestFree(a.x + rand(-3, 3), a.y + rand(-3, 3)); const w = makeMonster('moon_wraith', q.x, q.y); w.summoned = true; w.target = a.target; w.state = 'chase'; w.home = { x: a.home.x, y: a.home.y }; G.map.actors.push(w); burst(w.x, w.y, 30, '#a080ff', 20, 2.5, 0.7, 3, 3); } };
+  if (!a.sum70 && hpF < 0.7) { a.sum70 = true; call(3, '影子們，吞噬這道光！'); }
+  if (!a.sum35 && hpF < 0.35) { a.sum35 = true; a.atkSpd *= 0.7; a.speed *= 1.2; call(4, '月光……終將屬於黑暗！'); }
+  const d = dist(a.x, a.y, t.x, t.y);
+  if (a.novaT > 0) {
+    a.novaT -= dt; a.path = []; a.moving = false;
+    if (!a.novaHit && a.novaT < 0.2) {
+      a.novaHit = true; shake(8); SFX.play('boom', a.x, a.y); burst(a.x, a.y, 20, '#8040e0', 50, 4, 0.9, 3, 4);
+      for (const v of dragonVictims(a)) if (dist(a.x, a.y, v.x, v.y) < 3.6) magicHit(a, v, Math.round(randi(a.dmg[0], a.dmg[1]) * 1.25));
+    }
+    return true;
+  }
+  if (a.novaCd <= 0 && d < 3.2) {
+    a.novaCd = a.sum35 ? 6 : 9; a.novaT = 0.9; a.novaHit = false; a.atkAnim = 0;
+    G.rings = G.rings || []; G.rings.push({ x: a.x, y: a.y, t: 0, r: 3.6, col: '170,110,255' });
+    a.speak('☾', 1);
+    return true;
+  }
+  if (hpF < 0.5 && a.blinkCd <= 0 && d > 4) {
+    a.blinkCd = 12;
+    burst(a.x, a.y, 30, '#6030c0', 30, 3, 0.6, 3, 3);
+    const q = G.world.nearestFree(t.x - Math.cos(t.dir || 0) * 1.5, t.y - Math.sin(t.dir || 0) * 1.5);
+    a.x = q.x; a.y = q.y; a.path = [];
+    burst(a.x, a.y, 30, '#6030c0', 30, 3, 0.6, 3, 3); SFX.play('teleport');
+    dragonRoar(a, '月蝕！');
+  }
+  if (a.boltCd <= 0 && d < 9) {
+    a.boltCd = a.sum35 ? 3 : 4.5; a.atkAnim = 0; a.face(t.x, t.y);
+    const vs = dragonVictims(a);
+    for (let k = 0; k < 3; k++) later(k * 0.2, () => { const v = k === 0 ? t : (pick(vs) || t); if (a.dead || v.dead) return; SFX.play('cast', a.x, a.y); G.projectiles.push({ kind: 'dark', x: a.x, y: a.y, z: 70, target: v, speed: 9, from: a, onHit: () => magicHit(a, v, randi(18, 30)) }); });
+  }
+  return false;
+}

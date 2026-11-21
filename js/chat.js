@@ -117,7 +117,7 @@ const Chat = {
         if (Online.active) {
           Online.who().then((list) => {
             if (!list) return;
-            const MAPN = { overworld: '晨曦大陸', isle: '翡翠群島', crypt: '地下墓穴', keep: '地下要塞', volcano: '熾焰火山', oren: '歐瑞城' };
+            const MAPN = { overworld: '晨曦大陸', isle: '翡翠群島', crypt: '地下墓穴', keep: '地下要塞', volcano: '熾焰火山', oren: '歐瑞城', moonruins: '月影遺跡' };
             say('線上玩家（' + list.length + '）：' + list.map((x) => x.name + ' Lv.' + x.level + (x.clan ? '[' + x.clan + ']' : '') + '・' + (MAPN[x.map] || x.map)).join('、'));
           });
         }
@@ -246,6 +246,7 @@ const GM = {
       if (!a.length) return say('用法：/tp 地點名稱｜x y｜crypt｜overworld', 'warn');
       if (a[0] === 'crypt' || a[0] === '地下墓穴內') { const w = getMap('crypt').world; changeMap('crypt', w.entry.x + 1, w.entry.y); return; }
       if (a[0] === 'overworld') { changeMap('overworld', 100, 103); return; }
+      if (a[0] === 'moonruins' || a[0] === '月影遺跡') { const w = getMap('moonruins').world; changeMap('moonruins', w.entry.x + 1, w.entry.y); return; }
       if (a[0] === 'oren' || a[0] === '歐瑞城') { const w = getMap('oren').world; changeMap('oren', w.city.x, w.city.y + 3); return; }
       if (a[0] === 'volcano' || a[0] === '熾焰火山') { const w = getMap('volcano').world; changeMap('volcano', w.entry.x + 1, w.entry.y); return; }
       if (a[0] === 'isle' || a[0] === '翡翠群島') { const w = getMap('isle').world; changeMap('isle', w.dock.x + 1, w.dock.y); return; }

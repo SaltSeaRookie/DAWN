@@ -389,7 +389,7 @@ function drawGhost(ctx, x, y, o) {
   const hover = 10 + Math.sin(o.t * 2.5) * 3;
   ctx.save(); ctx.translate(x, y - hover); ctx.scale(flip ? -1 : 1, 1);
   ctx.globalAlpha *= 0.75;
-  const gr = ctx.createLinearGradient(0, -44, 0, 6); gr.addColorStop(0, 'rgba(200,220,255,0.95)'); gr.addColorStop(1, 'rgba(120,140,200,0)');
+  const gr = ctx.createLinearGradient(0, -44, 0, 6); gr.addColorStop(0, o.color || 'rgba(200,220,255,0.95)'); gr.addColorStop(1, 'rgba(120,140,200,0)');
   ctx.fillStyle = gr;
   ctx.beginPath(); ctx.moveTo(-10, -30); ctx.quadraticCurveTo(0, -52, 10, -30);
   for (let i = 0; i <= 4; i++) { const xx = 10 - i * 5, yy = 4 + Math.sin(o.t * 6 + i) * 3; ctx.lineTo(xx, yy); }

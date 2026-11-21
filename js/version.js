@@ -2,7 +2,7 @@
 // ===== 版本檢查 =====
 // 發佈新版時：同時更新這裡的 GAME_VERSION 與根目錄 version.json 的 version（以及 index.html 的 ?v= 參數）。
 // 遊戲會定期讀取伺服器上的 version.json，發現比自己新的版本就自動存檔並提醒玩家重新整理。
-const GAME_VERSION = '2.15.3';
+const GAME_VERSION = '2.16.0';
 const Version = {
   remote: null, notified: false,
   newer(a, b) { // a 是否比 b 新
