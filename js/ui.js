@@ -51,10 +51,20 @@ const UI = {
     bs.onclick = () => { Snd.unlock(); Snd.setSfx(!Snd.sfxOn); sync(); SFX.play('click'); };
     sync();
     const ci = $('#chatInput');
+    // 注音、倉頡等輸入法選字時按的 Enter 不算送出（避免訊息送出兩次）
+    let composing = false;
+    ci.addEventListener('compositionstart', () => { composing = true; });
+    ci.addEventListener('compositionend', () => { setTimeout(() => { composing = false; }, 0); });
     ci.addEventListener('keydown', (e) => {
       e.stopPropagation();
-      if (e.key === 'Enter') { const v = ci.value.trim(); ci.value = ''; if (v) Chat.input(v); ci.blur(); }
-      else if (e.key === 'Escape') ci.blur();
+      if (e.key === 'Enter') {
+        if (composing || e.isComposing || e.keyCode === 229) return;
+        const v = ci.value.trim(); ci.value = '';
+        // 同一句話在極短時間內重複送出時忽略
+        if (v && !(this._lastChat === v && performance.now() - this._lastChatT < 400)) { this._lastChat = v; this._lastChatT = performance.now(); Chat.input(v); }
+        ci.blur();
+      }
+      else if (e.key === 'Escape' && !composing) ci.blur();
     });
     // 聊天欄大小：拖曳面板上緣或按 ▲▼
     const steps = [176, 250, 340, 440];
@@ -161,16 +171,7 @@ const UI = {
     while (box.children.length > 100) box.removeChild(box.firstChild);
     box.scrollTop = box.scrollHeight;
   },
-  chat(v) {
-    const p = G.player;
-    if (v === '/help') { this.help(); return; }
-    if (v === '/save') { saveGame(false); return; }
-    if (v === '/pos') { this.log(G.map.id + ' (' + p.x.toFixed(1) + ', ' + p.y.toFixed(1) + ')', 'sys'); return; }
-    p.speak(v, 5);
-    this.log(p.name + '：' + v, 'me');
-    const near = G.map.actors.filter((a) => (a.kind === 'villager' || a.kind === 'fighter' || a.kind === 'ally') && !a.dead && dist(a.x, a.y, p.x, p.y) < 10);
-    if (near.length && /(哈囉|你好|嗨|hi|hello|安安)/i.test(v)) later(1.5, () => { const o = pick(near); o.speak('你好呀～', 3); this.log(o.name + '：你好呀～', 'chat'); });
-  },
+
   focusChat() { $('#chatInput').focus(); },
   blurChat() { $('#chatInput').blur(); },
   chatFocused() { const a = document.activeElement; return a && (a.tagName === 'INPUT' || a.tagName === 'TEXTAREA'); },
