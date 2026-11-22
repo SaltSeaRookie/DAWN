@@ -334,6 +334,7 @@ function populateField(m) {
   // 灰岩城：傳令官、城門、守護塔
   const C = W.castle;
   m.npcs.push(new NPC(C.herald.x, C.herald.y, '奧德里奇', NPC_TITLES.herald, 'herald', NPC_LOOKS.herald, 'castle'));
+  if (C.steward) m.npcs.push(new NPC(C.steward.x, C.steward.y, '溫斯頓', '城堡管家', 'steward', { body: '#1a1a2a', legs: '#1a1a22', hair: '#d8d8d8', beard: '#d8d8d8', skin: '#e8c8a0', trim: '#e0c060', belt: '#2a2a2a' }, 'castle'));
   m.npcs.push(new NPC(C.merchant.x, C.merchant.y, '瑟琳娜', '城堡御用商人', 'castleshop', { body: '#6a1a3a', robe: true, hair: '#2a1a10', longHair: true, skin: '#f0d0b0', trim: '#e0c060' }, 'castle'));
   const tq = W.nearestFree(C.x0 + 4.5, C.cy - 4.5);
   m.npcs.push(new NPC(tq.x, tq.y, '瑟薇雅', NPC_TITLES.teleport, 'teleport', NPC_LOOKS.teleport, 'castle'));
@@ -1805,6 +1806,7 @@ const NPC_LINES = {
   captain: ['要出海嗎？', '海上的風很舒服啊', '翡翠群島可是個好地方'],
   pet: ['可愛的寵物在等你喔～', '寵物倒下了就帶回來給我吧', '馴獸肉乾可以馴服野狼'],
   herald: ['灰岩城等待著真正的主人', '有血盟就能向灰岩城宣戰！'],
+  steward: ['國庫的帳目分毫不差', '城主大人的茶已經泡好了', '宮殿的地毯每天都要刷三遍', '稅金請到我這裡領取'],
   merc: ['需要可靠的劍嗎？', '守衛們，打起精神來！', '傭兵只認金幣和城主。'],
   stall: ['走過路過不要錯過！', '便宜賣喔～', '好東西都在這裡！', '最後幾件了！'],
   buffer: ['魔力在流動…', '需要祝福嗎？', '城主血盟的魔法免費喔。'],

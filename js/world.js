@@ -571,12 +571,47 @@ class World {
         this.addObj({ kind: 'wall', tx: x, ty: y, v: (R() * 2) | 0 });
       }
     }
-    // 內堡（大房子）與守護塔位置
-    const kx = C.x0 + n - 6, ky = Math.floor(C.cy) - 1;
-    for (let y = ky; y < ky + 3; y++) for (let x = kx; x < kx + 3; x++) { this.removeObjAt(x, y); this.blockArr[this.idx(x, y)] = 1; }
-    const o = { kind: 'house', tx: kx + 1, ty: ky + 1, v: 1, big: true };
-    this.objGrid[this.idx(kx + 1, ky + 1)] = this.objs.length; this.objs.push(o);
-    C.tower = { x: C.x0 + n - 9.5, y: C.cy + 0.5 };
+    // ===== v2.25 王城佈置：宮殿、紅毯大道、塔樓、皇家花園 =====
+    const gy = Math.floor(C.cy), px = C.x0 + n - 7, py = gy - 7;   // 宮殿在大道北側，正門朝南
+    const setT = (x, y, t) => { const k = this.idx(x, y); this.tiles[k] = t; this.decoGrid[k] = -1; };
+    const block = (x, y) => { this.removeObjAt(x, y); this.blockArr[this.idx(x, y)] = 1; };
+    // 塔樓：四個角、城門兩側、三面城牆中央
+    const towerAt = (x, y, kind) => { this.removeObjAt(x, y); this.addObj({ kind, tx: x, ty: y, v: 0 }); };
+    for (const [x, y] of [[C.x0, C.y0], [C.x0 + n - 1, C.y0], [C.x0, C.y0 + n - 1], [C.x0 + n - 1, C.y0 + n - 1]]) towerAt(x, y, 'ctower');
+    towerAt(C.x0, gy - 2, 'gtower'); towerAt(C.x0, gy + 2, 'gtower');
+    for (const [x, y] of [[C.x0 + (n >> 1), C.y0], [C.x0 + (n >> 1), C.y0 + n - 1], [C.x0 + n - 1, gy]]) towerAt(x, y, 'ctower');
+    // 城牆上的王家旗幟
+    for (const o of this.objs) if (o && o.kind === 'wall' && (o.tx === C.x0 ? Math.abs(o.ty - gy) % 4 === 1 : (o.tx + o.ty) % 5 === 0)) o.banner = (o.tx === C.x0 || o.tx === C.x0 + n - 1) ? 'r' : 'l';
+    // 宮殿（5×5）
+    for (let y = py - 2; y <= py + 2; y++) for (let x = px - 2; x <= px + 2; x++) block(x, y);
+    const pal = { kind: 'palace', tx: px, ty: py, v: 0 };
+    this.objGrid[this.idx(px, py)] = this.objs.length; this.objs.push(pal);
+    this.lights.push({ x: px + 0.5, y: py + 3, r: 300 });
+    C.palace = { x: px, y: py };
+    // 紅毯大道：城門直通宮殿
+    const carpet = (x, y, v) => { const k = this.idx(x, y); this.decoGrid[k] = -1; this.addDeco(x, y, 'carpet', v); const d = this.decos[this.decos.length - 1]; d.ox = 0; d.oy = 0; };
+    for (let x = C.x0 + 1; x <= px + 1; x++) for (let dy = -1; dy <= 1; dy++) carpet(x, gy + dy, dy === 0 || (dy < 0 && x >= px - 1) ? 0 : dy < 0 ? 1 : 2);
+    // 轉向北方，直達宮殿正門
+    for (let y = py + 3; y < gy - 1; y++) for (let dx = -1; dx <= 1; dx++) carpet(px + dx, y, dx === 0 ? 0 : dx < 0 ? 3 : 4);
+    // 大道兩側的雕像與王家路燈
+    for (let x = C.x0 + 5, k = 0; x < px - 3; x += 3, k++) for (const sy of [gy - 3, gy + 3]) {
+      if (k % 2 === 0) this.addObj({ kind: 'knightstatue', tx: x, ty: sy, v: 0 });
+      else { this.addObj({ kind: 'rlamp', tx: x, ty: sy, v: 0 }); this.lights.push({ x: x + 0.5, y: sy + 0.5, r: 180 }); }
+    }
+    // 皇家花園（南北各一座，四周是修剪整齊的樹籬，中央是噴泉）
+    const garden = (gx, gyy) => {
+      const hw = 5, hh = 3;
+      for (let y = gyy - hh; y <= gyy + hh; y++) for (let x = gx - hw; x <= gx + hw; x++) { setT(x, y, TILE.GRASS); if (Math.abs(x - gx) < hw && Math.abs(y - gyy) < hh && (x + y) % 3 === 0 && dist(x, y, gx, gyy) > 1.5) this.addDeco(x, y, 'flower', (x + y) % 3); }
+      for (let x = gx - hw; x <= gx + hw; x++) for (const y of [gyy - hh, gyy + hh]) if (Math.abs(x - gx) > 1) this.addObj({ kind: 'hedge', tx: x, ty: y, v: 0 });
+      for (let y = gyy - hh + 1; y <= gyy + hh - 1; y++) for (const x of [gx - hw, gx + hw]) if (Math.abs(y - gyy) > 0) this.addObj({ kind: 'hedge', tx: x, ty: y, v: 0 });
+      this.addObj({ kind: 'fountain', tx: gx, ty: gyy, v: 0 });
+    };
+    garden(C.x0 + 15, C.y0 + 7); garden(C.x0 + 15, C.y0 + n - 8);
+    C.gardens = [{ x: C.x0 + 15, y: C.y0 + 7 }, { x: C.x0 + 15, y: C.y0 + n - 8 }];
+    // 通往宮殿的北向大道兩側
+    for (const sx of [px - 3, px + 3]) { this.removeObjAt(sx, py + 3); this.addObj({ kind: 'rlamp', tx: sx, ty: py + 3, v: 0 }); this.lights.push({ x: sx + 0.5, y: py + 3.5, r: 180 }); }
+    C.tower = { x: px + 0.5, y: gy + 0.5 };
+    C.steward = { x: px + 2.5, y: py + 3.5 };
     C.herald = { x: C.x0 - 2.5, y: C.cy - 3.5 };
     C.merchant = { x: C.x0 + 4.5, y: C.y0 + 5.5 };
     C.keepGate = { x: C.x0 + 5, y: C.y0 + n - 6 };
@@ -584,7 +619,7 @@ class World {
     this.addObj({ kind: 'stairs', tx: C.keepGate.x, ty: C.keepGate.y, v: 0 }, false);
     this.portals.push({ x: C.keepGate.x + 0.5, y: C.keepGate.y + 0.5, to: 'keep', label: '地下要塞（城主專屬）' });
     C.guardSpots = [];
-    for (let k = 0; k < 8; k++) C.guardSpots.push({ x: C.x0 + 3 + R() * (n - 8), y: C.y0 + 3 + R() * (n - 6) });
+    for (let k = 0, tr = 0; k < 8 && tr < 200; tr++) { const x = Math.floor(C.x0 + 3 + R() * (n - 8)), y = Math.floor(C.y0 + 3 + R() * (n - 6)); if (!this.blocked(x, y) && !this.blocked(x + 1, y) && !this.blocked(x, y + 1)) { C.guardSpots.push({ x: x + 0.5, y: y + 0.5 }); k++; } }
     for (const [lx, ly] of [[3, 3], [3, n - 4], [n - 4, 3], [n - 4, n - 4]]) {
       this.addObj({ kind: 'lamp', tx: C.x0 + lx, ty: C.y0 + ly, v: 0 });
       this.lights.push({ x: C.x0 + lx + 0.5, y: C.y0 + ly + 0.5, r: 170 });

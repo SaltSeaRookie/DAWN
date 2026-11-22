@@ -306,7 +306,7 @@ function drawObj(o, S) {
   if (!s) return;
   if (sx < -s.c.width || sx > VW + s.c.width || sy < -40 || sy > VH + s.c.height) return;
   let alpha = 1;
-  if ((o.kind === 'tree' || o.kind === 'pine' || o.kind === 'house' || o.kind === 'deadtree' || o.kind === 'wall' || o.kind === 'cliff') && G.player) {
+  if ((o.kind === 'tree' || o.kind === 'pine' || o.kind === 'house' || o.kind === 'deadtree' || o.kind === 'wall' || o.kind === 'cliff' || o.kind === 'palace' || o.kind === 'ctower' || o.kind === 'gtower' || o.kind === 'lighthouse') && G.player) {
     const p = G.player;
     if (o.tx + o.ty + 1 > p.x + p.y) {
       const ps = S(p.x, p.y);
@@ -322,6 +322,8 @@ function drawObj(o, S) {
   if (o.kind === 'crystal' || o.kind === 'moongate') glowUnder(sx, sy - (o.kind === 'moongate' ? 40 : 20), o.kind === 'moongate' ? 46 : 26 + Math.sin(G.t * 2 + o.tx) * 3, 'rgba(170,140,255,0.28)');
   if (o.kind === 'stele' && typeof Story !== 'undefined' && Story.steleLit(o.v)) { glowUnder(sx, sy - 40, 40 + Math.sin(G.t * 3) * 4, 'rgba(160,200,255,0.55)'); if (Math.random() < 0.3) G.particles.push({ x: o.tx + 0.5 + rand(-0.4, 0.4), y: o.ty + 0.5 + rand(-0.4, 0.4), z: rand(10, 60), vx: 0, vy: 0, vz: rand(20, 40), life: 1.2, max: 1.2, color: '#c8d8ff', size: 2 }); }
   if (o.kind === 'torch') drawFire(sx, sy - 40, 0.55);
+  if (o.banner && SPR.banner0) ctx.drawImage(SPR.banner0.c, Math.round(sx + (o.banner === 'r' ? 16 : -16) - 15), Math.round(sy - 66));
+  if (o.kind === 'rlamp') { const f = 0.8 + Math.sin(G.t * 7 + o.tx) * 0.1; ctx.fillStyle = 'rgba(255,215,130,' + 0.28 * f + ')'; ctx.beginPath(); ctx.arc(sx, sy - 75, 15, 0, 7); ctx.fill(); }
   if (o.kind === 'forge') { drawFire(sx, sy - 10, 0.5); if (Math.random() < 0.15) G.particles.push({ x: o.tx + 0.6, y: o.ty + 0.2, z: 100, vx: rand(-0.1, 0.1), vy: 0, vz: rand(20, 40), life: 2, max: 2, color: 'rgba(90,90,90,0.5)', size: 5 }); }
   if (o.kind === 'lantern') { const f = 0.8 + Math.sin(G.t * 5 + o.tx) * 0.15; ctx.fillStyle = 'rgba(255,150,80,' + 0.22 * f + ')'; ctx.beginPath(); ctx.arc(sx + 9, sy - 50, 14, 0, 7); ctx.fill(); }
   if (o.kind === 'lighthouse') { const a = G.t * 0.8, bx = sx, by = sy - 156; ctx.save(); ctx.globalCompositeOperation = 'lighter'; const gr = ctx.createRadialGradient(bx, by, 4, bx, by, 220); gr.addColorStop(0, 'rgba(255,240,170,0.35)'); gr.addColorStop(1, 'rgba(255,240,170,0)'); ctx.fillStyle = gr; ctx.beginPath(); ctx.moveTo(bx, by); ctx.arc(bx, by, 220, a - 0.18, a + 0.18); ctx.closePath(); ctx.fill(); ctx.restore(); }

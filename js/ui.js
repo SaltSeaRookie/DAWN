@@ -608,6 +608,7 @@ const UI = {
     else if (role === 'clan') this.openClanNpc(npc);
     else if (role === 'warehouse') this.openWarehouse(npc);
     else if (role === 'herald') this.openHerald(npc);
+    else if (role === 'steward') this.openSteward(npc);
     else if (role === 'merc') this.openMercCaptain(npc);
     else if (role === 'stall') this.openStallView(npc);
     else if (role === 'story') Story.talk(npc);
@@ -939,7 +940,7 @@ const UI = {
       <p><b>負重</b>：超過 50% 不會自然回復，超過 80% 移動變慢，滿了就無法再拿東西。可以把東西存進倉庫。</p>
       <p><b>強化</b>：強化卷軸可以強化裝備，超過安全值有機會失敗並讓裝備消失！</p>
       <p><b>血盟</b>：在晨風村找血盟管理員建立血盟，點擊村莊裡的冒險者邀請加入。按 P 開啟血盟視窗可召集盟友。</p>
-      <p><b>攻城</b>：有血盟、等級 10 以上可在灰岩城外找攻城傳令官宣戰，摧毀守護之塔就能成為城主並收稅。</p>
+      <p><b>攻城</b>：有血盟、等級 10 以上可在灰岩城外找攻城傳令官宣戰，摧毀守護之塔就能成為城主，城主可以到宮殿前找管家領取稅金。</p>
       <p><b>夥伴</b>：召喚術、迷魅術與寵物都會跟著你戰鬥。按 T 開啟夥伴視窗切換「攻擊我的目標／自由攻擊／待命／跟隨」。寵物在村莊的寵物商人購買，或用馴獸肉乾馴服體力低於一半的野狼。</p>
       <p><b>聊天</b>：在對話欄打字，附近的冒險者和 NPC 會回應你。輸入 /help 查看指令。</p>
       <p><b>快捷鍵</b>：1-0 快捷列・Tab／I 背包・C 角色・S 魔法・T 夥伴・P 血盟・M 世界地圖・N 小地圖・O 設定・Q 最近的怪物・Enter 聊天・Esc 關閉</p>

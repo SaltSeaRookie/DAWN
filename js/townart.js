@@ -102,6 +102,7 @@ function buildHouseSprite(key, st, v) {
 
 // ---------- 街景道具 ----------
 function buildTownSprites() {
+  buildCastleSprites();
   for (const k in HOUSE_STYLES) for (let v = 0; v < 3; v++) buildHouseSprite('house_' + k + v, HOUSE_STYLES[k], v);
   const sh = (g, x, y, rx, ry) => { g.fillStyle = 'rgba(0,0,0,0.3)'; g.beginPath(); g.ellipse(x, y, rx, ry, 0, 0, 7); g.fill(); };
   const lg = (g, x0, x1, c) => { const gr = g.createLinearGradient(x0, 0, x1, 0); gr.addColorStop(0, shade(c, -0.3)); gr.addColorStop(0.45, shade(c, 0.25)); gr.addColorStop(1, shade(c, -0.4)); return gr; };
@@ -318,5 +319,159 @@ function buildTownSprites() {
     g.fillStyle = '#c03a2a'; g.beginPath(); g.moveTo(26, 30); g.lineTo(45, 10); g.lineTo(64, 30); g.closePath(); g.fill();
     g.fillStyle = '#3a3a42'; g.fillRect(44, 4, 2, 7);
     g.fillStyle = '#3a2a1a'; g.fillRect(40, 168, 10, 18);
+  });
+}
+
+// ===== 王城美術（v2.25）：宮殿、塔樓、旗幟、紅毯、樹籬、騎士雕像、王家路燈 =====
+function buildCastleSprites() {
+  const sh = (g, x, y, rx, ry, a = 0.3) => { g.fillStyle = 'rgba(0,0,0,' + a + ')'; g.beginPath(); g.ellipse(x, y, rx, ry, 0, 0, 7); g.fill(); };
+  const lg = (g, x0, x1, c) => { const gr = g.createLinearGradient(x0, 0, x1, 0); gr.addColorStop(0, shade(c, -0.35)); gr.addColorStop(0.4, shade(c, 0.2)); gr.addColorStop(1, shade(c, -0.45)); return gr; };
+  const flag = (g, x, y, h, col = '#a01828') => {
+    g.fillStyle = '#3a3028'; g.fillRect(x - 1, y - h, 2, h);
+    g.fillStyle = '#e0c060'; g.beginPath(); g.arc(x, y - h, 2.5, 0, 7); g.fill();
+    g.fillStyle = col; g.beginPath(); g.moveTo(x + 1, y - h + 3); g.quadraticCurveTo(x + 12, y - h, x + 22, y - h + 5); g.quadraticCurveTo(x + 12, y - h + 10, x + 1, y - h + 13); g.closePath(); g.fill();
+    g.fillStyle = '#f0d060'; g.beginPath(); g.arc(x + 10, y - h + 8, 2.2, 0, 7); g.fill();
+  };
+  // 圓形塔樓（城角）與城門塔
+  const tower = (key, H, r, roofH) => spr(key, r * 2 + 40, H + roofH + 60, r + 20, H + roofH + 40, (g) => {
+    const cx = r + 20, by = H + roofH + 40;
+    sh(g, cx + 4, by, r + 8, (r + 8) * 0.45);
+    g.fillStyle = lg(g, cx - r, cx + r, '#8a867e'); g.fillRect(cx - r, by - H, r * 2, H);
+    g.beginPath(); g.ellipse(cx, by, r, r * 0.45, 0, 0, Math.PI); g.fill();
+    g.strokeStyle = 'rgba(30,25,20,0.45)'; g.lineWidth = 1;
+    for (let y = by - H + 10; y < by; y += 10) { g.beginPath(); g.ellipse(cx, y, r, r * 0.45, 0, 0, Math.PI); g.stroke(); }
+    for (let y = by - H + 10, row = 0; y < by; y += 10, row++) for (let k = -3; k <= 3; k++) { const x = cx + Math.sin((k + (row % 2) * 0.5) / 3.6 * 1.4) * r; g.beginPath(); g.moveTo(x, y + r * 0.45 * Math.cos((k / 3.6) * 1.4)); g.lineTo(x, y + 10 + r * 0.45 * Math.cos((k / 3.6) * 1.4)); g.stroke(); }
+    // 箭窗與王家紋章
+    g.fillStyle = '#1a1612'; g.fillRect(cx - 3, by - H * 0.55, 6, 16); g.fillRect(cx - 3, by - H * 0.85, 6, 12);
+    g.fillStyle = '#a01828'; g.beginPath(); g.moveTo(cx - 10, by - H * 0.42); g.lineTo(cx + 10, by - H * 0.42); g.lineTo(cx + 10, by - H * 0.42 + 22); g.lineTo(cx, by - H * 0.42 + 30); g.lineTo(cx - 10, by - H * 0.42 + 22); g.closePath(); g.fill();
+    g.strokeStyle = '#e0c060'; g.lineWidth = 1.5; g.stroke();
+    g.fillStyle = '#f0d060'; g.beginPath(); const qy = by - H * 0.42 + 8; g.moveTo(cx - 6, qy + 6); g.lineTo(cx - 6, qy); g.lineTo(cx - 3, qy + 3); g.lineTo(cx, qy - 2); g.lineTo(cx + 3, qy + 3); g.lineTo(cx + 6, qy); g.lineTo(cx + 6, qy + 6); g.closePath(); g.fill();
+    // 城垛
+    g.fillStyle = '#9a968e'; g.beginPath(); g.ellipse(cx, by - H, r + 3, (r + 3) * 0.45, 0, 0, 7); g.fill();
+    for (let k = 0; k < 8; k++) { const a = Math.PI * (0.05 + k / 7 * 0.9), x = cx + Math.cos(a) * (r + 1), y = by - H + Math.sin(a) * (r + 1) * 0.45; g.fillStyle = '#7a766e'; g.fillRect(x - 4, y - 9, 8, 9); g.fillStyle = '#a8a49c'; g.fillRect(x - 4, y - 11, 8, 3); }
+    // 尖頂（藍瓦金邊）
+    const rg = g.createLinearGradient(cx - r, 0, cx + r, 0); rg.addColorStop(0, '#1a3a7a'); rg.addColorStop(0.45, '#4a7ad0'); rg.addColorStop(1, '#14285a');
+    g.fillStyle = rg; g.beginPath(); g.moveTo(cx - r - 4, by - H - 4); g.lineTo(cx, by - H - roofH); g.lineTo(cx + r + 4, by - H - 4); g.quadraticCurveTo(cx, by - H + (r + 4) * 0.45, cx - r - 4, by - H - 4); g.fill();
+    g.strokeStyle = '#e0c060'; g.lineWidth = 2; g.beginPath(); g.moveTo(cx - r - 4, by - H - 4); g.quadraticCurveTo(cx, by - H + (r + 4) * 0.45, cx + r + 4, by - H - 4); g.stroke();
+    g.strokeStyle = 'rgba(255,255,255,0.15)'; g.lineWidth = 1; for (let k = 1; k < 5; k++) { g.beginPath(); g.moveTo(cx, by - H - roofH); g.lineTo(cx - r - 4 + k * (2 * r + 8) / 5, by - H - 2 + Math.sin(k / 5 * Math.PI) * 8); g.stroke(); }
+    flag(g, cx, by - H - roofH + 2, 26);
+  });
+  tower('ctower0', 120, 26, 54);
+  tower('gtower0', 96, 20, 42);
+  // 城牆上的王家旗幟（疊在城牆左面）
+  spr('banner0', 30, 70, 15, 4, (g) => {
+    g.fillStyle = '#3a2a1a'; g.fillRect(2, 2, 26, 3);
+    const gr = g.createLinearGradient(4, 0, 26, 0); gr.addColorStop(0, '#701020'); gr.addColorStop(0.5, '#b01c30'); gr.addColorStop(1, '#701020');
+    g.fillStyle = gr; g.beginPath(); g.moveTo(5, 5); g.lineTo(25, 5); g.lineTo(25, 56); g.lineTo(15, 66); g.lineTo(5, 56); g.closePath(); g.fill();
+    g.strokeStyle = '#e0c060'; g.lineWidth = 2; g.stroke();
+    g.fillStyle = '#f0d060'; g.beginPath(); g.moveTo(9, 30); g.lineTo(9, 22); g.lineTo(12, 26); g.lineTo(15, 18); g.lineTo(18, 26); g.lineTo(21, 22); g.lineTo(21, 30); g.closePath(); g.fill();
+    g.fillRect(9, 31, 12, 2); g.beginPath(); g.arc(15, 42, 3, 0, 7); g.fill();
+  });
+  // 紅毯（0 中間、1 北側金邊、2 南側金邊）
+  for (let v = 0; v < 5; v++) spr('deco_carpet' + v, TW + 2, TH + 2, HW + 1, HH + 1, (g) => {
+    g.translate(1, 1);
+    g.fillStyle = '#9a1424'; diamondPath(g, TW, TH); g.fill();
+    g.strokeStyle = 'rgba(255,200,120,0.18)'; g.lineWidth = 1; g.beginPath(); g.moveTo(HW * 0.5, HH * 1.5); g.lineTo(HW * 1.5, HH * 0.5); g.stroke();
+    g.fillStyle = 'rgba(240,200,90,0.5)'; g.beginPath(); g.arc(HW, HH, 2, 0, 7); g.fill();
+    g.strokeStyle = '#e0b840'; g.lineWidth = 3;
+    if (v === 1) { g.beginPath(); g.moveTo(HW, 1); g.lineTo(TW - 1, HH); g.stroke(); }
+    if (v === 2) { g.beginPath(); g.moveTo(1, HH); g.lineTo(HW, TH - 1); g.stroke(); }
+    if (v === 3) { g.beginPath(); g.moveTo(1, HH); g.lineTo(HW, 1); g.stroke(); }
+    if (v === 4) { g.beginPath(); g.moveTo(TW - 1, HH); g.lineTo(HW, TH - 1); g.stroke(); }
+  });
+  // 修剪整齊的樹籬
+  spr('hedge0', TW + 4, TH + 40, HW + 2, 40 + HH, (g) => {
+    g.translate(2, 0);
+    const top = 14, hgt = 24;
+    g.fillStyle = '#2e5a24'; g.beginPath(); g.moveTo(0, top + HH); g.lineTo(HW, top + TH); g.lineTo(HW, top + TH + hgt); g.lineTo(0, top + HH + hgt); g.closePath(); g.fill();
+    g.fillStyle = '#244a1c'; g.beginPath(); g.moveTo(TW, top + HH); g.lineTo(HW, top + TH); g.lineTo(HW, top + TH + hgt); g.lineTo(TW, top + HH + hgt); g.closePath(); g.fill();
+    g.fillStyle = '#4a8a34'; g.beginPath(); g.moveTo(HW, top); g.lineTo(TW, top + HH); g.lineTo(HW, top + TH); g.lineTo(0, top + HH); g.closePath(); g.fill();
+    const R = mulberry32(77); for (let k = 0; k < 40; k++) { g.fillStyle = R() < 0.5 ? 'rgba(120,180,80,0.5)' : 'rgba(20,50,15,0.4)'; g.fillRect(R() * TW, top + R() * (TH + hgt), 2, 2); }
+  });
+  // 騎士雕像
+  spr('knightstatue0', 70, 140, 35, 124, (g) => {
+    sh(g, 36, 124, 24, 9);
+    g.fillStyle = '#7a7a82'; g.fillRect(14, 100, 42, 24); g.fillStyle = '#9a9aa2'; g.fillRect(11, 96, 48, 6); g.fillStyle = '#e0c060'; g.fillRect(20, 108, 30, 3);
+    const st = lg(g, 22, 48, '#c8ccd4');
+    g.fillStyle = st; g.fillRect(27, 66, 6, 30); g.fillRect(37, 66, 6, 30);
+    g.beginPath(); g.moveTo(24, 70); g.lineTo(26, 38); g.lineTo(44, 38); g.lineTo(46, 70); g.closePath(); g.fill();
+    g.beginPath(); g.arc(35, 30, 8, 0, 7); g.fill();
+    g.fillStyle = '#9aa0a8'; g.fillRect(29, 28, 12, 3);
+    g.fillStyle = '#b8bcc4'; g.beginPath(); g.moveTo(35, 22); g.quadraticCurveTo(46, 14, 44, 26); g.fill();
+    // 雙手握劍立於身前
+    g.fillStyle = '#d8dce4'; g.fillRect(34, 40, 3, 52); g.fillStyle = '#e0c060'; g.fillRect(28, 46, 15, 3); g.fillRect(33, 40, 5, 6);
+    g.fillStyle = '#a8acb4'; g.beginPath(); g.moveTo(14, 44); g.lineTo(26, 42); g.lineTo(26, 70); g.lineTo(20, 76); g.lineTo(14, 70); g.closePath(); g.fill();
+    g.fillStyle = '#a01828'; g.fillRect(17, 52, 6, 12);
+  });
+  // 王家路燈
+  spr('rlamp0', 40, 110, 20, 102, (g) => {
+    sh(g, 21, 102, 11, 4);
+    g.fillStyle = '#2a2420'; g.fillRect(14, 96, 12, 6); g.fillStyle = lg(g, 16, 24, '#6a5a3a'); g.fillRect(18, 30, 4, 68);
+    g.fillStyle = '#c8a040'; g.fillRect(16, 60, 8, 3); g.fillRect(16, 90, 8, 3);
+    g.fillStyle = '#3a3028'; g.fillRect(10, 18, 20, 3); g.fillRect(12, 34, 16, 3);
+    g.fillStyle = '#ffe08a'; g.fillRect(12, 21, 16, 13); g.strokeStyle = '#3a3028'; g.lineWidth = 2; g.strokeRect(12, 21, 16, 13); g.beginPath(); g.moveTo(20, 21); g.lineTo(20, 34); g.stroke();
+    g.fillStyle = '#e0c060'; g.beginPath(); g.moveTo(10, 18); g.lineTo(20, 8); g.lineTo(30, 18); g.closePath(); g.fill();
+    g.beginPath(); g.moveTo(15, 8); g.lineTo(15, 2); g.lineTo(17.5, 5); g.lineTo(20, 0); g.lineTo(22.5, 5); g.lineTo(25, 2); g.lineTo(25, 8); g.closePath(); g.fill();
+  });
+  // 宮殿
+  const W5 = 5 * TW + 40, H5 = 5 * TH + 300;
+  spr('palace0', W5, H5, W5 / 2, H5 - 5 * TH / 2 - 10, (g) => {
+    const ox = W5 / 2, oy = H5 - 5 * TH / 2 - 10;
+    const P = (x, y, z) => [ox + (x - y) * HW, oy + (x + y) * HH - z];
+    const poly = (pts, fill, stroke, lw = 1) => { g.beginPath(); g.moveTo(...pts[0]); for (const p of pts) g.lineTo(...p); g.closePath(); g.fillStyle = fill; g.fill(); if (stroke) { g.strokeStyle = stroke; g.lineWidth = lw; g.stroke(); } };
+    const line = (a, b, col, lw = 1) => { g.strokeStyle = col; g.lineWidth = lw; g.beginPath(); g.moveTo(...a); g.lineTo(...b); g.stroke(); };
+    const a = 2.3, H = 96;
+    poly([P(-a - 0.4, a + 0.4, 0), P(a + 0.4, a + 0.4, 0), P(a + 0.4, -a - 0.4, 0), P(a + 1.4, -a, 0), P(a + 1.4, a + 1.4, 0), P(-a, a + 1.4, 0)], 'rgba(0,0,0,0.32)');
+    // 台基
+    poly([P(-a - 0.3, a + 0.3, 0), P(a + 0.3, a + 0.3, 0), P(a + 0.3, a + 0.3, 10), P(-a - 0.3, a + 0.3, 10)], '#8a8680');
+    poly([P(a + 0.3, a + 0.3, 0), P(a + 0.3, -a - 0.3, 0), P(a + 0.3, -a - 0.3, 10), P(a + 0.3, a + 0.3, 10)], '#6a6660');
+    // 大理石牆
+    poly([P(-a, a, 10), P(a, a, 10), P(a, a, H), P(-a, a, H)], '#ece6da', 'rgba(60,50,40,0.5)');
+    poly([P(a, a, 10), P(a, -a, 10), P(a, -a, H), P(a, a, H)], '#c8c0b0', 'rgba(60,50,40,0.5)');
+    for (let z = 22; z < H; z += 14) { line(P(-a, a, z), P(a, a, z), 'rgba(0,0,0,0.06)'); line(P(a, a, z), P(a, -a, z), 'rgba(0,0,0,0.08)'); }
+    // 金色腰線與簷口
+    for (const z of [H * 0.52, H]) { poly([P(-a, a, z - 3), P(a, a, z - 3), P(a, a, z + 2), P(-a, a, z + 2)], '#d8b040'); poly([P(a, a, z - 3), P(a, -a, z - 3), P(a, -a, z + 2), P(a, a, z + 2)], '#b08a20'); }
+    // 柱廊（正面）
+    for (let k = 0; k < 7; k++) {
+      const t = -a + 0.35 + k * (2 * a - 0.7) / 6;
+      poly([P(t - 0.09, a + 0.25, 10), P(t + 0.09, a + 0.25, 10), P(t + 0.09, a + 0.25, H * 0.5), P(t - 0.09, a + 0.25, H * 0.5)], '#f6f2ea', 'rgba(80,70,60,0.35)');
+      poly([P(t - 0.13, a + 0.25, H * 0.5 - 3), P(t + 0.13, a + 0.25, H * 0.5 - 3), P(t + 0.13, a + 0.25, H * 0.5), P(t - 0.13, a + 0.25, H * 0.5)], '#d8b040');
+    }
+    // 正門（拱門、金色門框）
+    poly([P(-0.45, a, 10), P(0.45, a, 10), P(0.45, a, 44), P(-0.45, a, 44)], '#4a1a1a', '#d8b040', 2);
+    { const c = P(0, a, 44); g.fillStyle = '#4a1a1a'; g.beginPath(); g.arc(c[0], c[1], 14, Math.PI, 0); g.fill(); g.strokeStyle = '#d8b040'; g.lineWidth = 2; g.stroke(); g.fillStyle = '#f0d060'; g.beginPath(); g.arc(...P(0.15, a, 26), 2, 0, 7); g.fill(); }
+    // 彩繪玻璃窗
+    const win = (fx, fy, z, side) => {
+      const pts = side ? [P(a, fy - 0.22, z), P(a, fy + 0.22, z), P(a, fy + 0.22, z + 18), P(a, fy - 0.22, z + 18)] : [P(fx - 0.22, a, z), P(fx + 0.22, a, z), P(fx + 0.22, a, z + 18), P(fx - 0.22, a, z + 18)];
+      const gr = g.createLinearGradient(...pts[0], ...pts[2]); gr.addColorStop(0, '#3a6ac0'); gr.addColorStop(0.5, '#e0b040'); gr.addColorStop(1, '#a02030');
+      poly(pts, gr, '#d8b040', 1.5);
+    };
+    for (const fx of [-1.6, -0.9, 0.9, 1.6]) win(fx, 0, H * 0.62, false);
+    for (const fy of [-1.6, -0.6, 0.6, 1.6]) { win(0, fy, H * 0.62, true); win(0, fy, 24, true); }
+    // 屋頂（深藍）
+    poly([P(-a - 0.2, -a - 0.2, H + 2), P(a + 0.2, -a - 0.2, H + 2), P(a + 0.2, a + 0.2, H + 2), P(-a - 0.2, a + 0.2, H + 2)], '#2a3a6a', '#d8b040', 2);
+    // 中央金色圓頂
+    const dc = P(0, 0, H + 2);
+    g.fillStyle = '#e6ded0'; g.fillRect(dc[0] - 34, dc[1] - 30, 68, 30);
+    for (let k = 0; k < 6; k++) { g.fillStyle = '#c8c0b0'; g.fillRect(dc[0] - 32 + k * 12.5, dc[1] - 28, 4, 26); }
+    const dg = g.createRadialGradient(dc[0] - 12, dc[1] - 70, 4, dc[0], dc[1] - 46, 46); dg.addColorStop(0, '#fff6c0'); dg.addColorStop(0.45, '#e0b840'); dg.addColorStop(1, '#8a6010');
+    g.fillStyle = dg; g.beginPath(); g.moveTo(dc[0] - 38, dc[1] - 30); g.quadraticCurveTo(dc[0] - 38, dc[1] - 82, dc[0], dc[1] - 88); g.quadraticCurveTo(dc[0] + 38, dc[1] - 82, dc[0] + 38, dc[1] - 30); g.closePath(); g.fill();
+    g.strokeStyle = 'rgba(120,80,10,0.5)'; g.lineWidth = 1; for (let k = -2; k <= 2; k++) { g.beginPath(); g.moveTo(dc[0] + k * 14, dc[1] - 30); g.quadraticCurveTo(dc[0] + k * 9, dc[1] - 78, dc[0], dc[1] - 88); g.stroke(); }
+    g.fillStyle = '#e0c060'; g.fillRect(dc[0] - 2, dc[1] - 104, 4, 18);
+    g.beginPath(); const ky = dc[1] - 112; g.moveTo(dc[0] - 9, ky + 8); g.lineTo(dc[0] - 9, ky); g.lineTo(dc[0] - 4.5, ky + 4); g.lineTo(dc[0], ky - 4); g.lineTo(dc[0] + 4.5, ky + 4); g.lineTo(dc[0] + 9, ky); g.lineTo(dc[0] + 9, ky + 8); g.closePath(); g.fill();
+    // 兩側尖塔
+    for (const [tx, ty] of [[-a, a], [a, -a], [a, a]]) {
+      const b = P(tx, ty, H), r = 14;
+      g.fillStyle = lg(g, b[0] - r, b[0] + r, '#e6ded0'); g.fillRect(b[0] - r, b[1] - 40, r * 2, 44);
+      g.fillStyle = '#d8b040'; g.fillRect(b[0] - r, b[1] - 42, r * 2, 4);
+      g.fillStyle = '#1a1612'; g.fillRect(b[0] - 3, b[1] - 32, 6, 12);
+      const rg = g.createLinearGradient(b[0] - r, 0, b[0] + r, 0); rg.addColorStop(0, '#1a3a7a'); rg.addColorStop(0.45, '#4a7ad0'); rg.addColorStop(1, '#14285a');
+      g.fillStyle = rg; g.beginPath(); g.moveTo(b[0] - r - 3, b[1] - 42); g.lineTo(b[0], b[1] - 92); g.lineTo(b[0] + r + 3, b[1] - 42); g.closePath(); g.fill();
+      g.strokeStyle = '#d8b040'; g.lineWidth = 2; g.beginPath(); g.moveTo(b[0] - r - 3, b[1] - 42); g.lineTo(b[0] + r + 3, b[1] - 42); g.stroke();
+      flag(g, b[0], b[1] - 90, 22);
+    }
+    // 正門前的階梯與紅毯
+    for (let k = 0; k < 3; k++) poly([P(-0.7, a + 0.3 + k * 0.25, 10 - k * 3.3), P(0.7, a + 0.3 + k * 0.25, 10 - k * 3.3), P(0.7, a + 0.55 + k * 0.25, 10 - k * 3.3), P(-0.7, a + 0.55 + k * 0.25, 10 - k * 3.3)], k % 2 ? '#d8d0c0' : '#c8c0b0');
+    poly([P(-0.35, a + 0.3, 10.5), P(0.35, a + 0.3, 10.5), P(0.35, a + 1.1, 1), P(-0.35, a + 1.1, 1)], '#9a1424');
   });
 }

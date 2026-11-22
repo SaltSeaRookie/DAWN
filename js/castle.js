@@ -103,15 +103,16 @@ Object.assign(UI, {
     document.body.appendChild(box);
     setTimeout(() => fin(false), 25000);
   },
-  openHerald(npc) {
-    this.close('herald');
-    const w = this.win('herald', npc.title, 16, 60, 360);
+  // 城堡管家（城內宮殿前）：稅金、稅率、復活點、城門
+  openSteward(npc) {
+    this.close('steward');
+    const w = this.win('steward', npc.title, 16, 60, 360);
     const p = G.player;
     const row = el('div', 'btnrow');
     const c = castleData();
     if (c) {
       const s = c.stats;
-      w.body.innerHTML = this.dialogHead(npc, '城主大人，灰岩城一切安好。') +
+      w.body.innerHTML = this.dialogHead(npc, pick(['城主大人，今日的帳目已為您整理妥當。', '陛下，國庫一切安好。', '城主大人，各地的稅金都送到了。'])) +
         '<div class="taxbox"><div class="row"><span>目前稅率</span><b>' + Math.round(c.rate * 100) + '%</b></div>' +
         '<div class="row"><span>勇者打怪的金幣</span><b>' + s.kill.toLocaleString() + '</b></div>' +
         '<div class="row"><span>商店交易</span><b>' + s.trade.toLocaleString() + '</b></div>' +
@@ -119,24 +120,43 @@ Object.assign(UI, {
         '<div class="row total"><span>可領取稅金</span><b>' + Math.floor(c.taxAcc).toLocaleString() + '</b></div>' +
         '<div class="row"><span>累計稅收</span><b>' + Math.floor(c.total).toLocaleString() + '</b></div></div>';
       const b = el('button', 'btn', '領取稅金');
-      b.onclick = () => { const t = Math.floor(c.taxAcc); if (!t) return; p.gold += t; c.taxAcc = 0; c.stats = { kill: 0, trade: 0, npc: 0 }; SFX.play('coin'); this.log('領取了 ' + t.toLocaleString() + ' 金幣的稅金。', 'loot'); this.openHerald(npc); this.refresh(); };
+      b.onclick = () => { const t = Math.floor(c.taxAcc); if (!t) return; p.gold += t; c.taxAcc = 0; c.stats = { kill: 0, trade: 0, npc: 0 }; SFX.play('coin'); this.log('領取了 ' + t.toLocaleString() + ' 金幣的稅金。', 'loot'); this.openSteward(npc); this.refresh(); };
       row.appendChild(b);
       w.body.appendChild(row);
       const rates = el('div', 'btnrow');
       rates.appendChild(el('span', 'dim small', '調整稅率：'));
-      for (const r of TAX_RATES) { const rb = el('button', 'btn sm' + (c.rate === r ? ' on' : ''), Math.round(r * 100) + '%'); rb.onclick = () => { c.rate = r; this.log('稅率調整為 ' + Math.round(r * 100) + '%。', 'sys'); this.openHerald(npc); }; rates.appendChild(rb); }
+      for (const r of TAX_RATES) { const rb = el('button', 'btn sm' + (c.rate === r ? ' on' : ''), Math.round(r * 100) + '%'); rb.onclick = () => { c.rate = r; this.log('稅率調整為 ' + Math.round(r * 100) + '%。', 'sys'); this.openSteward(npc); }; rates.appendChild(rb); }
       w.body.appendChild(rates);
       const home = el('button', 'btn', p.homeTown === 'castle' ? '✓ 復活點：灰岩城' : '把復活點設在灰岩城（回村卷軸也能回城）');
-      home.onclick = () => { p.homeTown = p.homeTown === 'castle' ? 'dawn' : 'castle'; this.log(p.homeTown === 'castle' ? '復活點改為灰岩城。' : '復活點改回晨風村。', 'sys'); this.openHerald(npc); };
+      home.onclick = () => { p.homeTown = p.homeTown === 'castle' ? 'dawn' : 'castle'; this.log(p.homeTown === 'castle' ? '復活點改為灰岩城。' : '復活點改回晨風村。', 'sys'); this.openSteward(npc); };
       w.body.appendChild(home);
+      const gm = G.maps.overworld && G.maps.overworld.gate;
+      if (gm) {
+        const gb = el('button', 'btn', gm.broken ? '城門已被攻破' : gm.open ? '🚪 關閉城門' : '🚪 開啟城門');
+        gb.onclick = () => { const e = toggleGate(); if (e) this.log(e, 'warn'); this.openSteward(npc); };
+        w.body.appendChild(gb);
+      }
+      w.body.appendChild(el('div', 'dim small', '城主血盟專屬：城內的地下要塞練功副本、城堡御用商人（祝福卷軸、王家秘藥）、狩獵經驗 +10%、城門守衛保護。稅收來自所有勇者（包含電腦冒險者）打怪掉落的金幣與商店交易。'));
+      w.body.appendChild(el('div', 'npc-text', '🏰 ' + siegeTimeText() + '<br>攻城時間內，其他血盟可能會向灰岩城宣戰，請準備守城！不在城裡時，守軍會替你防守，但有可能失守。'));
+      return;
+    }
+    w.body.innerHTML = this.dialogHead(npc, '我是灰岩城的管家，只為城主效勞。<br>目前的城主是<b>' + esc(castleOwnerName()) + '</b>。若您的血盟拿下這座城，在下必將盡心服侍。');
+  },
+  openHerald(npc) {
+    this.close('herald');
+    const w = this.win('herald', npc.title, 16, 60, 360);
+    const p = G.player;
+    const row = el('div', 'btnrow');
+    const c = castleData();
+    if (c) {
+      w.body.innerHTML = this.dialogHead(npc, '城主大人，城外一切平靜。<br>稅金與城堡事務，請到宮殿前找<b>管家</b>處理。');
       const gm = G.maps.overworld && G.maps.overworld.gate;
       if (gm) {
         const gb = el('button', 'btn', gm.broken ? '城門已被攻破' : gm.open ? '🚪 關閉城門' : '🚪 開啟城門');
         gb.onclick = () => { const e = toggleGate(); if (e) this.log(e, 'warn'); this.openHerald(npc); };
         w.body.appendChild(gb);
       }
-      w.body.appendChild(el('div', 'dim small', '城主血盟專屬：城內的地下要塞練功副本、城堡御用商人（祝福卷軸、王家秘藥）、狩獵經驗 +10%、城門守衛保護。稅收來自所有勇者（包含電腦冒險者）打怪掉落的金幣與商店交易。'));
-      w.body.appendChild(el('div', 'npc-text', '🏰 ' + siegeTimeText() + '<br>攻城時間內，其他血盟可能會向灰岩城宣戰，請準備守城！不在城裡時，守軍會替你防守，但有可能失守。'));
+      w.body.appendChild(el('div', 'npc-text', '🏰 ' + siegeTimeText()));
       w.body.appendChild(this.clanPowers());
       return;
     }

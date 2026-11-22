@@ -138,8 +138,26 @@ function siegeNpcTick(dt) {
   const S = G.siege, m = G.maps.overworld; if (!S || !S.active || !m) return;
   for (const name in (S.npcClans || {})) {
     const e = S.npcClans[name];
-    if (G.t < e.nextT || e.waves >= e.max) continue;
     const alive = m.actors.filter((a) => a.besieger === name && !a.dead).length;
+    // 增援全部用完、場上也沒人了：這一輪被擊退
+    if (e.waves >= e.max && !alive && !e.routedAt) {
+      e.routedAt = G.t; e.rounds = (e.rounds || 1);
+      worldLog('血盟「' + name + '」的攻城軍被擊退了！');
+      if (ownsCastle()) { log('擊退了「' + name + '」的攻勢！但他們可能會重整旗鼓再來。', 'level'); gainExp(400); }
+      // 重整旗鼓：在攻城時間內可能再次進攻（每次攻城時間最多 3 輪）
+      const sc = siegeSchedule();
+      if (e.rounds < 3 && sc.open && S.t > 90 && Math.random() < 0.75) { e.regroupAt = G.t + rand(45, 90); log('📣 「' + name + '」正在城外重整旗鼓…', 'sys'); }
+      continue;
+    }
+    if (e.regroupAt && G.t >= e.regroupAt) {
+      e.regroupAt = 0; e.routedAt = 0; e.rounds++; e.waves = 0;
+      e.c.power = Math.min(12, (e.c.power || 1) + 1);   // 捲土重來時帶了更多人
+      worldLog('血盟「' + name + '」重整旗鼓，第 ' + e.rounds + ' 次進攻灰岩城！');
+      if (ownsCastle()) { SFX.play('roar'); UI.log('⚠ 「' + name + '」又攻過來了！', 'warn'); }
+      spawnBesiegers(e.c, false);
+      continue;
+    }
+    if (e.routedAt || G.t < e.nextT || e.waves >= e.max) continue;
     if (alive < 6) spawnBesiegers(e.c, true); else e.nextT = G.t + 20;
   }
   // 戰場上的喊話
@@ -326,6 +344,9 @@ function updateSiege(dt) {
       }
       const held = ownsCastle();
       endSiege();
+      const sc2 = siegeSchedule();
+      R.windowSieges = R.lastWindow === R.siegeWindow ? (R.windowSieges || 1) + 1 : 2; R.siegeWindow = R.lastWindow;
+      if (sc2.open && sc2.end - Date.now() > 4 * 60000 && R.windowSieges <= 3 && Math.random() < 0.7) later(rand(20, 40), () => { if (!(G.siege && G.siege.active)) { worldLog('攻城時間還沒結束，又有血盟準備攻城了！'); planNpcSiege(); } });
       if (held) { log('攻城戰結束，成功守住了灰岩城！', 'level'); gainExp(1500); addNews('defend', '「' + p.clan.name + '」守住了灰岩城'); }
       else if (s.playerAtk) log('攻城戰時間結束，未能攻下灰岩城。', 'warn');
       else { worldLog('攻城戰結束，「' + castleOwnerName() + '」守住了灰岩城。'); addNews('defend', '「' + castleOwnerName() + '」守住了灰岩城'); }
